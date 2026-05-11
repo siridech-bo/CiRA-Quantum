@@ -1,0 +1,64 @@
+[project]
+name = "cira-quantum-backend"
+version = "0.1.0"
+description = "CiRA Quantum — GPU simulated annealing sampler (Phase 1)"
+requires-python = ">=3.12"
+readme = "README.md"
+
+# Torch is intentionally not declared here because it must be installed
+# from the cu128 wheel index. See README for the install command.
+#
+# Triton is required by `torch.compile` (the kernel="compile" path in
+# `gpu_sa.py`). On Linux the official `triton` PyPI package works; on
+# Windows the official upstream does not ship wheels, so we use the
+# community-maintained `triton-windows` build instead. Markers select
+# the right one per platform automatically.
+dependencies = [
+    "dimod>=0.12,<0.13",
+    "dwave-samplers>=1.2,<2.0",
+    "numpy>=1.26,<3.0",
+    "triton>=3.0; platform_system != 'Windows'",
+    "triton-windows>=3.0; platform_system == 'Windows'",
+    # Phase 3 — formulation provider layer.
+    "httpx>=0.27,<1.0",
+    "jsonschema>=4.20,<5.0",
+    "cryptography>=42,<47",
+    # Phase 0 — Flask shell.
+    "flask>=3.0,<4.0",
+    "flask-cors>=4.0,<7.0",
+    "werkzeug>=3.0,<4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4,<9.0",
+    "pytest-asyncio>=0.23,<2.0",
+    "pytest-httpx>=0.30,<1.0",
+    "ruff>=0.5,<1.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["tests/instances"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # line length is enforced via formatter, not lint
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

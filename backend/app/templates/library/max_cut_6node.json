@@ -1,0 +1,36 @@
+{
+  "id": "max_cut_6node",
+  "title": "Max-Cut on a 6-Node Graph",
+  "category": "graph",
+  "difficulty": "beginner",
+  "tags": ["spin", "quadratic", "unconstrained"],
+  "summary": "Partition a graph's nodes into two groups to maximize the number of edges crossing between them.",
+  "problem_statement": "I have a graph with 6 nodes labeled 0 through 5 and edges: (0,1), (0,2), (1,3), (2,3), (2,4), (3,5), (4,5). Partition the nodes into two groups so that the number of edges crossing between the groups is maximized. Tell me which nodes go in each group.",
+  "real_world_example": "Designing a two-team tournament so as many rivalries as possible are between teams (not within). Or partitioning a circuit into two chips to minimize cross-chip wires (the dual problem).",
+  "expected_pattern": {
+    "variables": "s_i in {-1, +1} — which group node i belongs to",
+    "objective": "maximize sum over edges (i,j) of (1 - s_i * s_j) / 2",
+    "constraints": "none — pure quadratic objective"
+  },
+  "expected_optimum": 7,
+  "expected_solution_summary": "The graph is bipartite — Group A = {0, 3, 4}, Group B = {1, 2, 5} cuts all 7 edges.",
+  "learning_notes": "Max-Cut is the textbook example of a quadratic-objective, constraint-free QUBO. It maps directly into Ising form. The 'group A vs group B' symmetry means there are always at least two equivalent optima — the solver may give you either.",
+  "estimated_solve_time_seconds": 1,
+  "min_solver_tier": "gpu_sa",
+  "module": {
+    "module_id": "qubo_foundations",
+    "lesson_id": "graph_objective_no_constraints",
+    "order": 4,
+    "learning_objectives": [
+      "See an Ising / QUBO that has zero constraints — the structure is in the quadratic objective",
+      "Map a graph problem onto pairwise spin couplings",
+      "Notice that symmetric problems have symmetric optimal sets (≥2 equivalent answers)"
+    ],
+    "prerequisites": ["number_partitioning"],
+    "assessment_hooks": {
+      "expected_optimum": 7,
+      "feasibility_required": false,
+      "minimum_solvers_must_agree": 2
+    }
+  }
+}

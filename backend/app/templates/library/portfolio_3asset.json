@@ -1,0 +1,20 @@
+{
+  "id": "portfolio_3asset",
+  "title": "Portfolio Selection (3 assets, Markowitz)",
+  "category": "finance",
+  "difficulty": "advanced",
+  "tags": ["binary", "quadratic-objective", "budget", "risk-return"],
+  "summary": "Pick a subset of assets to maximize expected return minus a risk penalty, subject to a budget.",
+  "problem_statement": "I have 3 assets with expected returns [0.10, 0.07, 0.12] and a 3×3 covariance matrix Σ = [[0.04, 0.01, 0.02], [0.01, 0.03, 0.005], [0.02, 0.005, 0.05]]. Pick a subset of assets (each asset is either fully in or fully out — binary selection). The objective is to maximize E[return] minus a risk penalty (λ = 1.0) times the portfolio variance. Pick at most 2 of the 3 assets.",
+  "real_world_example": "A retail investor with a small portfolio choosing which of a short list of funds to hold, given the trade-off between expected return and volatility. The real Markowitz problem allows fractional weights; the binary version asks 'which assets do I include at all?'.",
+  "expected_pattern": {
+    "variables": "x_i in {0, 1} — whether asset i is included",
+    "objective": "maximize sum(return_i * x_i) - λ * sum_{i,j} σ_{ij} * x_i * x_j",
+    "constraints": "sum(x_i) <= 2 (budget); optionally sum(x_i) >= 1 to force a non-empty portfolio"
+  },
+  "expected_optimum": 0.155,
+  "expected_solution_summary": "Pick assets 1 and 3 (highest returns with modest covariance). Return = 0.10 + 0.12 = 0.22; variance = 0.04 + 0.05 + 2*0.02 = 0.13; objective ≈ 0.22 − 0.065 ≈ 0.155. Other 2-asset subsets give lower objectives.",
+  "learning_notes": "Portfolio selection is the textbook 'quadratic objective with budget' problem. The covariance matrix enters the objective as a quadratic form — exactly the shape QUBO solvers were built for. The binary-selection variant is a simplification; the continuous-weight version (Markowitz proper) needs a different solver. Real portfolio teams care about *both* the binary 'which assets even appear' question and the continuous 'what weight does each get'; the binary form is the screening pass.",
+  "estimated_solve_time_seconds": 2,
+  "min_solver_tier": "gpu_sa"
+}

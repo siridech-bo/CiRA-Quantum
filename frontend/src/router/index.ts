@@ -1,0 +1,59 @@
+import {
+  createRouter,
+  createWebHistory,
+  type NavigationGuardWithThis,
+  type RouteRecordRaw,
+} from 'vue-router'
+import LoginPage from '@/views/LoginPage.vue'
+import SignupPage from '@/views/SignupPage.vue'
+import MainApp from '@/views/MainApp.vue'
+import JobDetailPage from '@/views/JobDetailPage.vue'
+import TemplateGalleryPage from '@/views/TemplateGalleryPage.vue'
+import { useAuthStore } from '@/stores/auth'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    requiresGuest?: boolean
+    requiresAdmin?: boolean
+  }
+}
+
+const routes: RouteRecordRaw[] = [
+  { path: '/login', component: LoginPage, meta: { requiresGuest: true } },
+  { path: '/signup', component: SignupPage, meta: { requiresGuest: true } },
+  { path: '/', component: MainApp, meta: { requiresAuth: true } },
+  { path: '/jobs/:id', component: JobDetailPage, meta: { requiresAuth: true } },
+  { path: '/templates', component: TemplateGalleryPage, meta: { requiresAuth: true } },
+  // Phase 5C (/benchmarks) and Phase 7 (/admin) bolt on here.
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
+
+const guard: NavigationGuardWithThis<undefined> = async (to) => {
+  const auth = useAuthStore()
+
+  // The first navigation may race the App.vue onBeforeMount checkAuth() call;
+  // wait for it here too so guards don't see a stale unauth'd state.
+  if (!auth.bootstrapped) {
+    await auth.checkAuth()
+  }
+
+  if (to.meta.requiresAuth && !auth.user) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresGuest && auth.user) {
+    return { path: '/' }
+  }
+  if (to.meta.requiresAdmin && auth.user?.role !== 'admin') {
+    return { path: '/' }
+  }
+  return true
+}
+
+router.beforeEach(guard)
+
+export default router

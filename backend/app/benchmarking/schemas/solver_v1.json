@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Solver identity (v1)",
+  "description": "Identity card for a registered solver tier. The combination of (name, version, source) uniquely identifies a solver across the platform's archive.",
+  "type": "object",
+  "required": ["name", "version", "source", "parameter_schema"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Stable identifier (e.g. 'gpu_sa', 'cpu_sa_neal', 'exact_cqm')."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semver-or-equivalent version of this solver's implementation."
+    },
+    "source": {
+      "type": "string",
+      "description": "Origin package or library (e.g. 'cira-quantum', 'dwave-samplers', 'dimod')."
+    },
+    "hardware": {
+      "type": ["string", "null"],
+      "description": "Target hardware identifier or null for hardware-agnostic / exact solvers (e.g. 'cuda:0:rtx5070ti', 'cpu')."
+    },
+    "parameter_schema": {
+      "type": "object",
+      "description": "JSON-schema-style description of accepted sample()-time keyword arguments."
+    }
+  }
+}

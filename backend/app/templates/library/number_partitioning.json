@@ -1,0 +1,36 @@
+{
+  "id": "number_partitioning",
+  "title": "Number Partitioning",
+  "category": "logic",
+  "difficulty": "beginner",
+  "tags": ["spin", "balance", "unconstrained"],
+  "summary": "Split a list of numbers into two groups whose sums are as close as possible.",
+  "problem_statement": "I have a set of 8 positive numbers: [3, 1, 1, 2, 2, 1, 5, 9]. Split them into two groups so the absolute difference between the two group sums is as small as possible. Tell me which numbers go in each group.",
+  "real_world_example": "Dividing a list of tasks between two workers so each finishes at roughly the same time, or splitting items between two delivery trucks so the loads balance.",
+  "expected_pattern": {
+    "variables": "s_i in {-1, +1} — which group number i belongs to",
+    "objective": "minimize (sum_i n_i * s_i)^2",
+    "constraints": "none — the squared imbalance is the entire objective"
+  },
+  "expected_optimum": 0,
+  "expected_solution_summary": "A perfect split exists: {9, 1, 2} (sum 12) vs {5, 3, 1, 2, 1} (sum 12). Difference = 0.",
+  "learning_notes": "Number partitioning is the textbook 'pure Ising' problem: spin variables, quadratic objective, no constraints. The squared imbalance expands to a quadratic form over the spins. The same shape appears in graph max-cut and clustering.",
+  "estimated_solve_time_seconds": 1,
+  "min_solver_tier": "gpu_sa",
+  "module": {
+    "module_id": "qubo_foundations",
+    "lesson_id": "spin_variables_quadratic_objective",
+    "order": 2,
+    "learning_objectives": [
+      "Distinguish spin (±1) variables from binary (0/1) and know when to use each",
+      "Recognize that a squared-difference objective expands into a QUBO",
+      "Notice that 'no explicit constraints' doesn't mean 'trivial' — the objective itself encodes the structure"
+    ],
+    "prerequisites": ["knapsack_classic"],
+    "assessment_hooks": {
+      "expected_optimum": 0,
+      "feasibility_required": false,
+      "minimum_solvers_must_agree": 2
+    }
+  }
+}

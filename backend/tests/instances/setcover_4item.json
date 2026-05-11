@@ -1,0 +1,49 @@
+{
+  "version": "1",
+  "description": "Set cover: cover universe {a, b, c, d} using minimum sets from S1={a,b}, S2={b,c}, S3={c,d}, S4={a,d}.",
+  "variables": [
+    { "name": "x_1", "type": "binary", "description": "Set S1 = {a,b} selected" },
+    { "name": "x_2", "type": "binary", "description": "Set S2 = {b,c} selected" },
+    { "name": "x_3", "type": "binary", "description": "Set S3 = {c,d} selected" },
+    { "name": "x_4", "type": "binary", "description": "Set S4 = {a,d} selected" }
+  ],
+  "objective": {
+    "sense": "minimize",
+    "linear": { "x_1": 1, "x_2": 1, "x_3": 1, "x_4": 1 },
+    "quadratic": {}
+  },
+  "constraints": [
+    {
+      "label": "cover_a",
+      "type": "inequality_ge",
+      "linear": { "x_1": 1, "x_4": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "cover_b",
+      "type": "inequality_ge",
+      "linear": { "x_1": 1, "x_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "cover_c",
+      "type": "inequality_ge",
+      "linear": { "x_2": 1, "x_3": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "cover_d",
+      "type": "inequality_ge",
+      "linear": { "x_3": 1, "x_4": 1 },
+      "quadratic": {},
+      "rhs": 1
+    }
+  ],
+  "test_instance": {
+    "description": "Optimum: select {S1, S3} (or {S2, S4}) for cost 2 — both partitions cover all four elements with two sets.",
+    "expected_optimum": 2
+  }
+}

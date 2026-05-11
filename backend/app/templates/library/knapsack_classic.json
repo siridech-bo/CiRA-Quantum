@@ -1,0 +1,36 @@
+{
+  "id": "knapsack_classic",
+  "title": "0/1 Knapsack Problem",
+  "category": "allocation",
+  "difficulty": "beginner",
+  "tags": ["binary", "linear", "single-constraint"],
+  "summary": "Pack items into a knapsack without exceeding capacity, maximizing total value.",
+  "problem_statement": "I have 5 items with weights [2, 3, 4, 5, 9] and values [3, 4, 5, 8, 10]. My knapsack can hold at most 20 units of weight. Which items should I pack to maximize total value?",
+  "real_world_example": "A delivery driver deciding which packages to load given a vehicle weight limit, or a hiker choosing supplies for a trip with a backpack capacity.",
+  "expected_pattern": {
+    "variables": "x_i in {0, 1} — whether item i is selected",
+    "objective": "maximize sum(value_i * x_i)",
+    "constraints": "sum(weight_i * x_i) <= 20"
+  },
+  "expected_optimum": 26,
+  "expected_solution_summary": "Items 0, 2, 3, 4 are packed (total weight 20, total value 26).",
+  "learning_notes": "The canonical 'select a subset under a budget' QUBO. The capacity constraint becomes a Lagrange penalty in the BQM. You'll see this same shape in: portfolio selection, feature selection, resource allocation.",
+  "estimated_solve_time_seconds": 1,
+  "min_solver_tier": "gpu_sa",
+  "module": {
+    "module_id": "qubo_foundations",
+    "lesson_id": "binary_selection_with_capacity",
+    "order": 1,
+    "learning_objectives": [
+      "Recognize the binary-selection-under-budget pattern",
+      "Translate a verbal capacity constraint into a Lagrange penalty term",
+      "Compare exact and heuristic solver behavior on a single small problem"
+    ],
+    "prerequisites": [],
+    "assessment_hooks": {
+      "expected_optimum": 26,
+      "feasibility_required": true,
+      "minimum_solvers_must_agree": 2
+    }
+  }
+}

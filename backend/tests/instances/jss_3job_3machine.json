@@ -1,0 +1,422 @@
+{
+  "version": "1",
+  "description": "Job-Shop Scheduling, 3 jobs x 3 machines (A,B,C in fixed order). Durations: J1=(3,2,2), J2=(2,1,4), J3=(4,3,1). Disjunctive big-M encoding with M=15. Optimum makespan = 11.",
+  "variables": [
+    {
+      "name": "start_1_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 1 on machine A"
+    },
+    {
+      "name": "start_1_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 1 on machine B"
+    },
+    {
+      "name": "start_1_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 1 on machine C"
+    },
+    {
+      "name": "start_2_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 2 on machine A"
+    },
+    {
+      "name": "start_2_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 2 on machine B"
+    },
+    {
+      "name": "start_2_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 2 on machine C"
+    },
+    {
+      "name": "start_3_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 3 on machine A"
+    },
+    {
+      "name": "start_3_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 3 on machine B"
+    },
+    {
+      "name": "start_3_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Start time of job 3 on machine C"
+    },
+    {
+      "name": "y_1_2_A",
+      "type": "binary",
+      "description": "On machine A, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_2_B",
+      "type": "binary",
+      "description": "On machine B, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_2_C",
+      "type": "binary",
+      "description": "On machine C, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_3_A",
+      "type": "binary",
+      "description": "On machine A, job 1 precedes job 3"
+    },
+    {
+      "name": "y_1_3_B",
+      "type": "binary",
+      "description": "On machine B, job 1 precedes job 3"
+    },
+    {
+      "name": "y_1_3_C",
+      "type": "binary",
+      "description": "On machine C, job 1 precedes job 3"
+    },
+    {
+      "name": "y_2_3_A",
+      "type": "binary",
+      "description": "On machine A, job 2 precedes job 3"
+    },
+    {
+      "name": "y_2_3_B",
+      "type": "binary",
+      "description": "On machine B, job 2 precedes job 3"
+    },
+    {
+      "name": "y_2_3_C",
+      "type": "binary",
+      "description": "On machine C, job 2 precedes job 3"
+    },
+    {
+      "name": "makespan",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 11,
+      "description": "Time at which the last job finishes machine C"
+    }
+  ],
+  "objective": {
+    "sense": "minimize",
+    "linear": {
+      "makespan": 1
+    },
+    "quadratic": {}
+  },
+  "constraints": [
+    {
+      "label": "prec_1_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_1_B": 1,
+        "start_1_A": -1
+      },
+      "quadratic": {},
+      "rhs": 3
+    },
+    {
+      "label": "prec_1_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_1_C": 1,
+        "start_1_B": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "prec_2_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_2_B": 1,
+        "start_2_A": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "prec_2_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_2_C": 1,
+        "start_2_B": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_3_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_3_B": 1,
+        "start_3_A": -1
+      },
+      "quadratic": {},
+      "rhs": 4
+    },
+    {
+      "label": "prec_3_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_3_C": 1,
+        "start_3_B": -1
+      },
+      "quadratic": {},
+      "rhs": 3
+    },
+    {
+      "label": "nooverlap_1_2_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_A": 1,
+        "start_2_A": -1,
+        "y_1_2_A": 15
+      },
+      "quadratic": {},
+      "rhs": 12
+    },
+    {
+      "label": "nooverlap_1_2_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_A": 1,
+        "start_1_A": -1,
+        "y_1_2_A": -15
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_1_2_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_B": 1,
+        "start_2_B": -1,
+        "y_1_2_B": 15
+      },
+      "quadratic": {},
+      "rhs": 13
+    },
+    {
+      "label": "nooverlap_1_2_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_B": 1,
+        "start_1_B": -1,
+        "y_1_2_B": -15
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_2_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_C": 1,
+        "start_2_C": -1,
+        "y_1_2_C": 15
+      },
+      "quadratic": {},
+      "rhs": 13
+    },
+    {
+      "label": "nooverlap_1_2_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_C": 1,
+        "start_1_C": -1,
+        "y_1_2_C": -15
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_1_3_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_A": 1,
+        "start_3_A": -1,
+        "y_1_3_A": 15
+      },
+      "quadratic": {},
+      "rhs": 12
+    },
+    {
+      "label": "nooverlap_1_3_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_A": 1,
+        "start_1_A": -1,
+        "y_1_3_A": -15
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_1_3_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_B": 1,
+        "start_3_B": -1,
+        "y_1_3_B": 15
+      },
+      "quadratic": {},
+      "rhs": 13
+    },
+    {
+      "label": "nooverlap_1_3_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_B": 1,
+        "start_1_B": -1,
+        "y_1_3_B": -15
+      },
+      "quadratic": {},
+      "rhs": -3
+    },
+    {
+      "label": "nooverlap_1_3_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_C": 1,
+        "start_3_C": -1,
+        "y_1_3_C": 15
+      },
+      "quadratic": {},
+      "rhs": 13
+    },
+    {
+      "label": "nooverlap_1_3_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_C": 1,
+        "start_1_C": -1,
+        "y_1_3_C": -15
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_3_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_A": 1,
+        "start_3_A": -1,
+        "y_2_3_A": 15
+      },
+      "quadratic": {},
+      "rhs": 13
+    },
+    {
+      "label": "nooverlap_2_3_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_A": 1,
+        "start_2_A": -1,
+        "y_2_3_A": -15
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_2_3_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_B": 1,
+        "start_3_B": -1,
+        "y_2_3_B": 15
+      },
+      "quadratic": {},
+      "rhs": 14
+    },
+    {
+      "label": "nooverlap_2_3_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_B": 1,
+        "start_2_B": -1,
+        "y_2_3_B": -15
+      },
+      "quadratic": {},
+      "rhs": -3
+    },
+    {
+      "label": "nooverlap_2_3_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_C": 1,
+        "start_3_C": -1,
+        "y_2_3_C": 15
+      },
+      "quadratic": {},
+      "rhs": 11
+    },
+    {
+      "label": "nooverlap_2_3_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_C": 1,
+        "start_2_C": -1,
+        "y_2_3_C": -15
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "makespan_1",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_1_C": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "makespan_2",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_2_C": -1
+      },
+      "quadratic": {},
+      "rhs": 4
+    },
+    {
+      "label": "makespan_3",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_3_C": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    }
+  ],
+  "test_instance": {
+    "description": "Optimal makespan = 11 (e.g., J2 first on A, then J1, then J3; matching permutations on B and C respect precedence). Encoding has 19 variables, above the default ExactCQMSolver oracle ceiling \u2014 Layer A is skipped.",
+    "expected_optimum": 11
+  }
+}

@@ -1,0 +1,1801 @@
+{
+  "version": "1",
+  "description": "Job-Shop Scheduling, 5 jobs x 5 machines (random durations 1..4, seed=7). Disjunctive big-M encoding with M=53, T_max=49. Optimum unknown without specialized solver; flag as best-known unknown.",
+  "variables": [
+    {
+      "name": "start_1_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 1 on machine A"
+    },
+    {
+      "name": "start_1_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 1 on machine B"
+    },
+    {
+      "name": "start_1_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 1 on machine C"
+    },
+    {
+      "name": "start_1_D",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 1 on machine D"
+    },
+    {
+      "name": "start_1_E",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 1 on machine E"
+    },
+    {
+      "name": "start_2_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 2 on machine A"
+    },
+    {
+      "name": "start_2_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 2 on machine B"
+    },
+    {
+      "name": "start_2_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 2 on machine C"
+    },
+    {
+      "name": "start_2_D",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 2 on machine D"
+    },
+    {
+      "name": "start_2_E",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 2 on machine E"
+    },
+    {
+      "name": "start_3_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 3 on machine A"
+    },
+    {
+      "name": "start_3_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 3 on machine B"
+    },
+    {
+      "name": "start_3_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 3 on machine C"
+    },
+    {
+      "name": "start_3_D",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 3 on machine D"
+    },
+    {
+      "name": "start_3_E",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 3 on machine E"
+    },
+    {
+      "name": "start_4_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 4 on machine A"
+    },
+    {
+      "name": "start_4_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 4 on machine B"
+    },
+    {
+      "name": "start_4_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 4 on machine C"
+    },
+    {
+      "name": "start_4_D",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 4 on machine D"
+    },
+    {
+      "name": "start_4_E",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 4 on machine E"
+    },
+    {
+      "name": "start_5_A",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 5 on machine A"
+    },
+    {
+      "name": "start_5_B",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 5 on machine B"
+    },
+    {
+      "name": "start_5_C",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 5 on machine C"
+    },
+    {
+      "name": "start_5_D",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 5 on machine D"
+    },
+    {
+      "name": "start_5_E",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Start time of job 5 on machine E"
+    },
+    {
+      "name": "y_1_2_A",
+      "type": "binary",
+      "description": "On machine A, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_2_B",
+      "type": "binary",
+      "description": "On machine B, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_2_C",
+      "type": "binary",
+      "description": "On machine C, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_2_D",
+      "type": "binary",
+      "description": "On machine D, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_2_E",
+      "type": "binary",
+      "description": "On machine E, job 1 precedes job 2"
+    },
+    {
+      "name": "y_1_3_A",
+      "type": "binary",
+      "description": "On machine A, job 1 precedes job 3"
+    },
+    {
+      "name": "y_1_3_B",
+      "type": "binary",
+      "description": "On machine B, job 1 precedes job 3"
+    },
+    {
+      "name": "y_1_3_C",
+      "type": "binary",
+      "description": "On machine C, job 1 precedes job 3"
+    },
+    {
+      "name": "y_1_3_D",
+      "type": "binary",
+      "description": "On machine D, job 1 precedes job 3"
+    },
+    {
+      "name": "y_1_3_E",
+      "type": "binary",
+      "description": "On machine E, job 1 precedes job 3"
+    },
+    {
+      "name": "y_1_4_A",
+      "type": "binary",
+      "description": "On machine A, job 1 precedes job 4"
+    },
+    {
+      "name": "y_1_4_B",
+      "type": "binary",
+      "description": "On machine B, job 1 precedes job 4"
+    },
+    {
+      "name": "y_1_4_C",
+      "type": "binary",
+      "description": "On machine C, job 1 precedes job 4"
+    },
+    {
+      "name": "y_1_4_D",
+      "type": "binary",
+      "description": "On machine D, job 1 precedes job 4"
+    },
+    {
+      "name": "y_1_4_E",
+      "type": "binary",
+      "description": "On machine E, job 1 precedes job 4"
+    },
+    {
+      "name": "y_1_5_A",
+      "type": "binary",
+      "description": "On machine A, job 1 precedes job 5"
+    },
+    {
+      "name": "y_1_5_B",
+      "type": "binary",
+      "description": "On machine B, job 1 precedes job 5"
+    },
+    {
+      "name": "y_1_5_C",
+      "type": "binary",
+      "description": "On machine C, job 1 precedes job 5"
+    },
+    {
+      "name": "y_1_5_D",
+      "type": "binary",
+      "description": "On machine D, job 1 precedes job 5"
+    },
+    {
+      "name": "y_1_5_E",
+      "type": "binary",
+      "description": "On machine E, job 1 precedes job 5"
+    },
+    {
+      "name": "y_2_3_A",
+      "type": "binary",
+      "description": "On machine A, job 2 precedes job 3"
+    },
+    {
+      "name": "y_2_3_B",
+      "type": "binary",
+      "description": "On machine B, job 2 precedes job 3"
+    },
+    {
+      "name": "y_2_3_C",
+      "type": "binary",
+      "description": "On machine C, job 2 precedes job 3"
+    },
+    {
+      "name": "y_2_3_D",
+      "type": "binary",
+      "description": "On machine D, job 2 precedes job 3"
+    },
+    {
+      "name": "y_2_3_E",
+      "type": "binary",
+      "description": "On machine E, job 2 precedes job 3"
+    },
+    {
+      "name": "y_2_4_A",
+      "type": "binary",
+      "description": "On machine A, job 2 precedes job 4"
+    },
+    {
+      "name": "y_2_4_B",
+      "type": "binary",
+      "description": "On machine B, job 2 precedes job 4"
+    },
+    {
+      "name": "y_2_4_C",
+      "type": "binary",
+      "description": "On machine C, job 2 precedes job 4"
+    },
+    {
+      "name": "y_2_4_D",
+      "type": "binary",
+      "description": "On machine D, job 2 precedes job 4"
+    },
+    {
+      "name": "y_2_4_E",
+      "type": "binary",
+      "description": "On machine E, job 2 precedes job 4"
+    },
+    {
+      "name": "y_2_5_A",
+      "type": "binary",
+      "description": "On machine A, job 2 precedes job 5"
+    },
+    {
+      "name": "y_2_5_B",
+      "type": "binary",
+      "description": "On machine B, job 2 precedes job 5"
+    },
+    {
+      "name": "y_2_5_C",
+      "type": "binary",
+      "description": "On machine C, job 2 precedes job 5"
+    },
+    {
+      "name": "y_2_5_D",
+      "type": "binary",
+      "description": "On machine D, job 2 precedes job 5"
+    },
+    {
+      "name": "y_2_5_E",
+      "type": "binary",
+      "description": "On machine E, job 2 precedes job 5"
+    },
+    {
+      "name": "y_3_4_A",
+      "type": "binary",
+      "description": "On machine A, job 3 precedes job 4"
+    },
+    {
+      "name": "y_3_4_B",
+      "type": "binary",
+      "description": "On machine B, job 3 precedes job 4"
+    },
+    {
+      "name": "y_3_4_C",
+      "type": "binary",
+      "description": "On machine C, job 3 precedes job 4"
+    },
+    {
+      "name": "y_3_4_D",
+      "type": "binary",
+      "description": "On machine D, job 3 precedes job 4"
+    },
+    {
+      "name": "y_3_4_E",
+      "type": "binary",
+      "description": "On machine E, job 3 precedes job 4"
+    },
+    {
+      "name": "y_3_5_A",
+      "type": "binary",
+      "description": "On machine A, job 3 precedes job 5"
+    },
+    {
+      "name": "y_3_5_B",
+      "type": "binary",
+      "description": "On machine B, job 3 precedes job 5"
+    },
+    {
+      "name": "y_3_5_C",
+      "type": "binary",
+      "description": "On machine C, job 3 precedes job 5"
+    },
+    {
+      "name": "y_3_5_D",
+      "type": "binary",
+      "description": "On machine D, job 3 precedes job 5"
+    },
+    {
+      "name": "y_3_5_E",
+      "type": "binary",
+      "description": "On machine E, job 3 precedes job 5"
+    },
+    {
+      "name": "y_4_5_A",
+      "type": "binary",
+      "description": "On machine A, job 4 precedes job 5"
+    },
+    {
+      "name": "y_4_5_B",
+      "type": "binary",
+      "description": "On machine B, job 4 precedes job 5"
+    },
+    {
+      "name": "y_4_5_C",
+      "type": "binary",
+      "description": "On machine C, job 4 precedes job 5"
+    },
+    {
+      "name": "y_4_5_D",
+      "type": "binary",
+      "description": "On machine D, job 4 precedes job 5"
+    },
+    {
+      "name": "y_4_5_E",
+      "type": "binary",
+      "description": "On machine E, job 4 precedes job 5"
+    },
+    {
+      "name": "makespan",
+      "type": "integer",
+      "lower_bound": 0,
+      "upper_bound": 49,
+      "description": "Time at which the last job finishes the last machine"
+    }
+  ],
+  "objective": {
+    "sense": "minimize",
+    "linear": {
+      "makespan": 1
+    },
+    "quadratic": {}
+  },
+  "constraints": [
+    {
+      "label": "prec_1_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_1_B": 1,
+        "start_1_A": -1
+      },
+      "quadratic": {},
+      "rhs": 3
+    },
+    {
+      "label": "prec_1_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_1_C": 1,
+        "start_1_B": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "prec_1_C_D",
+      "type": "inequality_ge",
+      "linear": {
+        "start_1_D": 1,
+        "start_1_C": -1
+      },
+      "quadratic": {},
+      "rhs": 4
+    },
+    {
+      "label": "prec_1_D_E",
+      "type": "inequality_ge",
+      "linear": {
+        "start_1_E": 1,
+        "start_1_D": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_2_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_2_B": 1,
+        "start_2_A": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_2_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_2_C": 1,
+        "start_2_B": -1
+      },
+      "quadratic": {},
+      "rhs": 3
+    },
+    {
+      "label": "prec_2_C_D",
+      "type": "inequality_ge",
+      "linear": {
+        "start_2_D": 1,
+        "start_2_C": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_2_D_E",
+      "type": "inequality_ge",
+      "linear": {
+        "start_2_E": 1,
+        "start_2_D": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "prec_3_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_3_B": 1,
+        "start_3_A": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_3_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_3_C": 1,
+        "start_3_B": -1
+      },
+      "quadratic": {},
+      "rhs": 4
+    },
+    {
+      "label": "prec_3_C_D",
+      "type": "inequality_ge",
+      "linear": {
+        "start_3_D": 1,
+        "start_3_C": -1
+      },
+      "quadratic": {},
+      "rhs": 4
+    },
+    {
+      "label": "prec_3_D_E",
+      "type": "inequality_ge",
+      "linear": {
+        "start_3_E": 1,
+        "start_3_D": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_4_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_4_B": 1,
+        "start_4_A": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_4_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_4_C": 1,
+        "start_4_B": -1
+      },
+      "quadratic": {},
+      "rhs": 4
+    },
+    {
+      "label": "prec_4_C_D",
+      "type": "inequality_ge",
+      "linear": {
+        "start_4_D": 1,
+        "start_4_C": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_4_D_E",
+      "type": "inequality_ge",
+      "linear": {
+        "start_4_E": 1,
+        "start_4_D": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_5_A_B",
+      "type": "inequality_ge",
+      "linear": {
+        "start_5_B": 1,
+        "start_5_A": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_5_B_C",
+      "type": "inequality_ge",
+      "linear": {
+        "start_5_C": 1,
+        "start_5_B": -1
+      },
+      "quadratic": {},
+      "rhs": 4
+    },
+    {
+      "label": "prec_5_C_D",
+      "type": "inequality_ge",
+      "linear": {
+        "start_5_D": 1,
+        "start_5_C": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "prec_5_D_E",
+      "type": "inequality_ge",
+      "linear": {
+        "start_5_E": 1,
+        "start_5_D": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "nooverlap_1_2_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_A": 1,
+        "start_2_A": -1,
+        "y_1_2_A": 53
+      },
+      "quadratic": {},
+      "rhs": 50
+    },
+    {
+      "label": "nooverlap_1_2_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_A": 1,
+        "start_1_A": -1,
+        "y_1_2_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_2_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_B": 1,
+        "start_2_B": -1,
+        "y_1_2_B": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_1_2_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_B": 1,
+        "start_1_B": -1,
+        "y_1_2_B": -53
+      },
+      "quadratic": {},
+      "rhs": -3
+    },
+    {
+      "label": "nooverlap_1_2_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_C": 1,
+        "start_2_C": -1,
+        "y_1_2_C": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_1_2_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_C": 1,
+        "start_1_C": -1,
+        "y_1_2_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_2_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_D": 1,
+        "start_2_D": -1,
+        "y_1_2_D": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_2_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_D": 1,
+        "start_1_D": -1,
+        "y_1_2_D": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_1_2_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_E": 1,
+        "start_2_E": -1,
+        "y_1_2_E": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_2_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_E": 1,
+        "start_1_E": -1,
+        "y_1_2_E": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_3_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_A": 1,
+        "start_3_A": -1,
+        "y_1_3_A": 53
+      },
+      "quadratic": {},
+      "rhs": 50
+    },
+    {
+      "label": "nooverlap_1_3_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_A": 1,
+        "start_1_A": -1,
+        "y_1_3_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_3_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_B": 1,
+        "start_3_B": -1,
+        "y_1_3_B": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_1_3_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_B": 1,
+        "start_1_B": -1,
+        "y_1_3_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_1_3_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_C": 1,
+        "start_3_C": -1,
+        "y_1_3_C": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_1_3_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_C": 1,
+        "start_1_C": -1,
+        "y_1_3_C": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_1_3_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_D": 1,
+        "start_3_D": -1,
+        "y_1_3_D": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_3_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_D": 1,
+        "start_1_D": -1,
+        "y_1_3_D": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_3_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_E": 1,
+        "start_3_E": -1,
+        "y_1_3_E": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_3_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_E": 1,
+        "start_1_E": -1,
+        "y_1_3_E": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_1_4_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_A": 1,
+        "start_4_A": -1,
+        "y_1_4_A": 53
+      },
+      "quadratic": {},
+      "rhs": 50
+    },
+    {
+      "label": "nooverlap_1_4_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_A": 1,
+        "start_1_A": -1,
+        "y_1_4_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_4_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_B": 1,
+        "start_4_B": -1,
+        "y_1_4_B": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_1_4_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_B": 1,
+        "start_1_B": -1,
+        "y_1_4_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_1_4_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_C": 1,
+        "start_4_C": -1,
+        "y_1_4_C": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_1_4_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_C": 1,
+        "start_1_C": -1,
+        "y_1_4_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_4_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_D": 1,
+        "start_4_D": -1,
+        "y_1_4_D": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_4_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_D": 1,
+        "start_1_D": -1,
+        "y_1_4_D": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_4_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_E": 1,
+        "start_4_E": -1,
+        "y_1_4_E": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_4_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_E": 1,
+        "start_1_E": -1,
+        "y_1_4_E": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_1_5_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_A": 1,
+        "start_5_A": -1,
+        "y_1_5_A": 53
+      },
+      "quadratic": {},
+      "rhs": 50
+    },
+    {
+      "label": "nooverlap_1_5_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_A": 1,
+        "start_1_A": -1,
+        "y_1_5_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_5_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_B": 1,
+        "start_5_B": -1,
+        "y_1_5_B": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_1_5_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_B": 1,
+        "start_1_B": -1,
+        "y_1_5_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_1_5_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_C": 1,
+        "start_5_C": -1,
+        "y_1_5_C": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_1_5_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_C": 1,
+        "start_1_C": -1,
+        "y_1_5_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_1_5_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_D": 1,
+        "start_5_D": -1,
+        "y_1_5_D": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_5_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_D": 1,
+        "start_1_D": -1,
+        "y_1_5_D": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_1_5_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_1_E": 1,
+        "start_5_E": -1,
+        "y_1_5_E": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_1_5_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_E": 1,
+        "start_1_E": -1,
+        "y_1_5_E": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_3_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_A": 1,
+        "start_3_A": -1,
+        "y_2_3_A": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_3_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_A": 1,
+        "start_2_A": -1,
+        "y_2_3_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_3_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_B": 1,
+        "start_3_B": -1,
+        "y_2_3_B": 53
+      },
+      "quadratic": {},
+      "rhs": 50
+    },
+    {
+      "label": "nooverlap_2_3_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_B": 1,
+        "start_2_B": -1,
+        "y_2_3_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_2_3_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_C": 1,
+        "start_3_C": -1,
+        "y_2_3_C": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_3_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_C": 1,
+        "start_2_C": -1,
+        "y_2_3_C": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_2_3_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_D": 1,
+        "start_3_D": -1,
+        "y_2_3_D": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_2_3_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_D": 1,
+        "start_2_D": -1,
+        "y_2_3_D": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_3_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_E": 1,
+        "start_3_E": -1,
+        "y_2_3_E": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_3_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_E": 1,
+        "start_2_E": -1,
+        "y_2_3_E": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_2_4_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_A": 1,
+        "start_4_A": -1,
+        "y_2_4_A": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_4_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_A": 1,
+        "start_2_A": -1,
+        "y_2_4_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_4_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_B": 1,
+        "start_4_B": -1,
+        "y_2_4_B": 53
+      },
+      "quadratic": {},
+      "rhs": 50
+    },
+    {
+      "label": "nooverlap_2_4_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_B": 1,
+        "start_2_B": -1,
+        "y_2_4_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_2_4_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_C": 1,
+        "start_4_C": -1,
+        "y_2_4_C": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_4_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_C": 1,
+        "start_2_C": -1,
+        "y_2_4_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_4_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_D": 1,
+        "start_4_D": -1,
+        "y_2_4_D": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_2_4_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_D": 1,
+        "start_2_D": -1,
+        "y_2_4_D": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_4_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_E": 1,
+        "start_4_E": -1,
+        "y_2_4_E": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_4_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_E": 1,
+        "start_2_E": -1,
+        "y_2_4_E": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_2_5_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_A": 1,
+        "start_5_A": -1,
+        "y_2_5_A": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_5_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_A": 1,
+        "start_2_A": -1,
+        "y_2_5_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_5_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_B": 1,
+        "start_5_B": -1,
+        "y_2_5_B": 53
+      },
+      "quadratic": {},
+      "rhs": 50
+    },
+    {
+      "label": "nooverlap_2_5_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_B": 1,
+        "start_2_B": -1,
+        "y_2_5_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_2_5_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_C": 1,
+        "start_5_C": -1,
+        "y_2_5_C": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_5_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_C": 1,
+        "start_2_C": -1,
+        "y_2_5_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_2_5_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_D": 1,
+        "start_5_D": -1,
+        "y_2_5_D": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_2_5_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_D": 1,
+        "start_2_D": -1,
+        "y_2_5_D": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_2_5_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_2_E": 1,
+        "start_5_E": -1,
+        "y_2_5_E": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_2_5_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_E": 1,
+        "start_2_E": -1,
+        "y_2_5_E": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_3_4_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_A": 1,
+        "start_4_A": -1,
+        "y_3_4_A": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_3_4_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_A": 1,
+        "start_3_A": -1,
+        "y_3_4_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_3_4_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_B": 1,
+        "start_4_B": -1,
+        "y_3_4_B": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_3_4_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_B": 1,
+        "start_3_B": -1,
+        "y_3_4_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_3_4_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_C": 1,
+        "start_4_C": -1,
+        "y_3_4_C": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_3_4_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_C": 1,
+        "start_3_C": -1,
+        "y_3_4_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_3_4_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_D": 1,
+        "start_4_D": -1,
+        "y_3_4_D": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_3_4_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_D": 1,
+        "start_3_D": -1,
+        "y_3_4_D": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_3_4_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_E": 1,
+        "start_4_E": -1,
+        "y_3_4_E": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_3_4_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_E": 1,
+        "start_3_E": -1,
+        "y_3_4_E": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_3_5_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_A": 1,
+        "start_5_A": -1,
+        "y_3_5_A": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_3_5_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_A": 1,
+        "start_3_A": -1,
+        "y_3_5_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_3_5_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_B": 1,
+        "start_5_B": -1,
+        "y_3_5_B": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_3_5_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_B": 1,
+        "start_3_B": -1,
+        "y_3_5_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_3_5_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_C": 1,
+        "start_5_C": -1,
+        "y_3_5_C": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_3_5_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_C": 1,
+        "start_3_C": -1,
+        "y_3_5_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_3_5_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_D": 1,
+        "start_5_D": -1,
+        "y_3_5_D": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_3_5_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_D": 1,
+        "start_3_D": -1,
+        "y_3_5_D": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_3_5_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_3_E": 1,
+        "start_5_E": -1,
+        "y_3_5_E": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_3_5_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_E": 1,
+        "start_3_E": -1,
+        "y_3_5_E": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_4_5_A_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_A": 1,
+        "start_5_A": -1,
+        "y_4_5_A": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_4_5_A_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_A": 1,
+        "start_4_A": -1,
+        "y_4_5_A": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_4_5_B_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_B": 1,
+        "start_5_B": -1,
+        "y_4_5_B": 53
+      },
+      "quadratic": {},
+      "rhs": 49
+    },
+    {
+      "label": "nooverlap_4_5_B_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_B": 1,
+        "start_4_B": -1,
+        "y_4_5_B": -53
+      },
+      "quadratic": {},
+      "rhs": -4
+    },
+    {
+      "label": "nooverlap_4_5_C_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_C": 1,
+        "start_5_C": -1,
+        "y_4_5_C": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_4_5_C_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_C": 1,
+        "start_4_C": -1,
+        "y_4_5_C": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "nooverlap_4_5_D_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_D": 1,
+        "start_5_D": -1,
+        "y_4_5_D": 53
+      },
+      "quadratic": {},
+      "rhs": 52
+    },
+    {
+      "label": "nooverlap_4_5_D_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_D": 1,
+        "start_4_D": -1,
+        "y_4_5_D": -53
+      },
+      "quadratic": {},
+      "rhs": -2
+    },
+    {
+      "label": "nooverlap_4_5_E_a",
+      "type": "inequality_le",
+      "linear": {
+        "start_4_E": 1,
+        "start_5_E": -1,
+        "y_4_5_E": 53
+      },
+      "quadratic": {},
+      "rhs": 51
+    },
+    {
+      "label": "nooverlap_4_5_E_b",
+      "type": "inequality_le",
+      "linear": {
+        "start_5_E": 1,
+        "start_4_E": -1,
+        "y_4_5_E": -53
+      },
+      "quadratic": {},
+      "rhs": -1
+    },
+    {
+      "label": "makespan_1",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_1_E": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "makespan_2",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_2_E": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "makespan_3",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_3_E": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "makespan_4",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_4_E": -1
+      },
+      "quadratic": {},
+      "rhs": 2
+    },
+    {
+      "label": "makespan_5",
+      "type": "inequality_ge",
+      "linear": {
+        "makespan": 1,
+        "start_5_E": -1
+      },
+      "quadratic": {},
+      "rhs": 1
+    }
+  ],
+  "test_instance": {
+    "description": "Encoding has 76 variables \u2014 far above the oracle ceiling. Layer A is skipped; Layers B and C still meaningful. The dashboard will record what each solver achieves; the trivial upper bound is the serial-schedule makespan = 49.",
+    "expected_optimum": null
+  }
+}

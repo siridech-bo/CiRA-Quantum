@@ -1,0 +1,105 @@
+{
+  "$comment": "Instance suite manifest for Phase 2 v2. Each entry follows the instance_v1 schema. Paths are relative to the backend/ directory.",
+  "suites": {
+    "knapsack/small": [
+      {
+        "instance_id": "knapsack/small/knapsack_5item",
+        "suite": "knapsack/small",
+        "problem_class": "knapsack",
+        "cqm_path": "tests/instances/knapsack_5item.json",
+        "expected_optimum": 26,
+        "expected_optimum_kind": "proven_optimum",
+        "tags": ["binary", "single-constraint", "tiny"],
+        "source": "hand-crafted"
+      },
+      {
+        "instance_id": "knapsack/small/knapsack_20item",
+        "suite": "knapsack/small",
+        "problem_class": "knapsack",
+        "cqm_path": "tests/instances/knapsack_20item.json",
+        "expected_optimum": 233,
+        "expected_optimum_kind": "proven_optimum",
+        "tags": ["binary", "single-constraint"],
+        "source": "synthetic-seed-2026"
+      }
+    ],
+    "setcover/small": [
+      {
+        "instance_id": "setcover/small/setcover_4item",
+        "suite": "setcover/small",
+        "problem_class": "set_cover",
+        "cqm_path": "tests/instances/setcover_4item.json",
+        "expected_optimum": 2,
+        "expected_optimum_kind": "proven_optimum",
+        "tags": ["binary", "covering", "tiny"],
+        "source": "hand-crafted"
+      }
+    ],
+    "jss/small": [
+      {
+        "instance_id": "jss/small/jss_2job_2machine",
+        "suite": "jss/small",
+        "problem_class": "job_shop",
+        "cqm_path": "tests/instances/jss_2job_2machine.json",
+        "expected_optimum": 4,
+        "expected_optimum_kind": "proven_optimum",
+        "tags": ["integer", "disjunctive", "tiny"],
+        "source": "hand-crafted"
+      },
+      {
+        "instance_id": "jss/small/jss_3job_3machine",
+        "suite": "jss/small",
+        "problem_class": "job_shop",
+        "cqm_path": "tests/instances/jss_3job_3machine.json",
+        "expected_optimum": 11,
+        "expected_optimum_kind": "best_known",
+        "tags": ["integer", "disjunctive", "big-M"],
+        "source": "v1-spec-example"
+      },
+      {
+        "instance_id": "jss/small/jss_5job_5machine",
+        "suite": "jss/small",
+        "problem_class": "job_shop",
+        "cqm_path": "tests/instances/jss_5job_5machine.json",
+        "expected_optimum": null,
+        "expected_optimum_kind": "unknown",
+        "tags": ["integer", "disjunctive", "big-M"],
+        "source": "synthetic-seed-7"
+      }
+    ],
+    "maxcut/gset_subset": [
+      {
+        "instance_id": "maxcut/gset_subset/maxcut_6node",
+        "suite": "maxcut/gset_subset",
+        "problem_class": "max_cut",
+        "cqm_path": "tests/instances/maxcut_6node.json",
+        "expected_optimum": 7,
+        "expected_optimum_kind": "proven_optimum",
+        "tags": ["quadratic", "unconstrained", "tiny"],
+        "source": "hand-crafted"
+      },
+      {
+        "instance_id": "maxcut/gset_subset/maxcut_50node",
+        "suite": "maxcut/gset_subset",
+        "problem_class": "max_cut",
+        "cqm_path": "tests/instances/maxcut_50node.json",
+        "expected_optimum": null,
+        "expected_optimum_kind": "unknown",
+        "tags": ["quadratic", "unconstrained"],
+        "source": "synthetic-erdos-renyi-seed-31415"
+      }
+    ],
+    "graph_coloring/small": [
+      {
+        "instance_id": "graph_coloring/small/graphcoloring_4node",
+        "suite": "graph_coloring/small",
+        "problem_class": "graph_coloring",
+        "cqm_path": "tests/instances/graphcoloring_4node.json",
+        "expected_optimum": 0,
+        "expected_optimum_kind": "proven_optimum",
+        "tags": ["binary", "feasibility", "tiny"],
+        "source": "hand-crafted"
+      }
+    ]
+  }
+}

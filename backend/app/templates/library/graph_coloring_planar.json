@@ -1,0 +1,36 @@
+{
+  "id": "graph_coloring_planar",
+  "title": "Graph Coloring (4 nodes, 3 colors)",
+  "category": "graph",
+  "difficulty": "intermediate",
+  "tags": ["binary", "feasibility", "multi-color"],
+  "summary": "Assign colors to a graph's nodes so no two adjacent nodes share a color.",
+  "problem_statement": "I have a 4-node graph with edges (0,1), (1,2), (2,0), (0,3). The triangle {0,1,2} forces all three of its nodes to take different colors. Find a valid 3-coloring using colors A, B, C. Each node gets exactly one color, and no edge has both endpoints in the same color.",
+  "real_world_example": "Assigning frequencies to radio towers so neighboring towers don't interfere, scheduling exams so a student never has two conflicting exams in the same slot, or assigning compiler registers so live variables don't share one.",
+  "expected_pattern": {
+    "variables": "x_{n,c} in {0, 1} — whether node n is colored c (12 binaries for 4 nodes × 3 colors)",
+    "objective": "minimize 0 — pure feasibility, every valid coloring is optimal",
+    "constraints": "for each node n: sum_c x_{n,c} = 1; for each edge (n,m) and color c: x_{n,c} + x_{m,c} <= 1"
+  },
+  "expected_optimum": 0,
+  "expected_solution_summary": "One valid coloring: node 0 = color A, node 1 = color B, node 2 = color C, node 3 = color B. (Any permutation of the colors is also a valid answer.)",
+  "learning_notes": "Graph coloring is the first place students hit *one-hot* encoding: a discrete variable (color choice) becomes a *family* of binaries with an equality constraint summing to 1. The same trick appears in vehicle routing, machine assignment, time slot allocation. The number of binary variables grows as nodes × colors, so the encoding ceiling matters.",
+  "estimated_solve_time_seconds": 2,
+  "min_solver_tier": "gpu_sa",
+  "module": {
+    "module_id": "qubo_foundations",
+    "lesson_id": "one_hot_encoding",
+    "order": 5,
+    "learning_objectives": [
+      "Encode a discrete-choice variable as a one-hot family of binaries",
+      "Spot the 'sum to 1' equality constraint as the one-hot trademark",
+      "Estimate the variable count for nodes-by-colors / jobs-by-slots problems"
+    ],
+    "prerequisites": ["max_cut_6node", "set_cover_simple"],
+    "assessment_hooks": {
+      "expected_optimum": 0,
+      "feasibility_required": true,
+      "minimum_solvers_must_agree": 2
+    }
+  }
+}

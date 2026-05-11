@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Run record (v1)",
+  "description": "Append-only, citable record of one (solver, instance, parameters, hardware) run. The repro_hash deterministically identifies the inputs; two runs with the same hash on the same code_version are expected to produce identical results modulo seeded randomness.",
+  "type": "object",
+  "required": [
+    "record_id", "code_version", "solver", "parameters",
+    "instance_id", "hardware_id", "started_at", "completed_at",
+    "repro_hash", "results"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "description": "Sortable, unique identifier (timestamp + short random suffix)."
+    },
+    "code_version": {
+      "type": "string",
+      "description": "Git SHA at run time, or '<package-version>+dev' when not in a git tree."
+    },
+    "solver": {
+      "type": "object",
+      "description": "Solver identity at run time (a copy of the registry entry, frozen for reproducibility).",
+      "required": ["name", "version", "source"],
+      "properties": {
+        "name":            { "type": "string" },
+        "version":         { "type": "string" },
+        "source":          { "type": "string" },
+        "hardware":        { "type": ["string", "null"] },
+        "parameter_schema":{ "type": "object" }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Full set of sample() keyword arguments used for this run, including seed and any kernel-mode flags."
+    },
+    "instance_id": {
+      "type": "string",
+      "description": "Reference to a registered instance (e.g. 'knapsack/small/knapsack_5item')."
+    },
+    "hardware_id": {
+      "type": "string",
+      "description": "Concrete hardware identifier observed at run time (may be more specific than solver.hardware)."
+    },
+    "started_at":   { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "repro_hash": {
+      "type": "string",
+      "description": "Deterministic hash over (code_version, instance_id, solver identity, normalized parameters)."
+    },
+    "results": {
+      "type": "object",
+      "description": "Summary of the run (best energy, feasibility counts, timing, honest convergence flag).",
+      "properties": {
+        "best_energy":            { "type": ["number", "null"], "description": "CQM-internal (always-minimization) best energy." },
+        "best_user_energy":       { "type": ["number", "null"], "description": "User-facing best (negated for maximize problems)." },
+        "num_samples":            { "type": "integer" },
+        "num_feasible":           { "type": ["integer", "null"], "description": "Number of CQM-feasible samples; null when the sampler doesn't expose feasibility (e.g. raw BQM samplers)." },
+        "expected_optimum":       { "type": ["number", "null"], "description": "Known optimum (or best-known value) the run aimed at, in user-facing units. Null when the instance has no ground truth." },
+        "gap_to_expected":        { "type": ["number", "null"], "description": "Absolute gap between best_user_energy and expected_optimum. Null when either is missing." },
+        "converged_to_expected":  { "type": ["boolean", "null"], "description": "True iff gap_to_expected is within max(1e-3 * |expected|, 1e-9). Null when the instance has no ground truth — the dashboard must render that as 'heuristic estimate, no ground truth available.'" },
+        "elapsed_ms":             { "type": "number" },
+        "extras":                 { "type": "object" }
+      }
+    },
+    "sample_set_path": {
+      "type": ["string", "null"],
+      "description": "Relative path under benchmarks/archive to a gzipped SampleSet serialization, or null when no sample-level archive was kept."
+    }
+  }
+}

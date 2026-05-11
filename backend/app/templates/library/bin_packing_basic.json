@@ -1,0 +1,20 @@
+{
+  "id": "bin_packing_basic",
+  "title": "Bin Packing (4 items, 2 bins)",
+  "category": "allocation",
+  "difficulty": "intermediate",
+  "tags": ["binary", "multi-capacity", "one-hot"],
+  "summary": "Distribute items across bins of fixed capacity, minimizing bins used.",
+  "problem_statement": "I have 4 items with weights [4, 3, 2, 1]. I have 2 bins, each with capacity 5. Assign each item to a bin so no bin overflows. Use as few bins as possible — return whether 1 or 2 bins are actually needed and the assignment.",
+  "real_world_example": "Loading boxes into shipping containers, allocating jobs to servers with fixed CPU/RAM budgets, or scheduling courses across classrooms with fixed seat counts.",
+  "expected_pattern": {
+    "variables": "x_{i,b} in {0, 1} — whether item i is in bin b; y_b in {0, 1} — whether bin b is used at all",
+    "objective": "minimize sum_b y_b",
+    "constraints": "each item in exactly one bin (sum_b x_{i,b} = 1); per-bin capacity (sum_i w_i * x_{i,b} <= C * y_b)"
+  },
+  "expected_optimum": 2,
+  "expected_solution_summary": "Total weight is 10, each bin holds 5, so both bins must be used. One valid assignment: bin 1 = {4, 1}, bin 2 = {3, 2}. Any partition that splits 10 into two ≤5 sums works.",
+  "learning_notes": "Bin packing introduces *coupled* constraints: the per-bin capacity term ties the item-in-bin binaries to the bin-used binary y_b through the capacity right-hand-side. Get the coefficients wrong and the LLM produces a CQM that compiles but encodes a different problem — exactly the trap the validation harness exists to catch.",
+  "estimated_solve_time_seconds": 2,
+  "min_solver_tier": "gpu_sa"
+}

@@ -1,0 +1,36 @@
+{
+  "id": "set_cover_simple",
+  "title": "Set Cover (Service Teams)",
+  "category": "logic",
+  "difficulty": "beginner",
+  "tags": ["binary", "covering", "multi-constraint"],
+  "summary": "Cover every location using the fewest teams, given each team covers a known subset.",
+  "problem_statement": "I need to cover four locations {a, b, c, d} using as few service teams as possible. Team S1 covers {a, b}, Team S2 covers {b, c}, Team S3 covers {c, d}, Team S4 covers {a, d}. Which teams should I send?",
+  "real_world_example": "Choosing which polling stations to staff so every neighborhood is reachable, or selecting backup data centers so every region has at least one within range.",
+  "expected_pattern": {
+    "variables": "x_i in {0, 1} — whether team i is selected",
+    "objective": "minimize sum(x_i)",
+    "constraints": "for each location, sum of selected teams covering it >= 1"
+  },
+  "expected_optimum": 2,
+  "expected_solution_summary": "Two teams suffice: {S1, S3} (covers a,b + c,d). The complementary partition {S2, S4} also gives cost 2.",
+  "learning_notes": "Set cover is the textbook 'multi-constraint covering' QUBO. Each location turns into one >= constraint. The penalty form is more delicate than knapsack's single capacity: too low a Lagrange and the solver leaves a location uncovered; too high and the energy landscape becomes a wall of penalty terms.",
+  "estimated_solve_time_seconds": 1,
+  "min_solver_tier": "gpu_sa",
+  "module": {
+    "module_id": "qubo_foundations",
+    "lesson_id": "multi_constraint_covering",
+    "order": 3,
+    "learning_objectives": [
+      "Encode 'every X must be touched by at least one Y' as a family of >= 1 inequalities",
+      "Develop intuition for Lagrange-multiplier tuning when you have many small constraints",
+      "Recognize covering patterns hiding under different domain names (scheduling, facility location)"
+    ],
+    "prerequisites": ["knapsack_classic"],
+    "assessment_hooks": {
+      "expected_optimum": 2,
+      "feasibility_required": true,
+      "minimum_solvers_must_agree": 2
+    }
+  }
+}

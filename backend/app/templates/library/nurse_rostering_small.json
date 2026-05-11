@@ -1,0 +1,20 @@
+{
+  "id": "nurse_rostering_small",
+  "title": "Nurse Rostering (3 nurses, 2 days, 2 shifts)",
+  "category": "scheduling",
+  "difficulty": "advanced",
+  "tags": ["binary", "one-hot", "multi-constraint", "soft-and-hard"],
+  "summary": "Assign nurses to shifts such that staffing requirements and per-nurse limits are respected.",
+  "problem_statement": "I have 3 nurses (A, B, C) and 2 days (Mon, Tue). Each day has 2 shifts: day-shift and night-shift. Each shift needs exactly 1 nurse. No nurse may work both a night-shift and the following day's day-shift (no back-to-back). No nurse may work more than 2 shifts total across the 2 days. Find a valid roster.",
+  "real_world_example": "A small clinic balancing nurse availability against minimum-coverage and labor-law rules. Real-world rostering scales to dozens of staff, weeks of days, and seven or eight shift types, but the constraint shape is the same.",
+  "expected_pattern": {
+    "variables": "x_{n,d,s} in {0, 1} — whether nurse n is on shift s of day d (3 × 2 × 2 = 12 binaries)",
+    "objective": "feasibility (objective = 0); soft preferences can be added as positive weights on bad assignments",
+    "constraints": "each (day, shift): exactly one nurse; per-nurse total shifts <= 2; no back-to-back: x_{n,d,night} + x_{n,d+1,day} <= 1"
+  },
+  "expected_optimum": 0,
+  "expected_solution_summary": "One valid roster: Mon-day = A, Mon-night = B, Tue-day = C, Tue-night = A. Each nurse works ≤2 shifts; no back-to-back violations. Multiple valid rosters exist.",
+  "learning_notes": "Nurse rostering is where 'hard vs soft constraints' first matters in practice. Phase 5B treats them all as hard (objective = 0) so any feasible roster is optimal; real deployments add a positive weight per preference violation to the objective and minimize the weighted sum. The constraint families generalize to crew scheduling, classroom assignment, and tournament scheduling — same shape, different domain names.",
+  "estimated_solve_time_seconds": 4,
+  "min_solver_tier": "gpu_sa"
+}

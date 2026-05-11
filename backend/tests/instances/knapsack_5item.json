@@ -1,0 +1,29 @@
+{
+  "version": "1",
+  "description": "0/1 Knapsack: 5 items with weights [2, 3, 4, 5, 9] and values [3, 4, 5, 8, 10], capacity 20.",
+  "variables": [
+    { "name": "x_0", "type": "binary", "description": "Item 0 selected (weight 2, value 3)" },
+    { "name": "x_1", "type": "binary", "description": "Item 1 selected (weight 3, value 4)" },
+    { "name": "x_2", "type": "binary", "description": "Item 2 selected (weight 4, value 5)" },
+    { "name": "x_3", "type": "binary", "description": "Item 3 selected (weight 5, value 8)" },
+    { "name": "x_4", "type": "binary", "description": "Item 4 selected (weight 9, value 10)" }
+  ],
+  "objective": {
+    "sense": "maximize",
+    "linear": { "x_0": 3, "x_1": 4, "x_2": 5, "x_3": 8, "x_4": 10 },
+    "quadratic": {}
+  },
+  "constraints": [
+    {
+      "label": "capacity",
+      "type": "inequality_le",
+      "linear": { "x_0": 2, "x_1": 3, "x_2": 4, "x_3": 5, "x_4": 9 },
+      "quadratic": {},
+      "rhs": 20
+    }
+  ],
+  "test_instance": {
+    "description": "Brute-force optimum: pack items {0, 2, 3, 4} for total weight 20, total value 26. (Items 0+1+2+3+4 = weight 23 exceeds capacity.)",
+    "expected_optimum": 26
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cira-quantum.org/schemas/template_v1.json",
+  "title": "Problem template (v1, extended for v2 Modules)",
+  "description": "Curated example optimization problem. Distributed as a JSON file under app/templates/library/. v1 fields are required; the v2 `module` field is optional and turns a template into a Modules-library lesson.",
+  "type": "object",
+  "required": ["id", "title", "category", "difficulty", "summary", "problem_statement", "expected_optimum"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Stable snake_case identifier. Used as the template's URL slug and in the API path."
+    },
+    "title": { "type": "string" },
+    "category": {
+      "type": "string",
+      "enum": ["allocation", "scheduling", "routing", "graph", "finance", "logic"]
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["beginner", "intermediate", "advanced"]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "summary": { "type": "string", "maxLength": 200 },
+    "problem_statement": { "type": "string" },
+    "real_world_example": { "type": "string" },
+    "expected_pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variables":   { "type": "string" },
+        "objective":   { "type": "string" },
+        "constraints": { "type": "string" }
+      }
+    },
+    "expected_optimum":          { "type": ["number", "null"] },
+    "expected_solution_summary": { "type": "string" },
+    "learning_notes":            { "type": "string" },
+    "estimated_solve_time_seconds": { "type": "integer" },
+    "min_solver_tier": {
+      "type": "string",
+      "enum": ["cpu_sa", "gpu_sa", "sqbm_plus"]
+    },
+    "module": {
+      "$comment": "v2 addition. Turns a template into a Modules-library lesson with explicit learning objectives + prerequisite chain.",
+      "type": "object",
+      "required": ["module_id", "lesson_id", "order", "learning_objectives"],
+      "additionalProperties": false,
+      "properties": {
+        "module_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "lesson_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "order":     { "type": "integer", "minimum": 1 },
+        "learning_objectives": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+        },
+        "assessment_hooks": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expected_optimum":          { "type": ["number", "null"] },
+            "feasibility_required":      { "type": "boolean" },
+            "minimum_solvers_must_agree":{ "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}

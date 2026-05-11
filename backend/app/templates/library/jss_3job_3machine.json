@@ -1,0 +1,20 @@
+{
+  "id": "jss_3job_3machine",
+  "title": "Job-Shop Scheduling: 3 Jobs on 3 Machines",
+  "category": "scheduling",
+  "difficulty": "advanced",
+  "tags": ["integer", "precedence", "no-overlap", "makespan", "big-M"],
+  "summary": "Schedule 3 jobs through 3 machines in a fixed order, minimizing makespan.",
+  "problem_statement": "I have 3 jobs that must each be processed on Machines A, B, and C in that fixed order. Processing times are: Job 1 = (3, 2, 2), Job 2 = (2, 1, 4), Job 3 = (4, 3, 1) — meaning Job 1 takes 3 time units on Machine A, then 2 on B, then 2 on C. Each machine can only process one job at a time. Find the schedule (start times) that minimizes the time at which all jobs finish (the makespan).",
+  "real_world_example": "A small machine shop with three workstations and three pending orders, each of which must visit all three stations in sequence.",
+  "expected_pattern": {
+    "variables": "start_{j,m} — integer start time of job j on machine m; y_{i,j,m} in {0,1} — disjunctive: i precedes j on machine m; makespan — integer upper bound",
+    "objective": "minimize makespan",
+    "constraints": "precedence: start_{j,m+1} >= start_{j,m} + duration; no-overlap (big-M disjunctive): either i finishes before j starts, or j finishes before i starts; makespan: >= start_{j, last} + duration_{j, last} for each j"
+  },
+  "expected_optimum": 11,
+  "expected_solution_summary": "Optimal makespan = 11. One optimal schedule: Job 2 starts first on A (0–2), then Job 1 (2–5), then Job 3 (5–9); on B and C the order shifts to respect precedence and no-overlap.",
+  "learning_notes": "JSS is the canonical 'integer + disjunctive' problem. The big-M no-overlap encoding produces tight constraints but rough energy landscapes — vanilla simulated annealing struggles. This is the platform's go-to example of 'when the LLM is the right tool *and* the solver tier matters'. Expect Claude to nail the encoding; expect a small local LLM to get something close-but-wrong; expect GPU SA to need many reads to find feasible solutions. Phase 9's parallel-tempering tier is the cleaner answer for this problem class.",
+  "estimated_solve_time_seconds": 8,
+  "min_solver_tier": "gpu_sa"
+}

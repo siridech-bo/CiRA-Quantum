@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  "object": "chat.completion",
+  "created": 1746622800,
+  "model": "gpt-5-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"version\": \"1\", \"description\": \"0/1 knapsack: 5 items.\", \"variables\": [{\"name\": \"x_0\", \"type\": \"binary\", \"description\": \"Item 0 selected (w=2, v=3)\"}, {\"name\": \"x_1\", \"type\": \"binary\", \"description\": \"Item 1 selected (w=3, v=4)\"}, {\"name\": \"x_2\", \"type\": \"binary\", \"description\": \"Item 2 selected (w=4, v=5)\"}, {\"name\": \"x_3\", \"type\": \"binary\", \"description\": \"Item 3 selected (w=5, v=8)\"}, {\"name\": \"x_4\", \"type\": \"binary\", \"description\": \"Item 4 selected (w=9, v=10)\"}], \"objective\": {\"sense\": \"maximize\", \"linear\": {\"x_0\": 3, \"x_1\": 4, \"x_2\": 5, \"x_3\": 8, \"x_4\": 10}, \"quadratic\": {}}, \"constraints\": [{\"label\": \"capacity\", \"type\": \"inequality_le\", \"linear\": {\"x_0\": 2, \"x_1\": 3, \"x_2\": 4, \"x_3\": 5, \"x_4\": 9}, \"quadratic\": {}, \"rhs\": 20}], \"test_instance\": {\"description\": \"Optimum: items {0,2,3,4} for value 26.\", \"expected_optimum\": 26}}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 5012,
+    "completion_tokens": 489,
+    "total_tokens": 5501
+  }
+}

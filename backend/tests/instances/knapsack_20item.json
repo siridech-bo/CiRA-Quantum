@@ -1,0 +1,166 @@
+{
+  "version": "1",
+  "description": "0/1 Knapsack: 20 items, weights=[5, 12, 18, 18, 5, 9, 15, 17, 16, 9, 2, 4, 5, 11, 5, 16, 2, 17, 12, 8], values=[14, 10, 13, 13, 14, 25, 18, 22, 4, 25, 12, 4, 19, 19, 11, 11, 16, 6, 22, 24], capacity=103. Brute-force optimum = 233.",
+  "variables": [
+    {
+      "name": "x_0",
+      "type": "binary",
+      "description": "Item 0 selected (w=5, v=14)"
+    },
+    {
+      "name": "x_1",
+      "type": "binary",
+      "description": "Item 1 selected (w=12, v=10)"
+    },
+    {
+      "name": "x_2",
+      "type": "binary",
+      "description": "Item 2 selected (w=18, v=13)"
+    },
+    {
+      "name": "x_3",
+      "type": "binary",
+      "description": "Item 3 selected (w=18, v=13)"
+    },
+    {
+      "name": "x_4",
+      "type": "binary",
+      "description": "Item 4 selected (w=5, v=14)"
+    },
+    {
+      "name": "x_5",
+      "type": "binary",
+      "description": "Item 5 selected (w=9, v=25)"
+    },
+    {
+      "name": "x_6",
+      "type": "binary",
+      "description": "Item 6 selected (w=15, v=18)"
+    },
+    {
+      "name": "x_7",
+      "type": "binary",
+      "description": "Item 7 selected (w=17, v=22)"
+    },
+    {
+      "name": "x_8",
+      "type": "binary",
+      "description": "Item 8 selected (w=16, v=4)"
+    },
+    {
+      "name": "x_9",
+      "type": "binary",
+      "description": "Item 9 selected (w=9, v=25)"
+    },
+    {
+      "name": "x_10",
+      "type": "binary",
+      "description": "Item 10 selected (w=2, v=12)"
+    },
+    {
+      "name": "x_11",
+      "type": "binary",
+      "description": "Item 11 selected (w=4, v=4)"
+    },
+    {
+      "name": "x_12",
+      "type": "binary",
+      "description": "Item 12 selected (w=5, v=19)"
+    },
+    {
+      "name": "x_13",
+      "type": "binary",
+      "description": "Item 13 selected (w=11, v=19)"
+    },
+    {
+      "name": "x_14",
+      "type": "binary",
+      "description": "Item 14 selected (w=5, v=11)"
+    },
+    {
+      "name": "x_15",
+      "type": "binary",
+      "description": "Item 15 selected (w=16, v=11)"
+    },
+    {
+      "name": "x_16",
+      "type": "binary",
+      "description": "Item 16 selected (w=2, v=16)"
+    },
+    {
+      "name": "x_17",
+      "type": "binary",
+      "description": "Item 17 selected (w=17, v=6)"
+    },
+    {
+      "name": "x_18",
+      "type": "binary",
+      "description": "Item 18 selected (w=12, v=22)"
+    },
+    {
+      "name": "x_19",
+      "type": "binary",
+      "description": "Item 19 selected (w=8, v=24)"
+    }
+  ],
+  "objective": {
+    "sense": "maximize",
+    "linear": {
+      "x_0": 14,
+      "x_1": 10,
+      "x_2": 13,
+      "x_3": 13,
+      "x_4": 14,
+      "x_5": 25,
+      "x_6": 18,
+      "x_7": 22,
+      "x_8": 4,
+      "x_9": 25,
+      "x_10": 12,
+      "x_11": 4,
+      "x_12": 19,
+      "x_13": 19,
+      "x_14": 11,
+      "x_15": 11,
+      "x_16": 16,
+      "x_17": 6,
+      "x_18": 22,
+      "x_19": 24
+    },
+    "quadratic": {}
+  },
+  "constraints": [
+    {
+      "label": "capacity",
+      "type": "inequality_le",
+      "linear": {
+        "x_0": 5,
+        "x_1": 12,
+        "x_2": 18,
+        "x_3": 18,
+        "x_4": 5,
+        "x_5": 9,
+        "x_6": 15,
+        "x_7": 17,
+        "x_8": 16,
+        "x_9": 9,
+        "x_10": 2,
+        "x_11": 4,
+        "x_12": 5,
+        "x_13": 11,
+        "x_14": 5,
+        "x_15": 16,
+        "x_16": 2,
+        "x_17": 17,
+        "x_18": 12,
+        "x_19": 8
+      },
+      "quadratic": {},
+      "rhs": 103
+    }
+  ],
+  "test_instance": {
+    "description": "Optimum: subset bit-mask 11010111011010110011 (read right-to-left), value 233.",
+    "expected_optimum": 233
+  }
+}

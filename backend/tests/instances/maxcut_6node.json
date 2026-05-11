@@ -1,0 +1,32 @@
+{
+  "version": "1",
+  "description": "Max-Cut on a 6-node graph with edges (0,1),(0,2),(1,3),(2,3),(2,4),(3,5),(4,5). The graph is bipartite, so all 7 edges can be cut.",
+  "variables": [
+    { "name": "x_0", "type": "binary", "description": "Node 0 in group B (vs A when 0)" },
+    { "name": "x_1", "type": "binary", "description": "Node 1 in group B" },
+    { "name": "x_2", "type": "binary", "description": "Node 2 in group B" },
+    { "name": "x_3", "type": "binary", "description": "Node 3 in group B" },
+    { "name": "x_4", "type": "binary", "description": "Node 4 in group B" },
+    { "name": "x_5", "type": "binary", "description": "Node 5 in group B" }
+  ],
+  "objective": {
+    "sense": "maximize",
+    "linear": {
+      "x_0": 2, "x_1": 2, "x_2": 3, "x_3": 3, "x_4": 2, "x_5": 2
+    },
+    "quadratic": {
+      "x_0*x_1": -2,
+      "x_0*x_2": -2,
+      "x_1*x_3": -2,
+      "x_2*x_3": -2,
+      "x_2*x_4": -2,
+      "x_3*x_5": -2,
+      "x_4*x_5": -2
+    }
+  },
+  "constraints": [],
+  "test_instance": {
+    "description": "Cut value per edge (i,j) is x_i + x_j - 2*x_i*x_j (= 1 iff the endpoints differ). Optimum: assign A={0,3,4} and B={1,2,5} (or its complement). All 7 edges cross.",
+    "expected_optimum": 7
+  }
+}

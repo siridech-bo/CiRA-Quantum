@@ -1,0 +1,141 @@
+{
+  "version": "1",
+  "description": "Graph 3-coloring feasibility on a 4-node graph: edges (0,1), (1,2), (2,0), (0,3). The triangle {0,1,2} forces 3 colors; node 3 is adjacent only to node 0.",
+  "variables": [
+    { "name": "x_0_0", "type": "binary", "description": "Node 0 colored 0" },
+    { "name": "x_0_1", "type": "binary", "description": "Node 0 colored 1" },
+    { "name": "x_0_2", "type": "binary", "description": "Node 0 colored 2" },
+    { "name": "x_1_0", "type": "binary", "description": "Node 1 colored 0" },
+    { "name": "x_1_1", "type": "binary", "description": "Node 1 colored 1" },
+    { "name": "x_1_2", "type": "binary", "description": "Node 1 colored 2" },
+    { "name": "x_2_0", "type": "binary", "description": "Node 2 colored 0" },
+    { "name": "x_2_1", "type": "binary", "description": "Node 2 colored 1" },
+    { "name": "x_2_2", "type": "binary", "description": "Node 2 colored 2" },
+    { "name": "x_3_0", "type": "binary", "description": "Node 3 colored 0" },
+    { "name": "x_3_1", "type": "binary", "description": "Node 3 colored 1" },
+    { "name": "x_3_2", "type": "binary", "description": "Node 3 colored 2" }
+  ],
+  "objective": {
+    "sense": "minimize",
+    "linear": {},
+    "quadratic": {}
+  },
+  "constraints": [
+    {
+      "label": "node_0_one_color",
+      "type": "equality",
+      "linear": { "x_0_0": 1, "x_0_1": 1, "x_0_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "node_1_one_color",
+      "type": "equality",
+      "linear": { "x_1_0": 1, "x_1_1": 1, "x_1_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "node_2_one_color",
+      "type": "equality",
+      "linear": { "x_2_0": 1, "x_2_1": 1, "x_2_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "node_3_one_color",
+      "type": "equality",
+      "linear": { "x_3_0": 1, "x_3_1": 1, "x_3_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_0_1_color_0",
+      "type": "inequality_le",
+      "linear": { "x_0_0": 1, "x_1_0": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_0_1_color_1",
+      "type": "inequality_le",
+      "linear": { "x_0_1": 1, "x_1_1": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_0_1_color_2",
+      "type": "inequality_le",
+      "linear": { "x_0_2": 1, "x_1_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_1_2_color_0",
+      "type": "inequality_le",
+      "linear": { "x_1_0": 1, "x_2_0": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_1_2_color_1",
+      "type": "inequality_le",
+      "linear": { "x_1_1": 1, "x_2_1": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_1_2_color_2",
+      "type": "inequality_le",
+      "linear": { "x_1_2": 1, "x_2_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_2_0_color_0",
+      "type": "inequality_le",
+      "linear": { "x_2_0": 1, "x_0_0": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_2_0_color_1",
+      "type": "inequality_le",
+      "linear": { "x_2_1": 1, "x_0_1": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_2_0_color_2",
+      "type": "inequality_le",
+      "linear": { "x_2_2": 1, "x_0_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_0_3_color_0",
+      "type": "inequality_le",
+      "linear": { "x_0_0": 1, "x_3_0": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_0_3_color_1",
+      "type": "inequality_le",
+      "linear": { "x_0_1": 1, "x_3_1": 1 },
+      "quadratic": {},
+      "rhs": 1
+    },
+    {
+      "label": "edge_0_3_color_2",
+      "type": "inequality_le",
+      "linear": { "x_0_2": 1, "x_3_2": 1 },
+      "quadratic": {},
+      "rhs": 1
+    }
+  ],
+  "test_instance": {
+    "description": "Pure feasibility (objective = 0). Any valid 3-coloring achieves the optimum 0; e.g., node 0=color 0, node 1=color 1, node 2=color 2, node 3=color 1.",
+    "expected_optimum": 0
+  }
+}

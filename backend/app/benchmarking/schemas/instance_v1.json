@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Instance metadata (v1)",
+  "description": "Lightweight metadata describing a Benchmark instance. The CQM JSON itself follows the cqm_v1 schema; this metadata wraps it with provenance, suite membership, and known-best information.",
+  "type": "object",
+  "required": ["instance_id", "suite", "problem_class", "cqm_path"],
+  "additionalProperties": false,
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_/.-]+$",
+      "description": "Stable identifier within the platform (e.g. 'knapsack/small/knapsack_5item')."
+    },
+    "suite": {
+      "type": "string",
+      "description": "Suite this instance belongs to (e.g. 'knapsack/small', 'maxcut/gset_subset')."
+    },
+    "problem_class": {
+      "type": "string",
+      "enum": [
+        "knapsack", "set_cover", "max_cut", "graph_coloring",
+        "job_shop", "tsp", "bin_packing", "portfolio",
+        "number_partitioning", "other"
+      ]
+    },
+    "cqm_path": {
+      "type": "string",
+      "description": "Path to the cqm_v1 JSON for this instance, relative to the backend directory."
+    },
+    "expected_optimum": {
+      "type": ["number", "null"],
+      "description": "Known optimum (or best-known value) in user-facing units, or null if unknown."
+    },
+    "expected_optimum_kind": {
+      "type": "string",
+      "enum": ["proven_optimum", "best_known", "unknown"],
+      "default": "unknown"
+    },
+    "tags":   { "type": "array", "items": { "type": "string" } },
+    "source": { "type": "string", "description": "Where this instance came from (e.g. 'hand-crafted', 'OR-Library', 'Gset')." }
+  }
+}
