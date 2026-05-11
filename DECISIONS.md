@@ -9,6 +9,98 @@ The active specification is `PROJECT_TEMPLATE v2.md`. The original
 
 ---
 
+## Phase 5C + 8 — Benchmark dashboard and classical solver tiers (parallel)
+
+**Date:** 2026-05-11
+
+Phases 5C and 8 were built in parallel rather than strictly sequentially.
+The spec orders them 5C → 8 because v1 never had 8; v2 retrofitted
+classical baselines. Once the archive is the shared interface between
+the two, they are siblings, not predecessors: 5C reads it, 8 writes to
+it. The launch with all five solver tiers visible on day one matches the
+v2 "honest scoreboard" narrative far better than a two-stage rollout
+would.
+
+### `_CQM_NATIVE` class marker for the records dispatcher
+
+`records.record_run` originally chose between `sample_cqm(cqm)` and
+`sample(bqm)` by hardcoding the class name `"ExactCQMSolver"`. Phase 8
+adds two more CQM-native solvers (CP-SAT, HiGHS), so the dispatch is
+now driven by a class attribute `_CQM_NATIVE = True` on the adapter
+class. The hardcoded `ExactCQMSolver` check is preserved alongside it
+to avoid changing the dimod baseline's behavior. Phase 9 (PQQA, etc.)
+will reuse the same marker.
+
+### CP-SAT objective scaling
+
+OR-Tools' CP-SAT is an integer solver. Real-valued CQM objective
+coefficients are scaled by `_OBJ_SCALE = 1_000_000` before being added
+to the model, and the user-facing objective is recomputed from the CQM
+itself via `dimod.SampleSet.from_samples_cqm` so the back-scaling is
+free. The 1e-6 ULP is well below the validation harness's 1e-3 match
+tolerance for every Phase-2 / 5B instance we ship.
+
+### HiGHS rejects quadratic objectives
+
+HiGHS is a MIP solver — linear-objective only. The adapter raises
+`ValueError("HiGHSSampler does not support quadratic objectives...")`
+rather than silently dropping the quadratic terms. This surfaces the
+mismatch loudly when the LLM picks a quadratic encoding for an
+otherwise-MIP-shaped problem. The Phase-5C dashboard's empty cells
+(see e.g. `maxcut/gset_subset × highs`) are the visible consequence —
+a genuine "wrong tool for this problem" signal, not a bug.
+
+### `num_reads` / `num_sweeps` are SA-only kwargs
+
+The Phase-2 suite runner originally passed `num_reads` and `num_sweeps`
+to every solver. CP-SAT and HiGHS don't take them — they're SA-class
+concepts (number of independent chains × inner sweep count). The
+runner now keys these kwargs to `gpu_sa` / `cpu_sa_neal` only; the
+classical tiers get `seed` but not the SA-class parameters. The
+parameter dict still records the choice, so reproducibility is
+preserved.
+
+### Classical-beats-QUBO is a regression test, not a decoration
+
+`test_cpsat_beats_gpu_sa.py` asserts three things on the canonical
+20-item knapsack instance: (1) CP-SAT finds the optimum (233),
+(2) CP-SAT is faster than GPU SA, (3) CP-SAT's quality strictly
+dominates GPU SA's quality. Empirically: CP-SAT 8.8ms / value 233 vs
+GPU SA 3.4s / value 189. If this test ever fails, *either* GPU SA got
+dramatically better (good — update the test to a harder instance)
+*or* CP-SAT regressed (very bad — investigate). Either path is
+meaningful signal; the test failing is never a silent flake.
+
+### Phase 5C reads from disk on every request
+
+The dashboard backend rereads the entire `benchmarks/archive/` on
+every list call. With 44 records this is ~30ms; the projected ceiling
+for "OK without a cache" is ~10k records, at which point a per-suite
+in-memory cache (or a SQLite materialized view) will be needed. The
+v2 spec's 3-second cold-load budget is met with ~3 orders of magnitude
+headroom for now.
+
+### Dashboard is public (no auth)
+
+`/benchmarks` and all `/api/benchmarks/*` endpoints are
+`@login_required`-free. The whole point of the Phase-5C scoreboard is
+that it's *citable* and *replicable* without an account, in keeping
+with the v2 positioning. Writing to the archive (the Phase-2 CLI)
+still requires shell access to the host — that's the implicit
+auth surface for contributions.
+
+### Time-series view is deferred to Phase-10 contribution era
+
+The spec lists `PerformanceTimeSeries.vue` as a 5C deliverable. We
+have 44 records across 5 solvers right now — not enough longitudinal
+data to make a line chart worth plotting. The component is wired into
+the store contract (the record schema carries `started_at` and
+`solver.version`) but the visual landed as a placeholder. When the
+Phase-10 contribution pipeline brings external runs in over months,
+the line gets meaningful.
+
+---
+
 ## Phase 5B — Template / Modules library
 
 **Date:** 2026-05-11

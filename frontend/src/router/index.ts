@@ -9,6 +9,10 @@ import SignupPage from '@/views/SignupPage.vue'
 import MainApp from '@/views/MainApp.vue'
 import JobDetailPage from '@/views/JobDetailPage.vue'
 import TemplateGalleryPage from '@/views/TemplateGalleryPage.vue'
+import BenchmarkDashboardPage from '@/views/BenchmarkDashboardPage.vue'
+import BenchmarkSuitePage from '@/views/BenchmarkSuitePage.vue'
+import BenchmarkSolverPage from '@/views/BenchmarkSolverPage.vue'
+import BenchmarkInstancePage from '@/views/BenchmarkInstancePage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -25,7 +29,12 @@ const routes: RouteRecordRaw[] = [
   { path: '/', component: MainApp, meta: { requiresAuth: true } },
   { path: '/jobs/:id', component: JobDetailPage, meta: { requiresAuth: true } },
   { path: '/templates', component: TemplateGalleryPage, meta: { requiresAuth: true } },
-  // Phase 5C (/benchmarks) and Phase 7 (/admin) bolt on here.
+  // Phase 5C — public Benchmark dashboard (no auth required).
+  { path: '/benchmarks', component: BenchmarkDashboardPage },
+  { path: '/benchmarks/suites/:pathMatch(.*)', component: BenchmarkSuitePage },
+  { path: '/benchmarks/solvers/:solverName', component: BenchmarkSolverPage },
+  { path: '/benchmarks/instances/:pathMatch(.*)', component: BenchmarkInstancePage },
+  // Phase 7 (/admin) bolts on here.
 ]
 
 const router = createRouter({

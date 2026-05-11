@@ -58,13 +58,16 @@ def run_suite(
         cqm, _registry, sense = compile_cqm_json(cqm_json)
 
         params: dict[str, Any] = {}
-        if solver_name != "exact_cqm":
+        # `num_reads`/`num_sweeps` are SA-class kwargs; the exact CQM
+        # solver, CP-SAT, and HiGHS don't take them. Seed is more
+        # universal — most solvers accept it (CP-SAT, HiGHS both do).
+        if solver_name in ("gpu_sa", "cpu_sa_neal"):
             params.update({
                 "num_reads": num_reads,
                 "num_sweeps": num_sweeps,
             })
-            if seed is not None:
-                params["seed"] = seed
+        if solver_name in ("gpu_sa", "cpu_sa_neal", "cpsat", "highs") and seed is not None:
+            params["seed"] = seed
         # `kernel` only applies to GPU SA. Recording it in `parameters`
         # makes the kernel mode reproducible per the v2 Phase-2 note.
         if solver_name == "gpu_sa" and kernel is not None:

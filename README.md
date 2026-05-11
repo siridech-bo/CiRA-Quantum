@@ -23,7 +23,9 @@ in [`DECISIONS.md`](./DECISIONS.md) with a date and a one-line rationale.
 | 4  | ✅ shipped | Solve API endpoint — synchronous pipeline wires Phase 0+1+2+3 end-to-end |
 | 5  | ✅ shipped | Frontend Solve UI — Vue 3 + Vuetify; live SSE progress, results, history, BYOK manager |
 | 5B | ✅ shipped | Problem-template / Modules library — 10 curated problems with documented optima |
-| 5C | ⏳ next   | Public Benchmarks dashboard |
+| 5C | ✅ shipped | Public Benchmarks dashboard — `/benchmarks` (no auth); 4 views over the append-only archive |
+| 8  | ✅ shipped | Classical solver tiers — OR-Tools CP-SAT + HiGHS as `dimod.Sampler` adapters |
+| 6  | ⏳ next   | Async job queue + GPU contention |
 
 ## Architecture at a glance
 

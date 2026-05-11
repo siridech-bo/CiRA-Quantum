@@ -15,7 +15,9 @@ is preserved alongside as `PROJECT_TEMPLATE.md` for audit trail.)
 | 4 | ✅ shipped | Solve API endpoint — synchronous pipeline wires Phase 0+1+2+3 end-to-end (`/api/solve`, `/api/jobs`, `/api/jobs/<id>/stream`, `/api/keys`) |
 | 5 | ✅ shipped | Frontend Solve UI — Vue 3 + Vuetify; live SSE progress, results, history, BYOK manager |
 | 5B | ✅ shipped | Problem-template / Modules library — 10 curated problems with documented optima, match badge, one-click "Try this example" launcher |
-| 5C | ⏳ next | Public Benchmarks dashboard |
+| 5C | ✅ shipped | Public Benchmarks dashboard — `/benchmarks` (no auth); 4 views (suite grid, solver profile, instance leaderboard, dashboard) reading from `benchmarks/archive/` |
+| 8 | ✅ shipped | Classical solver tiers — OR-Tools CP-SAT + HiGHS adapters as `dimod.Sampler` (CQM-native via `_CQM_NATIVE` marker); classical-beats-QUBO honesty check passes |
+| 6 | ⏳ next | Async job queue + GPU contention (Redis + RQ) |
 
 The Flask web layer is live: `python run.py` brings up the auth shell
 on port 5009; `npm run dev` in `../frontend/` brings up the Vue login
@@ -98,7 +100,8 @@ python -m app.benchmarking.cite <record_id>            # BibTeX
 python -m app.benchmarking.cite <record_id> --string   # short citation
 ```
 
-Registered solvers: `exact_cqm`, `cpu_sa_neal`, `gpu_sa` (CUDA-conditional).
+Registered solvers: `exact_cqm`, `cpu_sa_neal`, `gpu_sa` (CUDA-conditional),
+`cpsat` (OR-Tools), `highs` (HiGHS MIP).
 Registered suites: `knapsack/small`, `setcover/small`, `jss/small`,
 `maxcut/gset_subset`, `graph_coloring/small`. Run records carry an
 honest convergence flag — `converged_to_expected: null` when the instance

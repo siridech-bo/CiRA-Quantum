@@ -19,6 +19,13 @@ httpx>=0.27,<1.0
 jsonschema>=4.20,<5.0
 cryptography>=42,<47
 
+# Phase 8 — classical solver tiers. OR-Tools provides CP-SAT (for
+# scheduling / routing); HiGHS provides the SOTA open-source MIP/LP
+# solver. Both registered as `dimod.Sampler` adapters that read CQM
+# directly (CQM-native — no BQM lowering / penalty).
+ortools>=9.10,<10.0
+highspy>=1.7,<2.0
+
 # Phase 0 — Flask shell (auth + SQLite + REST surface).
 # Werkzeug is a Flask dependency but pinned here too so password hashing
 # helpers can't drift. Flask-CORS handles the cross-origin call the Vite

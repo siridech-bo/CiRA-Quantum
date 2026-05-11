@@ -138,6 +138,8 @@ def _canonical_parameters(params: dict) -> str:
 
 _INIT_ONLY_KWARGS_BY_SOLVER: dict[str, set[str]] = {
     "gpu_sa": {"kernel", "device"},
+    "cpsat": {"num_workers"},
+    "highs": {"presolve"},
 }
 
 
@@ -301,13 +303,21 @@ def record_run(
     init_kwargs, sample_kwargs = _split_parameters(solver_name, parameters)
     sampler = sampler_cls(**init_kwargs)
 
-    # The CQM-native solver is the only one that doesn't consume the BQM.
-    is_cqm_solver = sampler_cls.__name__ == "ExactCQMSolver"
+    # CQM-native solvers consume the CQM directly (no BQM lowering / penalty).
+    # The Phase-2 baseline is ``dimod.ExactCQMSolver``; Phase 8 adds the
+    # classical tiers (CP-SAT, HiGHS) via the same path. New CQM-native
+    # adapters opt in by setting the class attribute ``_CQM_NATIVE = True``.
+    is_cqm_solver = (
+        sampler_cls.__name__ == "ExactCQMSolver"
+        or getattr(sampler_cls, "_CQM_NATIVE", False)
+    )
 
     started = _now()
     if is_cqm_solver:
         if cqm is None:
-            raise ValueError("ExactCQMSolver path requires the cqm argument")
+            raise ValueError(
+                f"{sampler_cls.__name__} requires the cqm argument (CQM-native solver)"
+            )
         sampleset = sampler.sample_cqm(cqm, **sample_kwargs)
     else:
         sampleset = sampler.sample(bqm, **sample_kwargs)

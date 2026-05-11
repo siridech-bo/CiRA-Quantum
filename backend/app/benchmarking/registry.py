@@ -157,6 +157,53 @@ def bootstrap_default_solvers() -> None:
         except Exception:  # pragma: no cover — surfaces real CUDA failures during dev
             logger.exception("Failed to register GPUSimulatedAnnealingSampler")
 
+    # ---- Phase 8 — classical solver tiers ----
+    # OR-Tools CP-SAT and HiGHS. Both are CQM-native (set ``_CQM_NATIVE = True``)
+    # and so consume the CQM directly without BQM lowering / penalty.
+    try:
+        from app.optimization.cpsat_sampler import CPSATSampler
+
+        register_solver(
+            SolverIdentity(
+                name="cpsat",
+                version=_package_version("ortools"),
+                source="or-tools",
+                hardware="cpu",
+                parameter_schema=_load_schema(schemas_dir / "cpsat_params.json"),
+            ),
+            CPSATSampler,
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("Failed to register CPSATSampler")
+
+    try:
+        from app.optimization.highs_sampler import HiGHSSampler
+
+        # highspy doesn't expose a module-level __version__, so probe a
+        # short-lived Highs() instance for the runtime version triple.
+        try:
+            import highspy
+
+            _h = highspy.Highs()
+            highs_version = (
+                f"{_h.versionMajor()}.{_h.versionMinor()}.{_h.versionPatch()}"
+            )
+        except Exception:  # pragma: no cover
+            highs_version = "unknown"
+
+        register_solver(
+            SolverIdentity(
+                name="highs",
+                version=highs_version,
+                source="highs",
+                hardware="cpu",
+                parameter_schema=_load_schema(schemas_dir / "highs_params.json"),
+            ),
+            HiGHSSampler,
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("Failed to register HiGHSSampler")
+
 
 def _load_schema(path: Path) -> dict:
     """Load an inline parameter-schema if present, else return an empty dict.

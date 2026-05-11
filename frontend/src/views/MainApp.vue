@@ -55,6 +55,14 @@ onMounted(() => {
     >
       Examples
     </v-btn>
+    <v-btn
+      variant="text"
+      prepend-icon="mdi-chart-bar"
+      class="mr-2"
+      @click="router.push('/benchmarks')"
+    >
+      Benchmarks
+    </v-btn>
     <span class="text-body-2 mr-4" v-if="auth.user">
       Signed in as <strong>{{ auth.user.display_name }}</strong>
       <v-chip

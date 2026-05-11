@@ -26,6 +26,7 @@ from app.config import (
 )
 from app.models import init_db
 from app.routes.auth import auth_bp
+from app.routes.benchmarks import benchmarks_bp
 from app.routes.health import health_bp
 from app.routes.keys import keys_bp
 from app.routes.solve import solve_bp
@@ -61,5 +62,6 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(solve_bp, url_prefix="/api")
     app.register_blueprint(templates_bp, url_prefix="/api/templates")
     app.register_blueprint(solve_from_template_bp, url_prefix="/api")
+    app.register_blueprint(benchmarks_bp, url_prefix="/api/benchmarks")
 
     return app
