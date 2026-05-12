@@ -245,6 +245,111 @@ def record_detail(record_id: str):
     return jsonify({"record": record.to_dict()})
 
 
+@benchmarks_bp.route("/findings", methods=["GET"])
+def findings():
+    """Aggregated per-(solver, instance) stats across all archived
+    records. Powers the Phase-5C Findings page — the dashboard's
+    "what does the archive actually say" view.
+
+    For each (solver, instance) pair with at least one record:
+      * ``n_runs`` — total records
+      * ``best_user_energy`` — minimum across runs (lower is better in
+        the minimize-encoded space)
+      * ``mean_user_energy`` — arithmetic mean across runs
+      * ``worst_user_energy`` — maximum across runs
+      * ``std_user_energy`` — sample standard deviation (None for n<2)
+      * ``best_elapsed_ms`` / ``mean_elapsed_ms`` — same for wall time
+      * ``convergence_rate`` — fraction of runs where
+        ``converged_to_expected`` is True (None if the instance has
+        no documented optimum)
+
+    The response also surfaces per-instance metadata
+    (``expected_optimum``, ``problem_class``) so the frontend can render
+    "X out of N runs hit the documented optimum" labels.
+    """
+    from collections import defaultdict
+    from statistics import StatisticsError, stdev
+
+    bootstrap_default_solvers()
+
+    # First pass: bucket records by (solver, instance).
+    cells: dict[tuple[str, str], list[RunRecord]] = defaultdict(list)
+    instances_seen: dict[str, dict[str, Any]] = {}
+    for r in _list_records_iter():
+        cells[(r.solver.name, r.instance_id)].append(r)
+        if r.instance_id not in instances_seen:
+            # Source the canonical expected_optimum off the record (the
+            # instance manifest is the ground truth, and the record was
+            # tagged with it at run time).
+            instances_seen[r.instance_id] = {
+                "expected_optimum": r.results.get("expected_optimum"),
+            }
+
+    # Second pass: aggregate per cell.
+    results: list[dict[str, Any]] = []
+    for (solver_name, instance_id), recs in sorted(cells.items()):
+        energies = [
+            float(r.results["best_user_energy"])
+            for r in recs
+            if r.results.get("best_user_energy") is not None
+        ]
+        elapsed = [
+            float(r.results["elapsed_ms"])
+            for r in recs
+            if r.results.get("elapsed_ms") is not None
+        ]
+        converged = [
+            bool(r.results["converged_to_expected"])
+            for r in recs
+            if r.results.get("converged_to_expected") is not None
+        ]
+
+        try:
+            energy_std = stdev(energies) if len(energies) >= 2 else None
+        except StatisticsError:  # pragma: no cover
+            energy_std = None
+
+        results.append({
+            "solver_name": solver_name,
+            "instance_id": instance_id,
+            "expected_optimum": instances_seen[instance_id]["expected_optimum"],
+            "n_runs": len(recs),
+            "best_user_energy": min(energies) if energies else None,
+            "mean_user_energy": (sum(energies) / len(energies)) if energies else None,
+            "worst_user_energy": max(energies) if energies else None,
+            "std_user_energy": energy_std,
+            "best_elapsed_ms": min(elapsed) if elapsed else None,
+            "mean_elapsed_ms": (sum(elapsed) / len(elapsed)) if elapsed else None,
+            "convergence_rate": (
+                sum(converged) / len(converged) if converged else None
+            ),
+            # Pin the most-recent record id so the dashboard can cite
+            # something specific when displaying a cell.
+            "latest_record_id": max(recs, key=lambda r: r.started_at).record_id,
+        })
+
+    # Per-solver headline stats: how many instances has this solver run
+    # on, and on how many of them did it hit the documented optimum
+    # at least once.
+    solver_summaries: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"instances_attempted": 0, "instances_with_match": 0, "total_runs": 0}
+    )
+    for cell in results:
+        s = cell["solver_name"]
+        solver_summaries[s]["instances_attempted"] += 1
+        solver_summaries[s]["total_runs"] += cell["n_runs"]
+        if cell["convergence_rate"] is not None and cell["convergence_rate"] > 0:
+            solver_summaries[s]["instances_with_match"] += 1
+
+    return jsonify({
+        "cells": results,
+        "solver_summaries": [
+            {"solver_name": s, **stats}
+            for s, stats in sorted(solver_summaries.items())
+        ],
+    })
+
+
 @benchmarks_bp.route("/records/<record_id>/cite", methods=["GET"])
 def record_cite(record_id: str):
     """Generate a citation for one record. ``kind=bibtex`` (default) or

@@ -181,6 +181,78 @@ def test_record_unknown_returns_404(client):
     assert r.get_json()["code"] == "NOT_FOUND"
 
 
+# ---- /findings -------------------------------------------------------------
+
+
+def test_findings_endpoint_is_public(client):
+    """Findings aggregation is part of the public scoreboard surface."""
+    r = client.get("/api/benchmarks/findings")
+    assert r.status_code == 200
+
+
+def test_findings_endpoint_shape(client):
+    """The findings response must carry the keys the dashboard's
+    BenchmarkFindingsPage reads."""
+    r = client.get("/api/benchmarks/findings")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "cells" in data
+    assert "solver_summaries" in data
+    assert isinstance(data["cells"], list)
+    assert isinstance(data["solver_summaries"], list)
+
+
+@pytest.mark.skipif(not _archive_has_records(), reason="archive is empty")
+def test_findings_cells_contain_aggregations(client):
+    """When records exist, each cell carries best/mean/worst energy plus
+    n_runs and a latest_record_id pointer."""
+    r = client.get("/api/benchmarks/findings")
+    cells = r.get_json()["cells"]
+    if not cells:
+        pytest.skip("no aggregated cells yet")
+
+    sample = cells[0]
+    for key in (
+        "solver_name",
+        "instance_id",
+        "n_runs",
+        "best_user_energy",
+        "mean_user_energy",
+        "worst_user_energy",
+        "best_elapsed_ms",
+        "latest_record_id",
+    ):
+        assert key in sample, f"missing key {key!r}"
+
+    # Best ≤ mean ≤ worst for any cell with energy data and n_runs >= 1.
+    for c in cells:
+        if c["best_user_energy"] is None:
+            continue
+        assert c["best_user_energy"] <= c["mean_user_energy"] <= c["worst_user_energy"]
+
+
+@pytest.mark.skipif(not _archive_has_records(), reason="archive is empty")
+def test_findings_solver_summaries_consistency(client):
+    """instances_with_match must be <= instances_attempted; total_runs
+    must equal the sum of n_runs across that solver's cells."""
+    data = client.get("/api/benchmarks/findings").get_json()
+    cells = data["cells"]
+    summaries = {s["solver_name"]: s for s in data["solver_summaries"]}
+
+    by_solver_cells: dict = {}
+    by_solver_runs: dict = {}
+    for c in cells:
+        by_solver_cells.setdefault(c["solver_name"], 0)
+        by_solver_cells[c["solver_name"]] += 1
+        by_solver_runs.setdefault(c["solver_name"], 0)
+        by_solver_runs[c["solver_name"]] += c["n_runs"]
+
+    for solver, summary in summaries.items():
+        assert summary["instances_with_match"] <= summary["instances_attempted"]
+        assert summary["instances_attempted"] == by_solver_cells.get(solver, 0)
+        assert summary["total_runs"] == by_solver_runs.get(solver, 0)
+
+
 def test_cite_unknown_record_returns_404(client):
     r = client.get("/api/benchmarks/records/no-such-record/cite")
     assert r.status_code == 404

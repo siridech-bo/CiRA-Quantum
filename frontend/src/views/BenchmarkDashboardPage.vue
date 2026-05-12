@@ -39,14 +39,26 @@ onMounted(() => {
   <v-main>
     <v-container>
       <v-card class="pa-6 mb-4" variant="tonal">
-        <v-card-title class="pa-0 text-h5 mb-1">
-          The honest scoreboard for quantum + classical optimization
-        </v-card-title>
-        <v-card-subtitle class="pa-0 text-body-2">
-          Every benchmark run is reproducible, citable, and append-only.
-          Solvers and instances drift over time — that's the signal this
-          archive exists to preserve.
-        </v-card-subtitle>
+        <div class="d-flex align-center flex-wrap ga-3">
+          <div class="flex-grow-1">
+            <div class="text-h5 mb-1">
+              The honest scoreboard for quantum + classical optimization
+            </div>
+            <div class="text-body-2">
+              Every benchmark run is reproducible, citable, and append-only.
+              Solvers and instances drift over time — that's the signal this
+              archive exists to preserve.
+            </div>
+          </div>
+          <v-btn
+            color="primary"
+            variant="flat"
+            prepend-icon="mdi-chart-box"
+            @click="router.push('/benchmarks/findings')"
+          >
+            View Experiment #1 findings
+          </v-btn>
+        </div>
       </v-card>
 
       <v-skeleton-loader v-if="benchmarks.loading && !benchmarks.suites.length" type="card, card" />

@@ -13,6 +13,7 @@ import BenchmarkDashboardPage from '@/views/BenchmarkDashboardPage.vue'
 import BenchmarkSuitePage from '@/views/BenchmarkSuitePage.vue'
 import BenchmarkSolverPage from '@/views/BenchmarkSolverPage.vue'
 import BenchmarkInstancePage from '@/views/BenchmarkInstancePage.vue'
+import BenchmarkFindingsPage from '@/views/BenchmarkFindingsPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -31,6 +32,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/templates', component: TemplateGalleryPage, meta: { requiresAuth: true } },
   // Phase 5C — public Benchmark dashboard (no auth required).
   { path: '/benchmarks', component: BenchmarkDashboardPage },
+  // Findings: aggregated experiment results. Specific route MUST come
+  // before the splat-style suite route, otherwise vue-router treats
+  // "findings" as a suite_id.
+  { path: '/benchmarks/findings', component: BenchmarkFindingsPage },
   { path: '/benchmarks/suites/:pathMatch(.*)', component: BenchmarkSuitePage },
   { path: '/benchmarks/solvers/:solverName', component: BenchmarkSolverPage },
   { path: '/benchmarks/instances/:pathMatch(.*)', component: BenchmarkInstancePage },

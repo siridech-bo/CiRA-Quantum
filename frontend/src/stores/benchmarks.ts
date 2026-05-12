@@ -94,12 +94,40 @@ export interface FullRunRecord {
   sample_set_path: string | null
 }
 
+export interface FindingsCell {
+  solver_name: string
+  instance_id: string
+  expected_optimum: number | null
+  n_runs: number
+  best_user_energy: number | null
+  mean_user_energy: number | null
+  worst_user_energy: number | null
+  std_user_energy: number | null
+  best_elapsed_ms: number | null
+  mean_elapsed_ms: number | null
+  convergence_rate: number | null
+  latest_record_id: string
+}
+
+export interface SolverSummary {
+  solver_name: string
+  instances_attempted: number
+  instances_with_match: number
+  total_runs: number
+}
+
+export interface Findings {
+  cells: FindingsCell[]
+  solver_summaries: SolverSummary[]
+}
+
 export const useBenchmarksStore = defineStore('benchmarks', () => {
   const suites = ref<SuiteSummary[]>([])
   const suiteDetail = ref<Record<string, SuiteDetail>>({})
   const solverDetail = ref<Record<string, SolverDetail>>({})
   const instanceDetail = ref<Record<string, InstanceDetail>>({})
   const recordDetail = ref<Record<string, FullRunRecord>>({})
+  const findings = ref<Findings | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -181,6 +209,22 @@ export const useBenchmarksStore = defineStore('benchmarks', () => {
     }
   }
 
+  async function loadFindings(force = false): Promise<Findings | null> {
+    if (!force && findings.value) return findings.value
+    loading.value = true
+    error.value = null
+    try {
+      const r = await api.get<Findings>('/api/benchmarks/findings')
+      findings.value = r.data
+      return r.data
+    } catch (e: any) {
+      error.value = e?.response?.data?.error || e?.message || 'Failed to load findings'
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchCitation(recordId: string, kind: 'bibtex' | 'string' = 'bibtex'): Promise<string | null> {
     try {
       const r = await api.get<{ citation: string }>(
@@ -209,6 +253,7 @@ export const useBenchmarksStore = defineStore('benchmarks', () => {
     solverDetail,
     instanceDetail,
     recordDetail,
+    findings,
     loading,
     error,
     // actions
@@ -217,6 +262,7 @@ export const useBenchmarksStore = defineStore('benchmarks', () => {
     loadSolver,
     loadInstance,
     loadRecord,
+    loadFindings,
     fetchCitation,
     refresh,
   }
