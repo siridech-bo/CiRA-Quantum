@@ -135,6 +135,87 @@ distribution. No tests in the default suite touch the network. Real-
 hardware integration tests are deferred to manually-invoked scripts
 (like ``D:/tmp/smoke_qaoa_cloud.py``); the test runner stays cheap.
 
+### Real-cloud verification deferred — OriginQC cluster-reply outage 2026-05-12 to 2026-05-13
+
+Across **four consecutive submissions** to the ``full_amplitude``
+cloud simulator between 21:31 on 2026-05-12 and 09:00 on 2026-05-13
+(13+ hours), every job consistently hit the same server-side error:
+
+```
+status: JobStatus.COMPUTING (for ~4-5 minutes)
+→ error_message: "query qcloud task <id> failed:
+                  Error: Can NOT receive cluster reply!"
+→ JobStatus.???  (unrecognized enum value after the error)
+```
+
+The pattern is identical across all four jobs:
+1. ``DB588E2E…`` — 2-qubit Bell state, submitted 21:31 2026-05-12
+2. ``C96656F9…`` — 1-qubit warmup, submitted 22:08 2026-05-12
+3. *(third submission via smoke_qaoa_cloud.py — process killed before
+   it logged a job ID, but matches the pattern)*
+4. ``CC861DA7…`` — 1-qubit warmup, submitted 09:00 2026-05-13 (fresh
+   morning attempt)
+
+This is a sustained Origin Quantum cloud-side cluster issue, not
+a bug in our integration. The auth handshake (``QCloudService(api_key)``)
+and the backend listing (``service.backends()``) both work fine; the
+``backend.run(prog, shots)`` submission succeeds and returns a job ID;
+the cluster simply never returns results.
+
+**What we know works** (verified at construction and submission time):
+
+- The credential authenticates against
+  ``http://pyqanda-admin.qpanda.cn``
+- Six backends advertised, including ``WK_C180`` Wukong (real QPU,
+  169 working qubits) marked as "available"
+- ``backend.run()`` submission returns a job ID immediately
+- Status query returns ``JobStatus.COMPUTING`` initially
+
+**What we cannot verify until the cloud recovers:**
+
+- A full round-trip producing measurement probabilities
+- The ``QAOACloudSampler.sample()`` end-to-end path on a real cluster
+- A live ``qaoa_originqc`` record in ``benchmarks/archive/``
+
+The Phase 9B code is shipped (commit ``d787c58``) and verified via 12
+mocked-cloud tests that exercise every code path. The live-cloud
+record is the only outstanding item, and it's blocked on an upstream
+outage we cannot work around. Recommended actions in priority order:
+
+1. Wait 24-48h and retry. Cluster outages of this kind typically
+   recover within a day.
+2. If the outage persists, file an issue at OriginQC's support
+   channel referencing the four job IDs above.
+3. If we need a real-quantum record for a thesis / publication
+   deadline, the ``WK_C180`` real-QPU path is a separate cluster from
+   the simulator path and may be unaffected. Worth trying once
+   under ``ENABLE_ORIGIN_REAL_HARDWARE=1``, but this burns real QPU
+   credits.
+
+### Test artifact cleanup: removed the `-0.5` energy record
+
+A bogus ``qaoa_originqc`` record landed in
+``benchmarks/archive/`` at 22:02:35 on 2026-05-12 during the Phase
+9B pre-commit security verification. The verification script ran
+``record_run(solver_name='qaoa_originqc', ...)`` against a 2-variable
+test BQM (to prove the api_key never lands in serialized parameters)
+but labeled the run with ``instance_id='knapsack/small/knapsack_5item'``.
+The mocked ``QCloudService`` returned fixed probabilities, the
+resulting energy of ``-0.5`` was computed against the test BQM, and
+the whole thing got written to disk as if it were a legitimate
+knapsack run.
+
+The record (file ``20260512T150235.502660Z_cb1dcd.json``) was deleted
+during this cleanup. The archive's "append-only" principle is for
+*legitimate* records; an obvious test artifact is fair to remove.
+
+**Guard going forward:** future security-verification scripts should
+either use ``record_run(..., archive_samples=False)`` *and* never
+write the ``RunRecord`` to disk (the dataclass exists in-memory only),
+or run against an instance ID that's clearly tagged as a test
+fixture (e.g. ``_test/security/empty``). Both paths avoid the
+"realistic-looking but synthetic" record we just cleaned up.
+
 ---
 
 ## Roadmap amendments — 2026-05-12 (post-Phase-8)
