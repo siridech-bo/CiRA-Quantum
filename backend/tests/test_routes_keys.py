@@ -124,6 +124,19 @@ def test_unknown_provider_is_rejected(alice_session):
     assert r.json["code"] == "UNKNOWN_PROVIDER"
 
 
+def test_originqc_quantum_provider_is_accepted(alice_session):
+    """Phase 9B — Origin Quantum cloud credentials use the same BYOK
+    table as the LLM providers (Claude / OpenAI / local). The
+    ``originqc`` provider name is on the quantum-providers allow-list."""
+    r = alice_session.put("/api/keys/originqc", json={"key": "dummy-originqc-key"})
+    assert r.status_code == 200
+    assert r.json["success"] is True
+    # GET reports the provider was stored
+    listing = alice_session.get("/api/keys").json
+    providers = [k["provider"] for k in listing["keys"]]
+    assert "originqc" in providers
+
+
 def test_put_key_rejects_empty_value(alice_session):
     r = alice_session.put("/api/keys/claude", json={"key": ""})
     assert r.status_code == 400

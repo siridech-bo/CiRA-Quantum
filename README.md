@@ -26,7 +26,8 @@ in [`DECISIONS.md`](./DECISIONS.md) with a date and a one-line rationale.
 | 5C | ✅ shipped | Public Benchmarks dashboard — `/benchmarks` (no auth); 4 views over the append-only archive |
 | 8  | ✅ shipped | Classical solver tiers — OR-Tools CP-SAT + HiGHS as `dimod.Sampler` adapters |
 | 9A | ✅ shipped | Quantum tier (local simulator) — OriginQC pyqpanda QAOA, optional dep, 20-qubit cap |
-| 9B | ⏳ next   | Quantum tier (Origin Quantum cloud BYOK + real Wukong QPU) |
+| 9B | ✅ shipped | Quantum tier (Origin Quantum cloud BYOK) — `full_amplitude` cloud simulator + `WK_C180` real Wukong QPU (gated behind `ENABLE_ORIGIN_REAL_HARDWARE=1`) |
+| 9C | ⏳ next   | Quantum-inspired classical tiers (PT, PQQA, simulated bifurcation) |
 
 ## Architecture at a glance
 

@@ -25,7 +25,16 @@ from app.models import delete_api_key, list_api_keys, put_api_key
 keys_bp = Blueprint("keys", __name__)
 
 
+# Quantum-hardware BYOK providers. Distinct from LLM formulation
+# providers — these authenticate against quantum-cloud APIs (Origin
+# Quantum, future IBM Q, etc.) rather than LLM endpoints. The keys
+# table is provider-agnostic, so we just expand the allow-list.
+_QUANTUM_PROVIDERS = frozenset({"originqc"})
+
+
 def _is_known_provider(name: str) -> bool:
+    if name in _QUANTUM_PROVIDERS:
+        return True
     try:
         return name in list_providers()
     except Exception:

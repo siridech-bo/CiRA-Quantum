@@ -142,6 +142,20 @@ _INIT_ONLY_KWARGS_BY_SOLVER: dict[str, set[str]] = {
     "highs": {"presolve"},
     # Phase 9A — QAOA hyperparameters are constructor-time only.
     "qaoa_sim": {"layer", "optimizer", "top_k", "max_qubits"},
+    # Phase 9B — cloud QAOA. ``api_key`` is bound into the registered
+    # class via a closure (see registry.bootstrap_default_solvers), so
+    # it never appears in the parameters dict that gets saved into
+    # RunRecord JSONs.
+    "qaoa_originqc": {
+        "backend_name",
+        "url",
+        "layer",
+        "shots",
+        "max_qubits",
+        "max_submissions",
+        "top_k",
+        "train_optimizer",
+    },
 }
 
 

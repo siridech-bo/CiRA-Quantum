@@ -7,9 +7,10 @@ const solve = useSolveStore()
 const PROVIDERS = [
   { value: 'claude', title: 'Claude (Anthropic)' },
   { value: 'openai', title: 'OpenAI' },
+  { value: 'originqc', title: 'Origin Quantum (Wukong cloud)' },
 ] as const
 
-const addProvider = ref<'claude' | 'openai'>('claude')
+const addProvider = ref<'claude' | 'openai' | 'originqc'>('claude')
 const addKey = ref('')
 const saving = ref(false)
 const error = ref<string | null>(null)

@@ -9,6 +9,134 @@ The active specification is `PROJECT_TEMPLATE v2.md`. The original
 
 ---
 
+## Phase 9B — Origin Quantum cloud BYOK + real Wukong QPU
+
+**Date:** 2026-05-12
+
+### Discovery: the documented cloud URL is wrong
+
+The pyqpanda3 docstring example shows
+``url="https://qcloud.originqc.com.cn"``. Submitting against that URL
+returns ``RuntimeError: Invalid value`` on ``backends()``. The actual
+working endpoint is the **default** URL bound into pyqpanda3
+(``http://pyqanda-admin.qpanda.cn``). The QAOACloudSampler defaults to
+this. Worth flagging because the docs and the working endpoint are out
+of sync — a follow-up could be filing a docs PR upstream.
+
+### Credential format: full string, including the ``/&lt;account-id&gt;`` suffix
+
+The Qpanda.txt credential is a 102-char string of the form
+``<96-char hex>/<5-digit account>``. The pyqpanda3 cloud library
+expects the **entire raw string** as the ``api_key`` argument, not
+just the hex part. Stripping the account suffix returns
+``RuntimeError: value is not array``.
+
+### Hybrid local-train + cloud-execute (not full variational on cloud)
+
+Each cloud submission has 30 s – several minutes of queue + execution
+latency. The standard QAOA optimizer (SLSQP) needs 30–50 iterations
+to converge. Running the full variational loop against the cloud
+would mean ~30 cloud round-trips per record, taking 30–100 min and
+burning real QPU credits.
+
+Instead, ``QAOACloudSampler`` runs the entire variational loop **on
+the CPU statevector simulator** (Phase-9A's local path) to extract
+optimal ``(gamma, beta)`` parameters, then rebuilds the trained
+circuit using ``pauli_z_operator_to_circuit`` + manual mixer
+construction, and submits **one** trained circuit to the cloud.
+Result: one cloud submission per record, ~3-10 min total wall time.
+
+The result is *honest about what's quantum*: the variational
+optimization happens classically; the final measurement happens on
+real (or simulated) quantum hardware. That's literally what QAOA-on-
+cloud-hardware is at every quantum-software vendor — the optimizer
+loop never lived on the QPU.
+
+### Real-hardware gating via ``ENABLE_ORIGIN_REAL_HARDWARE`` env flag
+
+Constructing ``QAOACloudSampler(backend_name="WK_C180")`` (or any
+backend in ``_REAL_HARDWARE_BACKENDS``) raises during ``__init__``
+unless ``ENABLE_ORIGIN_REAL_HARDWARE=1`` is set in the environment.
+This prevents accidental QPU-credit burns during development —
+opening the Solve UI and clicking "submit" against the wrong tier
+shouldn't be enough to spend real money on real qubits.
+
+The cloud-simulator backends (``full_amplitude``, etc.) work
+without the flag, since they don't cost QPU minutes.
+
+### Per-sampler-instance submission cap (default 5)
+
+A second-line guard inside ``sample()``: each ``QAOACloudSampler``
+instance refuses further calls after ``max_submissions=5`` successful
+submissions. Phase-7's full rate-limit infrastructure will replace
+this with proper per-user limits; until then, the in-class cap
+prevents a runaway loop from emptying a user's credit balance during
+a single REPL session.
+
+### Closure-bound API key — never recorded in RunRecord
+
+The Phase-2 ``records.record_run`` dispatcher passes ``init_kwargs``
+into ``sampler_cls(**init_kwargs)``, and those kwargs land in the
+``RunRecord.parameters`` field that gets serialized to disk in
+``benchmarks/archive/*.json``. If the ``api_key`` flowed through that
+path, every cloud record would leak the credential.
+
+The fix: ``bootstrap_default_solvers()`` reads the key from a file
+path supplied via ``QPANDA_API_KEY_FILE`` env var, then registers a
+**closure-bound subclass** of ``QAOACloudSampler``:
+
+```python
+class _BoundQAOACloud(QAOACloudSampler):
+    def __init__(self, **kwargs):
+        super().__init__(api_key=_api_key, **kwargs)
+```
+
+``_INIT_ONLY_KWARGS_BY_SOLVER["qaoa_originqc"]`` excludes
+``api_key``. The route / suite runner never sees the key. Verified
+via a smoke test that explicitly grepped the serialized parameters
+JSON for the credential's known hex prefix.
+
+### ``originqc`` BYOK provider is registered alongside Claude / OpenAI / local-LLM
+
+The Phase-3 BYOK store (Fernet-encrypted at rest under
+``KEY_ENCRYPTION_SECRET``) is provider-name-agnostic — it stores
+``(user_id, provider_name, ciphertext)``. Adding ``originqc`` to the
+allow-list in ``app.routes.keys._is_known_provider`` (via a separate
+``_QUANTUM_PROVIDERS`` set, distinct from the LLM formulation
+registry) and to the frontend ``ApiKeyManager.vue`` dropdown was
+all that was needed at the table level. The Solve-API flow that
+**uses** the stored key still needs wiring — that lands when the
+quantum-tier becomes a Solve-UI-selectable provider in a later
+phase. For Phase 9B, the QPU records are populated via the suite
+runner / experiment scripts that read the key from the file path,
+not via the live Solve route.
+
+### Wukong chip metadata: 169 working qubits, native gates ``{RPhi, CZ}``
+
+At probe time, ``WK_C180`` advertises 169 available qubits (of 180
+nominal — typical for a superconducting chip; a few qubits get
+disabled at calibration). Native gateset is ``RPhi`` (parameterized
+single-qubit phase rotation) and ``CZ`` (two-qubit controlled-Z).
+The QAOA circuit we build uses ``H``, ``RX``, and ``RZ``-derived
+gates from the problem unitary; pyqpanda3's transpiler maps these to
+the native set automatically before submission.
+
+The 169-qubit cap is well above any Phase-2 instance after
+Lagrange-lowering, so Wukong is not the binding constraint — the
+binding constraint is the ``max_qubits=64`` default in
+``QAOACloudSampler``, chosen conservatively to keep classical
+training time bounded.
+
+### Tests: 12 mocked, 0 real-hardware in the default suite
+
+The full ``QAOACloudSampler`` dispatch path is covered by 12 tests
+using a fake ``QCloudService`` that returns a fixed probability
+distribution. No tests in the default suite touch the network. Real-
+hardware integration tests are deferred to manually-invoked scripts
+(like ``D:/tmp/smoke_qaoa_cloud.py``); the test runner stays cheap.
+
+---
+
 ## Roadmap amendments — 2026-05-12 (post-Phase-8)
 
 The v2 spec's Phase 9 is one block ("Quantum-Inspired Solver Tiers"). After
