@@ -25,7 +25,8 @@ in [`DECISIONS.md`](./DECISIONS.md) with a date and a one-line rationale.
 | 5B | ✅ shipped | Problem-template / Modules library — 10 curated problems with documented optima |
 | 5C | ✅ shipped | Public Benchmarks dashboard — `/benchmarks` (no auth); 4 views over the append-only archive |
 | 8  | ✅ shipped | Classical solver tiers — OR-Tools CP-SAT + HiGHS as `dimod.Sampler` adapters |
-| 6  | ⏳ next   | Async job queue + GPU contention |
+| 9A | ✅ shipped | Quantum tier (local simulator) — OriginQC pyqpanda QAOA, optional dep, 20-qubit cap |
+| 9B | ⏳ next   | Quantum tier (Origin Quantum cloud BYOK + real Wukong QPU) |
 
 ## Architecture at a glance
 

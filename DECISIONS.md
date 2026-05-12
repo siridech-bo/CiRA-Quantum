@@ -9,6 +9,95 @@ The active specification is `PROJECT_TEMPLATE v2.md`. The original
 
 ---
 
+## Roadmap amendments — 2026-05-12 (post-Phase-8)
+
+The v2 spec's Phase 9 is one block ("Quantum-Inspired Solver Tiers"). After
+building turned up new information, three amendments are pinned here.
+
+`ROADMAP.md` at the repo root carries the working plan; the v2 spec is
+preserved verbatim as the audit contract.
+
+### Phase 9 split into 9A / 9B / 9C along the auth + hardware boundary
+
+The original v2 Phase 9 lumped PT, PQQA, and SQBM+ together. OriginQC's
+pyqpanda3 stack (QAOA + GAS) adds a fundamentally new tier *category* —
+**true quantum** (variational, runs on actual superconducting qubits via
+their cloud) — distinct from the quantum-*inspired* classical heuristics
+v1 had in mind. The auth + hardware shape of true-quantum work is also
+different enough that it should ship in two pieces, not one:
+
+- **9A — local simulator.** No BYOK, no remote credentials, no shot
+  noise from physics. CPU statevector simulation under pyqpanda3.
+  Strategically the highest-leverage small unit of work: it adds the
+  *real quantum algorithm column* to the Benchmark dashboard at the
+  cost of one adapter + tests.
+- **9B — Origin Quantum cloud (real QPU, BYOK).** Same `QAOASampler`
+  class, backend switch flipped to the hosted superconducting
+  processor. Adds `originqc` as a fourth provider in the existing
+  BYOK plumbing (alongside Claude / OpenAI / local LLM).
+- **9C — quantum-inspired classical tiers.** Parallel Tempering, PQQA,
+  and (optionally) the open `simulated_bifurcation` algorithm. These
+  are CPU Monte Carlo heuristics; useful for completeness, less
+  strategically differentiating than 9A/9B.
+
+The architecture absorbs the split cleanly: `_CQM_NATIVE` (introduced
+in Phase 8) dispatches all three tiers through `sample_cqm`, and the
+RunRecord schema is solver-tier-neutral by design.
+
+### Phase 9D (SQBM+) dropped from the roadmap
+
+SQBM+ is Fujitsu's proprietary brand on top of openly-published
+simulated-bifurcation algorithms (Goto et al. 2019; ballistic and
+discrete bifurcation variants). For an open academic platform, three
+things make it not worth pursuing:
+
+- The **brand** belongs to Fujitsu. Using "SQBM+" without a partnership
+  is awkward; getting one is a multi-month sales cycle aimed at
+  industrial customers, not academic platforms.
+- The **algorithm** is published openly. If we want a bifurcation-style
+  solver, we implement it ourselves under a generic name
+  (`simulated_bifurcation`, `bsb`, `dsb`) with zero Fujitsu engagement.
+  That captures 95% of the academic value at 0% of the partnership cost.
+- The **scoreboard** doesn't change much. Once 9A + 9B + 9C are live, a
+  fifth tier whose benchmark behavior is similar to PT/PQQA doesn't
+  shift the narrative.
+
+If we ever want bifurcation, it goes into 9C as a generic option, not
+as a separate phase. SQBM+ is removed from the roadmap entirely.
+
+### Phase 6 and 7 deferred to after the solver-tier work (9A → 9B → 9C → 6 → 7)
+
+Phase 6 (Redis + RQ queue + GPU lock) and Phase 7 (rate limits, email
+verify, abuse detection, admin UI, Cloudflare Tunnel, HTTPS) are
+*pre-deployment* work, not *pre-development* work. Their value
+materializes the moment we point a public URL at the host —
+multi-user GPU contention pressure, rate-limit pressure, abuse
+surface. None of those pressures exist while the platform is a single-
+developer build on localhost.
+
+Doing them at the end means:
+
+1. **The solver-tier landscape ships first** (9A + 9B + 9C). The
+   Benchmark dashboard tells the complete *classical vs quantum-
+   inspired vs quantum-simulator vs real-QPU* story 3 weeks earlier
+   than under strict spec order.
+2. **Phase 6 and 7 are validated against a complete backend.** Queue
+   semantics for QAOA-class long-running jobs are different from
+   solver-class jobs that finish in 10ms; designing the queue with
+   the full solver portfolio visible avoids retrofits.
+3. **Phase 0 set the precedent.** It was built late, after Phases 1–3,
+   for the same reason: settle the science before you operationalize
+   it.
+
+The cost is ~3 weeks of "almost public" before "actually public."
+The risk is a real-QPU BYOK demo (9B) burning external testers'
+credits — mitigated inside 9B itself via a hardcoded per-session
+submission cap + a default-off `ENABLE_ORIGIN_REAL_HARDWARE` feature
+flag. Both cost ~20 lines and remove the demo-time risk entirely
+without requiring Phase 7's full rate-limit infrastructure.
+
+---
+
 ## Phase 5C + 8 — Benchmark dashboard and classical solver tiers (parallel)
 
 **Date:** 2026-05-11

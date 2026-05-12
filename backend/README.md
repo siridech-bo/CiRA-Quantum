@@ -17,7 +17,8 @@ is preserved alongside as `PROJECT_TEMPLATE.md` for audit trail.)
 | 5B | ✅ shipped | Problem-template / Modules library — 10 curated problems with documented optima, match badge, one-click "Try this example" launcher |
 | 5C | ✅ shipped | Public Benchmarks dashboard — `/benchmarks` (no auth); 4 views (suite grid, solver profile, instance leaderboard, dashboard) reading from `benchmarks/archive/` |
 | 8 | ✅ shipped | Classical solver tiers — OR-Tools CP-SAT + HiGHS adapters as `dimod.Sampler` (CQM-native via `_CQM_NATIVE` marker); classical-beats-QUBO honesty check passes |
-| 6 | ⏳ next | Async job queue + GPU contention (Redis + RQ) |
+| 9A | ✅ shipped | Quantum tier (local simulator) — OriginQC pyqpanda QAOA wrapped as a `dimod.Sampler`; optional dep (`pip install ".[quantum]"`); 20-qubit cap on CPU sim path |
+| 9B | ⏳ next | Quantum tier (Origin Quantum cloud BYOK + real Wukong QPU) |
 
 The Flask web layer is live: `python run.py` brings up the auth shell
 on port 5009; `npm run dev` in `../frontend/` brings up the Vue login

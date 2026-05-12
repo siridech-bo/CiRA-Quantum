@@ -140,6 +140,8 @@ _INIT_ONLY_KWARGS_BY_SOLVER: dict[str, set[str]] = {
     "gpu_sa": {"kernel", "device"},
     "cpsat": {"num_workers"},
     "highs": {"presolve"},
+    # Phase 9A — QAOA hyperparameters are constructor-time only.
+    "qaoa_sim": {"layer", "optimizer", "top_k", "max_qubits"},
 }
 
 

@@ -176,6 +176,37 @@ def bootstrap_default_solvers() -> None:
     except Exception:  # pragma: no cover
         logger.exception("Failed to register CPSATSampler")
 
+    # ---- Phase 9A — quantum tier (local CPU simulator) ----
+    # OriginQC pyqpanda QAOA. Optional dep — register only when both
+    # ``pyqpanda3`` and ``pyqpanda_alg`` import cleanly. Same conditional
+    # pattern as ``gpu_sa``'s CUDA check.
+    try:
+        # Probe pyqpanda3 version. The Python package is namespaced under
+        # ``pyqpanda3`` but we tag the source as "pyqpanda" for symmetry
+        # with the way the docs / OriginQC public materials refer to it.
+        import pyqpanda3 as _pq3
+
+        from app.optimization.qaoa_sampler import QAOASampler
+        pq3_version = getattr(_pq3, "__version__", "0.3.5")
+
+        register_solver(
+            SolverIdentity(
+                name="qaoa_sim",
+                version=pq3_version,
+                source="pyqpanda",
+                hardware="cpu-simulator",
+                parameter_schema=_load_schema(schemas_dir / "qaoa_sim_params.json"),
+            ),
+            QAOASampler,
+        )
+    except ImportError:  # pragma: no cover — quantum extras not installed
+        logger.info(
+            "pyqpanda not installed; skipping QAOA sampler registration "
+            "(install with: pip install '.[quantum]')"
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("Failed to register QAOASampler")
+
     try:
         from app.optimization.highs_sampler import HiGHSSampler
 

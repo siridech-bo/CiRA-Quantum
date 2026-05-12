@@ -59,14 +59,17 @@ def run_suite(
 
         params: dict[str, Any] = {}
         # `num_reads`/`num_sweeps` are SA-class kwargs; the exact CQM
-        # solver, CP-SAT, and HiGHS don't take them. Seed is more
-        # universal — most solvers accept it (CP-SAT, HiGHS both do).
+        # solver, CP-SAT, HiGHS, and QAOA don't take them. Seed is more
+        # universal — most solvers accept it.
         if solver_name in ("gpu_sa", "cpu_sa_neal"):
             params.update({
                 "num_reads": num_reads,
                 "num_sweeps": num_sweeps,
             })
-        if solver_name in ("gpu_sa", "cpu_sa_neal", "cpsat", "highs") and seed is not None:
+        if (
+            solver_name in ("gpu_sa", "cpu_sa_neal", "cpsat", "highs", "qaoa_sim")
+            and seed is not None
+        ):
             params["seed"] = seed
         # `kernel` only applies to GPU SA. Recording it in `parameters`
         # makes the kernel mode reproducible per the v2 Phase-2 note.

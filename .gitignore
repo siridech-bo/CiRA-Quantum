@@ -100,6 +100,12 @@ benchmarks/archive/*.json.gz
 .env.*
 !.env.example
 
+# Phase 9B — OriginQC API key file (PKCS#8 / token). Never commit.
+Qpanda.txt
+originqc_*.txt
+originqc_*.key
+*.api_key
+
 # Misc temp files
 tempFileForShare_*
 *.tmp

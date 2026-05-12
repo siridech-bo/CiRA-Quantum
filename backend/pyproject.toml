@@ -27,6 +27,10 @@ dependencies = [
     "flask>=3.0,<4.0",
     "flask-cors>=4.0,<7.0",
     "werkzeug>=3.0,<4.0",
+    # Phase 8 — classical solver tiers (CP-SAT, HiGHS) as registered
+    # dimod.Sampler adapters. Both are CQM-native.
+    "ortools>=9.10,<10.0",
+    "highspy>=1.7,<2.0",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +39,17 @@ dev = [
     "pytest-asyncio>=0.23,<2.0",
     "pytest-httpx>=0.30,<1.0",
     "ruff>=0.5,<1.0",
+]
+# Phase 9A — quantum tier (OriginQC pyqpanda QAOA on local CPU
+# simulator). Optional because pyqpanda is large and most contributors
+# won't exercise this tier. `bootstrap_default_solvers()` registers
+# `qaoa_sim` only when the import succeeds.
+#
+# Install:  pip install ".[quantum]"
+quantum = [
+    "pyqpanda3>=0.3,<1.0",
+    "pyqpanda_alg>=2.0,<3.0",
+    "sympy>=1.12,<2.0",
 ]
 
 [build-system]
