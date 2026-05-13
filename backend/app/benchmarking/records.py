@@ -156,6 +156,9 @@ _INIT_ONLY_KWARGS_BY_SOLVER: dict[str, set[str]] = {
         "top_k",
         "train_optimizer",
     },
+    # Phase 9C — quantum-inspired classical tiers.
+    "parallel_tempering": {"num_replicas", "beta_range"},
+    "simulated_bifurcation": {"mode"},
 }
 
 

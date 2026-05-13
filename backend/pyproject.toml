@@ -31,6 +31,9 @@ dependencies = [
     # dimod.Sampler adapters. Both are CQM-native.
     "ortools>=9.10,<10.0",
     "highspy>=1.7,<2.0",
+    # Phase 9C — Simulated Bifurcation (Goto et al. 2019), the open
+    # algorithm behind Fujitsu's SQBM+. Wrapped as a dimod.Sampler.
+    "simulated-bifurcation>=2.0,<3.0",
 ]
 
 [project.optional-dependencies]

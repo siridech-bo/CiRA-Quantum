@@ -208,6 +208,51 @@ def bootstrap_default_solvers() -> None:
     except Exception:  # pragma: no cover
         logger.exception("Failed to register QAOASampler")
 
+    # ---- Phase 9C — quantum-inspired classical tiers ----
+    # Parallel Tempering (custom Hukushima-Nemoto) and Simulated
+    # Bifurcation (wraps the open simulated-bifurcation PyPI package).
+    # Both consume BQM directly via the same Lagrange-lifted path
+    # gpu_sa / cpu_sa_neal use.
+    try:
+        from app.optimization.parallel_tempering_sampler import (
+            ParallelTemperingSampler,
+        )
+
+        register_solver(
+            SolverIdentity(
+                name="parallel_tempering",
+                version="0.1.0",
+                source="cira-quantum",
+                hardware="cpu",
+                parameter_schema=_load_schema(
+                    schemas_dir / "parallel_tempering_params.json"
+                ),
+            ),
+            ParallelTemperingSampler,
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("Failed to register ParallelTemperingSampler")
+
+    try:
+        from app.optimization.simulated_bifurcation_sampler import (
+            SimulatedBifurcationSampler,
+        )
+
+        register_solver(
+            SolverIdentity(
+                name="simulated_bifurcation",
+                version=_package_version("simulated_bifurcation"),
+                source="simulated-bifurcation",
+                hardware="cpu",
+                parameter_schema=_load_schema(
+                    schemas_dir / "simulated_bifurcation_params.json"
+                ),
+            ),
+            SimulatedBifurcationSampler,
+        )
+    except Exception:  # pragma: no cover — optional dep
+        logger.exception("Failed to register SimulatedBifurcationSampler")
+
     # ---- Phase 9B — cloud QAOA (Origin Quantum) ----
     # Registered only when both (a) pyqpanda is importable and (b) the
     # operator has set ``QPANDA_API_KEY_FILE`` pointing at a readable

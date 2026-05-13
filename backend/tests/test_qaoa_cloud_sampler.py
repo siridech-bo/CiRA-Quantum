@@ -73,6 +73,24 @@ def test_simulator_backend_does_not_require_flag(monkeypatch):
         assert s.properties["is_real_hardware"] is False
 
 
+def test_default_max_qubits_depends_on_backend(monkeypatch):
+    """Per the step-1.6/1.7 empirical probes, real-QPU backends get a
+    much stricter qubit cap (7) than cloud simulators (64). When the
+    caller doesn't supply ``max_qubits`` explicitly, the sampler
+    auto-picks based on backend type."""
+    monkeypatch.setenv("ENABLE_ORIGIN_REAL_HARDWARE", "1")
+
+    sim = QAOACloudSampler(api_key="dummy", backend_name="full_amplitude")
+    qpu = QAOACloudSampler(api_key="dummy", backend_name="WK_C180")
+
+    assert sim.properties["max_qubits"] == 64
+    assert qpu.properties["max_qubits"] == 7
+
+    # Explicit max_qubits still wins over the auto-selected default.
+    custom = QAOACloudSampler(api_key="dummy", backend_name="WK_C180", max_qubits=5)
+    assert custom.properties["max_qubits"] == 5
+
+
 def test_stochastic_marker_set():
     """Forward-looking hook for Phase-2 replay tolerance — same as
     Phase 9A's local QAOASampler."""

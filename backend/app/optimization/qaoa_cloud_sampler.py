@@ -77,7 +77,18 @@ import numpy as np
 _REAL_HARDWARE_BACKENDS = frozenset({"WK_C180", "HanYuan_01"})
 _DEFAULT_CLOUD_URL = "http://pyqanda-admin.qpanda.cn"
 _DEFAULT_BACKEND = "full_amplitude"  # cheap cloud simulator
-_DEFAULT_MAX_QUBITS = 64
+
+# Qubit caps per backend type, set from the step-1.6/1.7 empirical
+# probes:
+#   - Real QPU (WK_C180): n=7 dense QAOA completes in ~10s; n=8 hangs
+#     past the cloud's 3-minute processing budget. So the wall is
+#     between 7 and 8 regardless of coefficient magnitude.
+#   - Cloud simulator (full_amplitude): no measured wall under 30
+#     qubits; statevector cost is the cloud's problem, not ours.
+#     64 is a generous default that fits every Phase-2 instance
+#     after Lagrange-lowering.
+_DEFAULT_MAX_QUBITS_SIMULATOR = 64
+_DEFAULT_MAX_QUBITS_REAL_QPU = 7
 _DEFAULT_LAYER = 3
 _DEFAULT_SHOTS = 2048
 _DEFAULT_MAX_SUBMISSIONS = 5
@@ -105,7 +116,7 @@ class QAOACloudSampler(dimod.Sampler):
         url: str = _DEFAULT_CLOUD_URL,
         layer: int = _DEFAULT_LAYER,
         shots: int = _DEFAULT_SHOTS,
-        max_qubits: int = _DEFAULT_MAX_QUBITS,
+        max_qubits: int | None = None,
         max_submissions: int = _DEFAULT_MAX_SUBMISSIONS,
         top_k: int = _DEFAULT_TOP_K,
         train_optimizer: str = "SLSQP",
@@ -116,12 +127,23 @@ class QAOACloudSampler(dimod.Sampler):
             raise ValueError("layer must be >= 1")
         if shots < 1:
             raise ValueError("shots must be >= 1")
-        if max_qubits < 1:
-            raise ValueError("max_qubits must be >= 1")
         if max_submissions < 1:
             raise ValueError("max_submissions must be >= 1")
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
+
+        # If max_qubits wasn't specified explicitly, pick a sensible
+        # default based on the backend type. Real QPUs have a hard
+        # empirical wall (see step-1.6/1.7 diagnostics); simulators do
+        # not.
+        is_real_hw = backend_name in _REAL_HARDWARE_BACKENDS
+        if max_qubits is None:
+            max_qubits = (
+                _DEFAULT_MAX_QUBITS_REAL_QPU if is_real_hw
+                else _DEFAULT_MAX_QUBITS_SIMULATOR
+            )
+        if max_qubits < 1:
+            raise ValueError("max_qubits must be >= 1")
 
         # Real-hardware gating: refuse to construct against a QPU
         # backend unless the env flag is explicitly on.

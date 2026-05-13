@@ -61,13 +61,16 @@ def run_suite(
         # `num_reads`/`num_sweeps` are SA-class kwargs; the exact CQM
         # solver, CP-SAT, HiGHS, and QAOA don't take them. Seed is more
         # universal — most solvers accept it.
-        if solver_name in ("gpu_sa", "cpu_sa_neal"):
+        if solver_name in ("gpu_sa", "cpu_sa_neal", "parallel_tempering"):
             params.update({
                 "num_reads": num_reads,
                 "num_sweeps": num_sweeps,
             })
         if (
-            solver_name in ("gpu_sa", "cpu_sa_neal", "cpsat", "highs", "qaoa_sim")
+            solver_name in (
+                "gpu_sa", "cpu_sa_neal", "cpsat", "highs", "qaoa_sim",
+                "parallel_tempering", "simulated_bifurcation",
+            )
             and seed is not None
         ):
             params["seed"] = seed

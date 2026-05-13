@@ -18,8 +18,10 @@ is preserved alongside as `PROJECT_TEMPLATE.md` for audit trail.)
 | 5C | ✅ shipped | Public Benchmarks dashboard — `/benchmarks` (no auth); 4 views (suite grid, solver profile, instance leaderboard, dashboard) reading from `benchmarks/archive/` |
 | 8 | ✅ shipped | Classical solver tiers — OR-Tools CP-SAT + HiGHS adapters as `dimod.Sampler` (CQM-native via `_CQM_NATIVE` marker); classical-beats-QUBO honesty check passes |
 | 9A | ✅ shipped | Quantum tier (local simulator) — OriginQC pyqpanda QAOA wrapped as a `dimod.Sampler`; optional dep (`pip install ".[quantum]"`); 20-qubit cap on CPU sim path |
-| 9B | ✅ shipped | Quantum tier (Origin Quantum cloud BYOK) — `qaoa_originqc` registered when `QPANDA_API_KEY_FILE` env var points at a credential file; hybrid local-train + cloud-execute; real-QPU backends gated behind `ENABLE_ORIGIN_REAL_HARDWARE=1` |
-| 9C | ⏳ next | Quantum-inspired classical tiers (Parallel Tempering, PQQA, simulated bifurcation) |
+| 9B | ✅ shipped | Quantum tier (Origin Quantum cloud BYOK) — `qaoa_originqc` registered when `QPANDA_API_KEY_FILE` env var points at a credential file; hybrid local-train + cloud-execute; real-QPU backends gated behind `ENABLE_ORIGIN_REAL_HARDWARE=1`. Auto-caps at n=7 qubits on real-QPU backends per the empirical transpilation wall (see `BENCHMARK_REPORT_002.md` Phase 9B follow-up section). |
+| 9B+ | ✅ shipped | Non-blocking cloud-job capture flow — pending-jobs panel auto-polls and materializes results when Wukong returns, no long-running Python process required |
+| 9C | ✅ shipped | Quantum-inspired classical tiers — Parallel Tempering (custom Hukushima-Nemoto) + Simulated Bifurcation (open algorithm behind Fujitsu's SQBM+). See [BENCHMARK_REPORT_002.md](../BENCHMARK_REPORT_002.md) for findings. |
+| 6 | ⏳ next | Async job queue + GPU contention |
 
 The Flask web layer is live: `python run.py` brings up the auth shell
 on port 5009; `npm run dev` in `../frontend/` brings up the Vue login
@@ -103,7 +105,11 @@ python -m app.benchmarking.cite <record_id> --string   # short citation
 ```
 
 Registered solvers: `exact_cqm`, `cpu_sa_neal`, `gpu_sa` (CUDA-conditional),
-`cpsat` (OR-Tools), `highs` (HiGHS MIP).
+`cpsat` (OR-Tools), `highs` (HiGHS MIP), `qaoa_sim` (pyqpanda QAOA on CPU
+statevector, optional `[quantum]` extra), `qaoa_originqc` (env-gated by
+`QPANDA_API_KEY_FILE`), `parallel_tempering` (custom Hukushima-Nemoto PT),
+`simulated_bifurcation` (Goto et al. 2019 via the `simulated-bifurcation`
+PyPI package).
 Registered suites: `knapsack/small`, `setcover/small`, `jss/small`,
 `maxcut/gset_subset`, `graph_coloring/small`. Run records carry an
 honest convergence flag — `converged_to_expected: null` when the instance

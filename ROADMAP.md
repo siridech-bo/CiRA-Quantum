@@ -24,7 +24,9 @@
 | 8 | Classical solver tiers (OR-Tools CP-SAT + HiGHS) | ✅ shipped |
 | 9A | Quantum tier — local simulator (pyqpanda QAOA) | ✅ shipped |
 | 9B | Quantum tier — Origin Quantum cloud BYOK (full_amplitude + WK_C180 Wukong QPU) | ✅ shipped |
-| **9C** | **Quantum-inspired classical tiers (PT, PQQA, simulated bifurcation)** | ⏳ **next** |
+| 9C | Quantum-inspired classical tiers (Parallel Tempering + Simulated Bifurcation) | ✅ shipped — see [BENCHMARK_REPORT_002.md](./BENCHMARK_REPORT_002.md) |
+| 9B+ | Non-blocking cloud-job capture flow + empirical Wukong qubit wall (n≤7) | ✅ shipped |
+| **6** | **Async job queue + GPU contention** | ⏳ **next** |
 | 9C | Quantum-inspired classical tiers (PT, PQQA, [bifurcation]) | ⏳ |
 | 6 | Async job queue + GPU contention (Redis + RQ) | ⏳ deferred-until-9A-9B-9C |
 | 7 | Public web app hardening | ⏳ deferred-until-9A-9B-9C |

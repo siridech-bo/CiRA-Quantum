@@ -9,6 +9,128 @@ The active specification is `PROJECT_TEMPLATE v2.md`. The original
 
 ---
 
+## Phase 9C — Quantum-inspired classical tiers (PT + SB)
+
+**Date:** 2026-05-13
+
+### Parallel Tempering: custom Hukushima-Nemoto implementation, not a library
+
+The published PT algorithm is straightforward enough (~200 lines of
+numpy) that wrapping a third-party library would have added more
+surface area than it saved. The simulated-bifurcation case is
+different — Goto's algorithm has subtle continuous-time dynamics that
+the upstream package implements correctly; rewriting it would have
+been a multi-week investment.
+
+So: PT in-house, SB via the `simulated-bifurcation` PyPI package.
+Both follow the same `dimod.Sampler` interface as the Phase-8 tiers.
+
+### PT semantics: `num_sweeps` is total simulation length, `num_reads` is snapshot count
+
+This differs from SA-class samplers. The Phase-2 run_suite passes
+`num_reads / num_sweeps` to both gpu_sa/cpu_sa_neal AND PT, but the
+*meaning* differs:
+
+- gpu_sa: `num_reads` independent restarts × `num_sweeps` per restart
+  → ~500k spin-flips at the default settings
+- PT: 1 trajectory × `num_replicas` × `num_sweeps` → ~8k flips at the
+  same nominal settings (under-budgeted by 60×)
+
+Experiment #2 ran both v1 (naive same-kwargs) and v2 (explicit
+PT-fair budget of `num_sweeps=20000`) to verify this matters.
+The 20× budget bump didn't change PT's wrong-answer pattern on the
+hard instances — confirming the issue is algorithmic, not compute.
+
+### Phase 9C headline finding: both tiers underperform on penalty-lifted CSPs
+
+`parallel_tempering` matched the documented optimum on only 2 of 9
+instances; `simulated_bifurcation` on 4 of 9. Both worse than
+vanilla `gpu_sa` and `cpu_sa_neal` (5/9 each) on this fixture set.
+
+This isn't an implementation bug — both adapters find the optimum
+cleanly on small unconstrained QUBOs (3-var sympy, 5-var random).
+The mismatch is that **the Phase-2 fixtures are penalty-lifted
+CSPs**, exactly *not* what PT and SB were designed to dominate. PT's
+published 10-100× speedup over SA is on Edwards-Anderson and
+Sherrington-Kirkpatrick spin glasses — pure quadratic Ising models
+with no Lagrange-induced large-coefficient discontinuities.
+
+The honest scoreboard interpretation: PT and SB are filed under
+"quantum-inspired classical" for completeness; their dashboard cells
+should be read in that context, not as evidence the algorithms are
+inferior. Adding spin-glass instances to the manifest is the right
+follow-up.
+
+---
+
+## Phase 9B follow-up — empirical Wukong qubit wall + non-blocking capture
+
+**Date:** 2026-05-13 (after Phase 9C shipped)
+
+### The wall is between n=7 and n=8 for fully-coupled QAOA via Python
+
+Two of our Python-submitted Wukong jobs (jobs `738A…` and `B58D…`)
+sat in `JobStatus.COMPUTING` for 7+ hours each, never returning a
+result. The web-UI Composer running the same Wukong chip returns
+4-qubit Bell circuits in ~1 minute. We isolated the cause through a
+series of diagnostic probes:
+
+| n (qubits) | Couplings | Submitted via | Wall time |
+|---|---|---|---|
+| 4 (Bell, H+CZ) | 2 | Web UI | ~90 s |
+| 4 (Bell, H+CNOT) | 2 | **Python** | **16 s** |
+| 2 (minimal QAOA) | 1 | Python | 10 s |
+| 4 (dense QAOA) | 6 | Python | 114 s (slow but completes) |
+| 5 (dense QAOA) | 10 | Python | 10 s |
+| 6 (dense QAOA) | 15 | Python | 10 s |
+| 7 (dense QAOA) | 21 | Python | 10 s |
+| **8 (dense QAOA, small coeffs)** | 28 | Python | **hung > 3 min** |
+| **8 (dense QAOA, Lagrange coeffs)** | 28 | Python | **hung > 3 min** |
+
+Both 8-qubit probes hung, regardless of coefficient magnitude. The
+wall is between n=7 and n=8, and the cause is most likely
+**transpilation cost** — at 28 couplings on Wukong's sparse
+`{RPhi, CZ}` topology, the SWAP-cascade explosion pushes the
+physical-gate count past whatever silent timeout the cloud's
+processing pipeline enforces.
+
+The cap is encoded in `QAOACloudSampler` as
+`_DEFAULT_MAX_QUBITS_REAL_QPU = 7` and is auto-selected when
+`backend_name in _REAL_HARDWARE_BACKENDS`. The cloud simulators
+retain the original 64-qubit cap.
+
+### Non-blocking submit pattern for cloud QAOA
+
+The synchronous `record_run` path doesn't work for the real QPU even
+within the qubit cap, because the Bash/Python process running the
+submission gets reaped by various timeouts (Bash background-task
+lifetime; Monitor budgets) before `job.result()` returns. The
+solution is a two-step flow:
+
+1. **Submit-only script**: trains QAOA params locally, builds the
+   circuit, submits to Wukong via `backend.run()` to get a job ID,
+   then *immediately* adds the job to
+   `backend/data/pending_cloud_jobs.json` and exits. Total runtime
+   measured in seconds.
+
+2. **Dashboard auto-poll**: `PendingCloudJobsPanel.vue` polls every
+   30 s, calls `POST /api/benchmarks/cloud-jobs/<id>/materialize` as
+   soon as `has_probs` flips true. Result becomes a regular
+   `qaoa_originqc` `RunRecord` in the archive without any
+   long-running Python process needing to stay alive.
+
+This is the production pattern for all future cloud QAOA submissions
+— synchronous `record_run` is reserved for solvers that return
+within seconds (everything except `qaoa_originqc`).
+
+The first real-QPU `qaoa_originqc` record (job `93A2EAE6…`) is in
+flight via this pattern at the time of this commit and will
+materialize when Wukong returns. The pending list also had two stuck
+jobs (`738A…`, `B58D…`) dropped during the cleanup — they were
+8-qubit submissions over the now-known n=7 wall.
+
+---
+
 ## Phase 9B — Origin Quantum cloud BYOK + real Wukong QPU
 
 **Date:** 2026-05-12
