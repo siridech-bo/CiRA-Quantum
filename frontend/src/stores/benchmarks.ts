@@ -121,6 +121,18 @@ export interface Findings {
   solver_summaries: SolverSummary[]
 }
 
+export interface PendingCloudJob {
+  job_id: string
+  solver_name: string
+  instance_id: string
+  parameters: Record<string, any>
+  submitted_at: string
+  notes: string
+  live_status: string
+  live_error: string
+  has_probs: boolean
+}
+
 export const useBenchmarksStore = defineStore('benchmarks', () => {
   const suites = ref<SuiteSummary[]>([])
   const suiteDetail = ref<Record<string, SuiteDetail>>({})
@@ -209,6 +221,50 @@ export const useBenchmarksStore = defineStore('benchmarks', () => {
     }
   }
 
+  const pendingCloudJobs = ref<PendingCloudJob[]>([])
+  const pendingCloudError = ref<string | null>(null)
+
+  async function loadPendingCloudJobs(): Promise<PendingCloudJob[]> {
+    try {
+      const r = await api.get<{ pending: PendingCloudJob[] }>(
+        '/api/benchmarks/cloud-jobs/pending',
+      )
+      pendingCloudJobs.value = r.data.pending
+      pendingCloudError.value = null
+      return r.data.pending
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.message || 'Failed to load pending jobs'
+      pendingCloudError.value = msg
+      // 503 (no credential file) is a soft error; keep last-known state
+      return pendingCloudJobs.value
+    }
+  }
+
+  async function materializePendingJob(jobId: string): Promise<{ record_id?: string; error?: string }> {
+    try {
+      const r = await api.post<{ success: boolean; record_id: string }>(
+        `/api/benchmarks/cloud-jobs/${jobId}/materialize`,
+      )
+      // Refresh findings so the newly archived record shows up immediately
+      findings.value = null
+      await loadFindings(true)
+      await loadPendingCloudJobs()
+      return { record_id: r.data.record_id }
+    } catch (e: any) {
+      return { error: e?.response?.data?.error || e?.message || 'materialize failed' }
+    }
+  }
+
+  async function dropPendingJob(jobId: string): Promise<boolean> {
+    try {
+      await api.delete(`/api/benchmarks/cloud-jobs/${jobId}`)
+      await loadPendingCloudJobs()
+      return true
+    } catch (e: any) {
+      return false
+    }
+  }
+
   async function loadFindings(force = false): Promise<Findings | null> {
     if (!force && findings.value) return findings.value
     loading.value = true
@@ -254,6 +310,8 @@ export const useBenchmarksStore = defineStore('benchmarks', () => {
     instanceDetail,
     recordDetail,
     findings,
+    pendingCloudJobs,
+    pendingCloudError,
     loading,
     error,
     // actions
@@ -263,6 +321,9 @@ export const useBenchmarksStore = defineStore('benchmarks', () => {
     loadInstance,
     loadRecord,
     loadFindings,
+    loadPendingCloudJobs,
+    materializePendingJob,
+    dropPendingJob,
     fetchCitation,
     refresh,
   }

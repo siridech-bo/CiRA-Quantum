@@ -1,0 +1,36 @@
+{
+  "jobs": [
+    {
+      "job_id": "738AF2DEEF13A56E28A8DBE7B3CED856",
+      "solver_name": "qaoa_originqc",
+      "instance_id": "setcover/small/setcover_4item",
+      "parameters": {
+        "backend_name": "WK_C180",
+        "layer": 1,
+        "shots": 1000,
+        "max_qubits": 30,
+        "max_submissions": 1,
+        "top_k": 10
+      },
+      "lagrange_multiplier": 10.0,
+      "submitted_at": "2026-05-13T01:00:55+00:00",
+      "notes": "Phase 9B v2 smoke (QCloudOptions fix). Submitted via smoke_qaoa_wukong.py — process killed by Bash background timeout before result returned."
+    },
+    {
+      "job_id": "B58D3927628FFBAD8941DB552107B254",
+      "solver_name": "qaoa_originqc",
+      "instance_id": "setcover/small/setcover_4item",
+      "parameters": {
+        "backend_name": "WK_C180",
+        "layer": 1,
+        "shots": 1000,
+        "max_qubits": 30,
+        "max_submissions": 1,
+        "top_k": 10
+      },
+      "lagrange_multiplier": 10.0,
+      "submitted_at": "2026-05-13T00:45:11+00:00",
+      "notes": "Phase 9B v1 smoke (no QCloudOptions). Server-side reached Wukong queue before our local RuntimeError surfaced. May error at execution."
+    }
+  ]
+}

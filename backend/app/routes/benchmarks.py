@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import glob
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -348,6 +349,142 @@ def findings():
             for s, stats in sorted(solver_summaries.items())
         ],
     })
+
+
+@benchmarks_bp.route("/cloud-jobs/pending", methods=["GET"])
+def cloud_jobs_pending():
+    """List currently-pending cloud jobs with their live cloud status.
+
+    For each pending entry, queries the cloud for the latest
+    ``JobStatus``, error message (if any), and whether probability
+    counts are available. The dashboard polls this endpoint every 30 s
+    and auto-fires ``POST /materialize`` when a job becomes ready.
+
+    No auth required (matches the rest of ``/api/benchmarks/*``).
+    """
+    from app.benchmarking import pending_jobs as pj
+
+    api_key_path = os.environ.get("QPANDA_API_KEY_FILE")
+    if not api_key_path or not Path(api_key_path).exists():
+        return jsonify({
+            "error": "QPANDA_API_KEY_FILE not configured; can't query cloud status",
+            "code": "NO_CREDENTIAL",
+            "pending": [],
+        }), 503
+
+    api_key = Path(api_key_path).read_text(encoding="utf-8").strip()
+    try:
+        import pyqpanda3.qcloud as qcloud_mod
+        qcloud_mod.QCloudService(api_key=api_key)  # auth
+    except Exception as e:  # noqa: BLE001
+        return jsonify({
+            "error": f"cloud auth failed: {type(e).__name__}: {e}",
+            "code": "AUTH_FAILED",
+            "pending": [],
+        }), 502
+
+    pendings = pj.list_pending()
+    out = []
+    for entry in pendings:
+        cell = {
+            "job_id": entry.job_id,
+            "solver_name": entry.solver_name,
+            "instance_id": entry.instance_id,
+            "parameters": entry.parameters,
+            "submitted_at": entry.submitted_at,
+            "notes": entry.notes,
+            "live_status": "UNKNOWN",
+            "live_error": "",
+            "has_probs": False,
+        }
+        try:
+            import pyqpanda3.qcloud as qcloud_mod
+            job = qcloud_mod.QCloudJob(entry.job_id)
+            q = job.query()
+            status = q.job_status()
+            cell["live_status"] = (
+                str(status).rsplit(".", 1)[-1] if hasattr(status, "name") else str(status)
+            )
+            err = q.error_message() or ""
+            cell["live_error"] = err
+            cell["has_probs"] = bool(q.get_probs())
+        except Exception as e:  # noqa: BLE001
+            cell["live_error"] = f"{type(e).__name__}: {e}"
+        out.append(cell)
+
+    return jsonify({"pending": out})
+
+
+@benchmarks_bp.route("/cloud-jobs/<job_id>/materialize", methods=["POST"])
+def cloud_jobs_materialize(job_id: str):
+    """Convert a completed pending job into a ``RunRecord`` in the
+    archive. Removes the entry from the pending list on success.
+
+    Idempotent: a second call after the job is already archived
+    returns ``404 NOT_FOUND`` because the pending entry is gone.
+    """
+    from app.benchmarking import pending_jobs as pj
+    from app.benchmarking.cloud_materialize import (
+        JobErroredError,
+        JobNotReadyError,
+        materialize,
+    )
+
+    api_key_path = os.environ.get("QPANDA_API_KEY_FILE")
+    if not api_key_path or not Path(api_key_path).exists():
+        return jsonify({
+            "error": "QPANDA_API_KEY_FILE not configured",
+            "code": "NO_CREDENTIAL",
+        }), 503
+
+    pending = pj.get(job_id)
+    if pending is None:
+        return jsonify({
+            "error": f"no pending job with id {job_id!r}",
+            "code": "NOT_FOUND",
+        }), 404
+
+    api_key = Path(api_key_path).read_text(encoding="utf-8").strip()
+    try:
+        record_id = materialize(pending, api_key)
+    except JobNotReadyError as e:
+        return jsonify({
+            "error": str(e),
+            "code": "NOT_READY",
+        }), 409
+    except JobErroredError as e:
+        # Don't auto-remove from pending — let the operator decide
+        # whether to drop it or wait.
+        return jsonify({
+            "error": str(e),
+            "code": "CLOUD_ERROR",
+        }), 502
+    except Exception as e:  # noqa: BLE001
+        return jsonify({
+            "error": f"materialize failed: {type(e).__name__}: {e}",
+            "code": "INTERNAL",
+        }), 500
+
+    return jsonify({
+        "success": True,
+        "record_id": record_id,
+        "job_id": job_id,
+    })
+
+
+@benchmarks_bp.route("/cloud-jobs/<job_id>", methods=["DELETE"])
+def cloud_jobs_remove(job_id: str):
+    """Drop a pending entry without materializing it. Used to clear
+    entries for jobs that errored out on the cloud side and won't
+    ever produce a usable result."""
+    from app.benchmarking import pending_jobs as pj
+
+    if pj.remove(job_id):
+        return jsonify({"success": True, "removed": job_id})
+    return jsonify({
+        "error": f"no pending job with id {job_id!r}",
+        "code": "NOT_FOUND",
+    }), 404
 
 
 @benchmarks_bp.route("/records/<record_id>/cite", methods=["GET"])

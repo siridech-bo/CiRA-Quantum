@@ -122,7 +122,11 @@ class _FakeBackend:
     def __init__(self, fixed_probs: dict[str, float]):
         self._probs = fixed_probs
 
-    def run(self, _prog, _shots):
+    def run(self, _prog, _shots, _options=None):
+        # Accepts either the simulator-style ``run(prog, shots)`` or the
+        # QPU/options-style ``run(prog, shots, QCloudOptions)``. Our
+        # sampler always uses the latter; the optional default keeps
+        # this mock backwards-compatible in case future tests skip it.
         return _FakeQCloudJob(self._probs)
 
 

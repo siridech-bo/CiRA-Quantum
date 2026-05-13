@@ -263,7 +263,12 @@ class QAOACloudSampler(dimod.Sampler):
             prog << pq3.measure(q, i)
 
         # ---- Step 3: submit to cloud and wait ----
-        from pyqpanda3.qcloud import QCloudService
+        # Backend.run() has two flavours: a simulator-only path that
+        # takes just (prog, shots), and a "with options" path that
+        # takes (prog, shots, QCloudOptions) and works on both
+        # simulators *and* real QPUs. We always use the latter so the
+        # same sampler covers full_amplitude AND WK_C180.
+        from pyqpanda3.qcloud import QCloudOptions, QCloudService
 
         service = QCloudService(api_key=self._api_key, url=self._url)
         try:
@@ -274,9 +279,18 @@ class QAOACloudSampler(dimod.Sampler):
                 f"{self._url}: {type(e).__name__}: {e}"
             ) from e
 
+        options = QCloudOptions()
+        # Match the OriginQC web UI defaults: circuit optimization on,
+        # logical-to-physical qubit mapping on, error amendment on,
+        # and return measurement-count probabilities.
+        options.set_optimization(True)
+        options.set_mapping(True)
+        options.set_amend(True)
+        options.set_is_prob_counts(True)
+
         submit_started = time.perf_counter()
         try:
-            job = backend.run(prog, self._shots)
+            job = backend.run(prog, self._shots, options)
             job_id = job.job_id()
             result = job.result()  # blocks until done
         except Exception as e:  # noqa: BLE001

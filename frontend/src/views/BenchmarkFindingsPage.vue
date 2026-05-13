@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBenchmarksStore, type FindingsCell, type SolverSummary } from '@/stores/benchmarks'
+import PendingCloudJobsPanel from '@/components/PendingCloudJobsPanel.vue'
 
 const router = useRouter()
 const benchmarks = useBenchmarksStore()
@@ -85,6 +86,10 @@ function matchRateForSummary(s: SolverSummary): number {
       </v-alert>
 
       <template v-else-if="benchmarks.findings">
+        <!-- Pending cloud-jobs panel — polls every 30s, auto-materializes
+             jobs when their probability counts become available. -->
+        <PendingCloudJobsPanel />
+
         <!-- Headline tonal card -->
         <v-card class="pa-6 mb-4" variant="tonal" color="primary">
           <v-card-title class="pa-0 text-h5 mb-1">
