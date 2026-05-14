@@ -233,6 +233,7 @@ class Orchestrator:
             qaoa_extras = _build_qaoa_extras(
                 sampleset, bqm, variables_in_bqm=list(bqm.variables),
                 sense=sense,
+                num_logical_vars=len(cqm.variables),
             )
             if qaoa_extras is not None:
                 row["qaoa_extras"] = qaoa_extras
@@ -416,6 +417,7 @@ def _build_qaoa_extras(
     *,
     variables_in_bqm: list,
     sense: str,
+    num_logical_vars: int | None = None,
 ) -> dict[str, Any] | None:
     """Return the QAOA-specific telemetry the Explainer panel needs, or
     ``None`` if the sampleset isn't from a QAOA solver.
@@ -455,11 +457,34 @@ def _build_qaoa_extras(
         else:
             energies.append(raw if sense == "minimize" else -raw)
 
+    # Capture the BQM coupling structure so the explainer can render a
+    # realistic gate-level diagram (linear coefficients → RZ gates on
+    # each qubit; quadratic couplings → CNOT–RZ–CNOT decompositions
+    # between qubit pairs). Strings are used as variable labels so the
+    # frontend can map them to the qubit indices in ``variables_in_bqm``.
+    var_index = {v: i for i, v in enumerate(variables_in_bqm)}
+    h_terms: list[tuple[int, float]] = []
+    for v, c in bqm_bin.linear.items():
+        fc = _finite_or_none(c)
+        if fc is None or fc == 0.0:
+            continue
+        h_terms.append((var_index[v], fc))
+    j_terms: list[tuple[int, int, float]] = []
+    for (u, v), c in bqm_bin.quadratic.items():
+        fc = _finite_or_none(c)
+        if fc is None or fc == 0.0:
+            continue
+        i, j = var_index[u], var_index[v]
+        j_terms.append((min(i, j), max(i, j), fc))
+
     return {
         "layer": info.get("qaoa_layer"),
         "trained_gammas": [_finite_or_none(g) for g in gammas],
         "trained_betas": [_finite_or_none(b) for b in betas],
         "num_qubits": n,
+        "num_logical_vars": num_logical_vars,
+        "linear_terms": h_terms,
+        "quadratic_terms": j_terms,
         "top_bitstrings": [str(b) for b in bitstrings],
         "top_probabilities": [_finite_or_none(p) for p in probs],
         "top_energies": energies,

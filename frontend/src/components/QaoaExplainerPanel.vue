@@ -73,36 +73,150 @@ function fmtCoeff(n: number, leading = false): string {
   return leading ? `${n}·` : `+ ${n}·`
 }
 
-// ----------- Panel 2: trained circuit -----------------------------------------
+// ----------- Panel 2: trained circuit (gate-level SVG) -----------------------
 
-const circuitColumns = computed(() => {
-  const layer = props.extras.layer ?? 0
-  // Each "layer" is (problem-unitary, mixer-unitary). Plus the leading
-  // Hadamard column and the trailing measurement column.
-  const cols: { kind: string; label: string; sublabel?: string }[] = [
-    { kind: 'H', label: 'H', sublabel: 'superposition' },
-  ]
-  for (let p = 0; p < layer; p++) {
-    cols.push({
-      kind: 'P',
-      label: `P(γ${sub(p)})`,
-      sublabel: `γ${sub(p)}=${(props.extras.trained_gammas[p] ?? 0).toFixed(2)}`,
-    })
-    cols.push({
-      kind: 'M',
-      label: `M(β${sub(p)})`,
-      sublabel: `β${sub(p)}=${(props.extras.trained_betas[p] ?? 0).toFixed(2)}`,
-    })
-  }
-  cols.push({ kind: 'meas', label: 'measure', sublabel: 'collapse' })
-  return cols
-})
+/**
+ * Build a gate-level circuit description from the QAOA extras. Each
+ * column represents one "moment" in time. Gates within a column are
+ * applied simultaneously (in real hardware they may be transpiled
+ * differently, but logically they commute by qubit-disjointness).
+ *
+ * For a p-layer QAOA the structure is:
+ *   col 0: H on every qubit (uniform superposition prep)
+ *   per layer:
+ *     for each (i, j) coupling: CNOT(i, j), RZ(j, 2*γ*Jij), CNOT(i, j)
+ *     for each i linear bias: RZ(i, 2*γ*hi)
+ *     for each qubit: RX(2*β) (mixer)
+ *   final: measure on every qubit
+ */
+interface Gate {
+  kind: 'H' | 'RZ' | 'RX' | 'CX_ctrl' | 'CX_target' | 'measure'
+  qubit: number
+  label?: string
+  /** For CX pairs, the partner qubit index — used to draw the connector. */
+  partner?: number
+}
+type Column = Gate[]
 
 function sub(i: number): string {
-  // Unicode subscripts for tidy γ₀, β₀ labels.
   const s = '₀₁₂₃₄₅₆₇₈₉'
   return String(i).split('').map((d) => s[parseInt(d, 10)]).join('')
 }
+
+const circuitColumns = computed<Column[]>(() => {
+  const n = props.extras.num_qubits
+  const p = props.extras.layer ?? 0
+  const gammas = props.extras.trained_gammas
+  const betas = props.extras.trained_betas
+  const cols: Column[] = []
+
+  // --- Initial Hadamard layer ---------------------------------------
+  cols.push(
+    Array.from({ length: n }, (_, q) => ({ kind: 'H' as const, qubit: q })),
+  )
+
+  // --- p QAOA layers ------------------------------------------------
+  for (let layer = 0; layer < p; layer++) {
+    const g = gammas[layer] ?? 0
+    const b = betas[layer] ?? 0
+
+    // Problem unitary: for each ZZ coupling, CNOT — RZ — CNOT
+    for (const [qi, qj, coupling] of props.extras.quadratic_terms) {
+      cols.push([
+        { kind: 'CX_ctrl', qubit: qi, partner: qj },
+        { kind: 'CX_target', qubit: qj, partner: qi },
+      ])
+      cols.push([
+        { kind: 'RZ', qubit: qj, label: `RZ(${(2 * g * coupling).toFixed(2)})` },
+      ])
+      cols.push([
+        { kind: 'CX_ctrl', qubit: qi, partner: qj },
+        { kind: 'CX_target', qubit: qj, partner: qi },
+      ])
+    }
+    // Local Z biases: each h_i → RZ(2*γ*h_i)
+    const localRzGates: Gate[] = props.extras.linear_terms.map(
+      ([qi, hi]) => ({
+        kind: 'RZ' as const,
+        qubit: qi,
+        label: `RZ(${(2 * g * hi).toFixed(2)})`,
+      }),
+    )
+    if (localRzGates.length) {
+      cols.push(localRzGates)
+    }
+
+    // Mixer: RX(2β) on every qubit
+    cols.push(
+      Array.from({ length: n }, (_, q) => ({
+        kind: 'RX' as const,
+        qubit: q,
+        label: `RX(${(2 * b).toFixed(2)})`,
+      })),
+    )
+  }
+
+  // --- Measurement --------------------------------------------------
+  cols.push(
+    Array.from({ length: n }, (_, q) => ({ kind: 'measure' as const, qubit: q })),
+  )
+
+  return cols
+})
+
+// SVG layout constants
+const RAIL_HEIGHT = 36
+const COL_WIDTH = 50
+const COL_PAD_LEFT = 70  // room for "q[0] |0⟩" labels
+const COL_PAD_TOP = 20   // room for column numbers
+const COL_PAD_BOTTOM = 10
+const COL_PAD_RIGHT = 12
+
+const circuitSvgWidth = computed(
+  () => COL_PAD_LEFT + circuitColumns.value.length * COL_WIDTH + COL_PAD_RIGHT,
+)
+const circuitSvgHeight = computed(
+  () => COL_PAD_TOP + props.extras.num_qubits * RAIL_HEIGHT + COL_PAD_BOTTOM,
+)
+function railY(q: number): number {
+  return COL_PAD_TOP + q * RAIL_HEIGHT + RAIL_HEIGHT / 2
+}
+function colX(c: number): number {
+  return COL_PAD_LEFT + c * COL_WIDTH + COL_WIDTH / 2
+}
+function isSlackQubit(q: number): boolean {
+  const logical = props.extras.num_logical_vars
+  if (logical == null) return false
+  return q >= logical
+}
+
+// Layer-boundary annotations (so the student can see where one
+// QAOA layer ends and the next begins). Position computed from the
+// column structure: H, then (per-layer: many ZZ cols + local-RZ + mixer),
+// then measure.
+const layerBoundaries = computed<{ x: number; label: string }[]>(() => {
+  const n = props.extras.num_qubits
+  const p = props.extras.layer ?? 0
+  const out: { x: number; label: string }[] = []
+
+  let colIdx = 1  // skip the H column
+  for (let layer = 0; layer < p; layer++) {
+    const nZZ = props.extras.quadratic_terms.length
+    const nLocal = props.extras.linear_terms.length > 0 ? 1 : 0
+    const layerCols = nZZ * 3 + nLocal + 1  // ZZ triplets + local-RZ + mixer
+    out.push({
+      x: colX(colIdx) - COL_WIDTH / 2,
+      label: `layer ${layer + 1}`,
+    })
+    colIdx += layerCols
+  }
+  // Final boundary (start of measurement)
+  out.push({
+    x: colX(colIdx) - COL_WIDTH / 2,
+    label: 'measure',
+  })
+  return out
+})
 
 // ----------- Panel 3: measurement histogram -----------------------------------
 
@@ -237,48 +351,213 @@ function fmtEnergy(e: number): string {
       </div>
     </section>
 
-    <!-- ============ Panel 2: trained circuit ============ -->
+    <!-- ============ Panel 2: trained circuit (gate-level) ============ -->
     <section class="explainer-section mt-4">
       <header class="d-flex align-center mb-2">
         <v-icon icon="mdi-vector-line" size="small" class="mr-2" />
         <h4 class="text-subtitle-2">
-          2 · The trained circuit ({{ extras.layer ?? '?' }} QAOA layer{{ extras.layer === 1 ? '' : 's' }})
+          2 · The trained circuit
+          ({{ extras.num_qubits }} qubit{{ extras.num_qubits === 1 ? '' : 's' }},
+          {{ extras.layer ?? '?' }} QAOA layer{{ extras.layer === 1 ? '' : 's' }})
         </h4>
       </header>
+      <div
+        v-if="extras.num_logical_vars != null && extras.num_qubits > extras.num_logical_vars"
+        class="slack-banner mb-2"
+      >
+        <v-icon icon="mdi-information-outline" size="small" class="mr-1" />
+        Qubits q<sub>0</sub>–q<sub>{{ extras.num_logical_vars - 1 }}</sub>
+        encode your problem's logical variables; q<sub>{{ extras.num_logical_vars }}</sub>–q<sub>{{ extras.num_qubits - 1 }}</sub>
+        are <strong>slack qubits</strong> dimod added when lowering the
+        constraint to a BQM. They take ±1 freely; their job is to soak
+        up the inequality's slack so the penalty term is exactly zero
+        when the original constraint is satisfied.
+      </div>
       <div class="circuit-scroll">
-        <div class="circuit">
-          <div class="circuit-rail-stack">
-            <div
-              v-for="q in extras.num_qubits"
-              :key="q"
-              class="circuit-rail"
-            >
-              <span class="rail-label">q{{ q - 1 }}</span>
-              <div class="rail-line"></div>
-            </div>
-          </div>
-          <div class="circuit-cols">
-            <div
-              v-for="(col, ci) in circuitColumns"
-              :key="ci"
-              class="circuit-col"
-              :class="`col-${col.kind}`"
-            >
-              <div class="col-block">
-                {{ col.label }}
-              </div>
-              <div class="col-sub">{{ col.sublabel }}</div>
-            </div>
-          </div>
-        </div>
+        <svg
+          :width="circuitSvgWidth"
+          :height="circuitSvgHeight"
+          :viewBox="`0 0 ${circuitSvgWidth} ${circuitSvgHeight}`"
+          class="qcircuit-svg"
+        >
+          <!-- Qubit rails + |0> labels -->
+          <g v-for="q in extras.num_qubits" :key="`rail-${q - 1}`">
+            <line
+              :x1="COL_PAD_LEFT - 10"
+              :y1="railY(q - 1)"
+              :x2="circuitSvgWidth - COL_PAD_RIGHT"
+              :y2="railY(q - 1)"
+              stroke="rgba(255,255,255,0.22)"
+              stroke-width="1"
+            />
+            <text
+              :x="COL_PAD_LEFT - 60"
+              :y="railY(q - 1) + 4"
+              font-size="11"
+              font-family="Cascadia Code, Consolas, monospace"
+              :fill="isSlackQubit(q - 1) ? 'rgba(255,200,100,0.75)' : 'rgba(255,255,255,0.65)'"
+            >q[{{ q - 1 }}]</text>
+            <text
+              :x="COL_PAD_LEFT - 22"
+              :y="railY(q - 1) + 4"
+              font-size="11"
+              font-family="Cascadia Code, Consolas, monospace"
+              fill="rgba(255,255,255,0.45)"
+            >|0⟩</text>
+          </g>
+          <!-- Column numbers -->
+          <g>
+            <text
+              v-for="(_, ci) in circuitColumns"
+              :key="`colnum-${ci}`"
+              :x="colX(ci)"
+              :y="14"
+              text-anchor="middle"
+              font-size="9"
+              fill="rgba(255,255,255,0.40)"
+            >{{ ci + 1 }}</text>
+          </g>
+          <!-- Layer boundary tick marks -->
+          <g v-if="layerBoundaries.length">
+            <line
+              v-for="(boundary, bi) in layerBoundaries"
+              :key="`lb-${bi}`"
+              :x1="boundary.x"
+              :y1="COL_PAD_TOP - 4"
+              :x2="boundary.x"
+              :y2="circuitSvgHeight - COL_PAD_BOTTOM"
+              stroke="rgba(124,58,237,0.18)"
+              stroke-width="1"
+              stroke-dasharray="2 3"
+            />
+            <text
+              v-for="(boundary, bi) in layerBoundaries"
+              :key="`lbl-${bi}`"
+              :x="boundary.x + 4"
+              :y="circuitSvgHeight - 1"
+              font-size="9"
+              fill="rgba(124,58,237,0.5)"
+            >{{ boundary.label }}</text>
+          </g>
+
+          <!-- Gates, column by column -->
+          <g v-for="(col, ci) in circuitColumns" :key="`col-${ci}`">
+            <!-- CX connectors first so they sit underneath the gate boxes -->
+            <template v-for="gate in col" :key="`conn-${ci}-${gate.qubit}`">
+              <line
+                v-if="gate.kind === 'CX_ctrl' && gate.partner !== undefined"
+                :x1="colX(ci)"
+                :y1="railY(gate.qubit)"
+                :x2="colX(ci)"
+                :y2="railY(gate.partner)"
+                stroke="#7c3aed"
+                stroke-width="2"
+              />
+            </template>
+            <!-- Gate symbols -->
+            <template v-for="gate in col" :key="`g-${ci}-${gate.qubit}`">
+              <!-- Single-qubit boxed gate (H, RZ, RX) -->
+              <g v-if="['H', 'RZ', 'RX'].includes(gate.kind)">
+                <rect
+                  :x="colX(ci) - 18"
+                  :y="railY(gate.qubit) - 12"
+                  width="36"
+                  height="24"
+                  rx="3"
+                  :fill="gate.kind === 'H' ? '#22c55e' : (gate.kind === 'RX' ? '#06b6d4' : '#a855f7')"
+                  stroke="rgba(255,255,255,0.4)"
+                  stroke-width="1"
+                />
+                <text
+                  :x="colX(ci)"
+                  :y="railY(gate.qubit) + 4"
+                  text-anchor="middle"
+                  font-size="11"
+                  font-weight="600"
+                  font-family="Cascadia Code, Consolas, monospace"
+                  fill="white"
+                >{{ gate.kind === 'H' ? 'H' : gate.kind }}</text>
+                <title v-if="gate.label">{{ gate.label }}</title>
+              </g>
+              <!-- CX control: filled dot -->
+              <circle
+                v-else-if="gate.kind === 'CX_ctrl'"
+                :cx="colX(ci)"
+                :cy="railY(gate.qubit)"
+                r="4"
+                fill="#7c3aed"
+              />
+              <!-- CX target: plus-in-circle (XOR symbol) -->
+              <g v-else-if="gate.kind === 'CX_target'">
+                <circle
+                  :cx="colX(ci)"
+                  :cy="railY(gate.qubit)"
+                  r="10"
+                  fill="rgb(var(--v-theme-surface))"
+                  stroke="#7c3aed"
+                  stroke-width="2"
+                />
+                <line
+                  :x1="colX(ci) - 7"
+                  :y1="railY(gate.qubit)"
+                  :x2="colX(ci) + 7"
+                  :y2="railY(gate.qubit)"
+                  stroke="#7c3aed"
+                  stroke-width="2"
+                />
+                <line
+                  :x1="colX(ci)"
+                  :y1="railY(gate.qubit) - 7"
+                  :x2="colX(ci)"
+                  :y2="railY(gate.qubit) + 7"
+                  stroke="#7c3aed"
+                  stroke-width="2"
+                />
+              </g>
+              <!-- Measurement symbol -->
+              <g v-else-if="gate.kind === 'measure'">
+                <rect
+                  :x="colX(ci) - 14"
+                  :y="railY(gate.qubit) - 12"
+                  width="28"
+                  height="24"
+                  rx="3"
+                  fill="rgba(255,255,255,0.06)"
+                  stroke="rgba(255,255,255,0.45)"
+                  stroke-width="1.5"
+                  stroke-dasharray="3 2"
+                />
+                <path
+                  :d="`M ${colX(ci) - 8} ${railY(gate.qubit) + 4} A 8 8 0 0 1 ${colX(ci) + 8} ${railY(gate.qubit) + 4}`"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.7)"
+                  stroke-width="1.5"
+                />
+                <line
+                  :x1="colX(ci)"
+                  :y1="railY(gate.qubit) + 4"
+                  :x2="colX(ci) + 5"
+                  :y2="railY(gate.qubit) - 5"
+                  stroke="rgba(255,255,255,0.7)"
+                  stroke-width="1.5"
+                />
+              </g>
+            </template>
+          </g>
+        </svg>
       </div>
       <div class="text-caption text-medium-emphasis mt-2">
-        Hadamards put all qubits into uniform superposition. Each layer
-        applies the <em>problem unitary</em> (phases each basis state by
-        the polynomial's value, scaled by γ) then the <em>mixer</em>
-        (rotates amplitude around X, scaled by β). The (γ, β) values
-        above were trained locally on a statevector simulator so the
-        QPU submission is one-shot — no expensive variational round-trips.
+        Color key: <span style="color:#22c55e">H</span> (Hadamard, prep
+        superposition) ·
+        <span style="color:#a855f7">RZ</span> (Z-axis phase, scaled by γ ·
+        coupling) ·
+        <span style="color:#06b6d4">RX</span> (X-axis mixer, scaled by β) ·
+        <span style="color:#7c3aed">●–⊕</span> (CNOT, entangles a pair of qubits).
+        The Hadamards put all qubits into uniform superposition. Each
+        QAOA layer phases the state by the polynomial (via CNOT–RZ–CNOT
+        decompositions, one per ZZ coupling) and then mixes amplitude
+        around the X axis. The (γ, β) values were trained locally on a
+        statevector simulator so the QPU submission is one-shot.
       </div>
     </section>
 
@@ -410,78 +689,21 @@ function fmtEnergy(e: number): string {
 
 .circuit-scroll {
   overflow-x: auto;
-  padding-bottom: 0.4rem;
-}
-.circuit {
-  position: relative;
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
-  min-height: 80px;
-  padding: 0.6rem 0.4rem;
+  padding: 0.4rem;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 4px;
 }
-.circuit-rail-stack {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  padding: 0.4rem 0;
+.qcircuit-svg {
+  display: block;
+  min-width: max-content;
 }
-.circuit-rail {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  height: 28px;
-  position: relative;
-}
-.rail-label {
-  font-family: 'Cascadia Code', 'Consolas', monospace;
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.55);
-  width: 30px;
-  text-align: right;
-}
-.rail-line {
-  position: absolute;
-  left: 36px;
-  right: -3000px;  /* extend through all columns; clipped by container */
-  height: 1px;
-  background: rgba(255, 255, 255, 0.18);
-}
-.circuit-cols {
-  display: flex;
-  gap: 0.4rem;
-  flex: 1;
-  align-items: center;
-  position: relative;
-  z-index: 1;
-}
-.circuit-col {
-  text-align: center;
-  min-width: 70px;
-}
-.col-block {
-  background: rgb(var(--v-theme-primary));
-  color: white;
-  padding: 0.4rem 0.5rem;
+.slack-banner {
+  background: rgba(255, 200, 100, 0.06);
+  border-left: 3px solid rgba(255, 200, 100, 0.5);
+  padding: 0.5rem 0.75rem;
   border-radius: 3px;
-  font-family: 'Cascadia Code', 'Consolas', monospace;
-  font-size: 0.82rem;
-}
-.col-H .col-block { background: rgb(var(--v-theme-success)); }
-.col-P .col-block { background: rgb(var(--v-theme-primary)); }
-.col-M .col-block { background: rgb(var(--v-theme-info)); }
-.col-meas .col-block {
-  background: transparent;
-  color: rgba(255, 255, 255, 0.65);
-  border: 1px dashed rgba(255, 255, 255, 0.35);
-}
-.col-sub {
-  margin-top: 0.25rem;
-  font-size: 0.7rem;
-  font-family: 'Cascadia Code', 'Consolas', monospace;
-  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .histogram {

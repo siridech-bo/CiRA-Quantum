@@ -79,12 +79,23 @@ export interface SolverResult {
 
 export interface QaoaExtras {
   layer: number | null
-  trained_gammas: number[]
-  trained_betas: number[]
+  trained_gammas: (number | null)[]
+  trained_betas: (number | null)[]
   num_qubits: number
+  /** Number of logical variables in the original CQM. The difference
+   * (num_qubits − num_logical_vars) is the count of slack qubits dimod
+   * added when lowering ≤/≥ inequality constraints. Null on legacy
+   * runs that pre-date the slack-qubit annotation. */
+  num_logical_vars: number | null
+  /** Per-qubit linear bias [(qubit_index, coefficient), ...]. Drives
+   * the RZ gates in the gate-level circuit view. */
+  linear_terms: [number, number][]
+  /** Pairwise coupling [(qubit_i, qubit_j, coefficient), ...]. Drives
+   * the CNOT–RZ–CNOT decompositions in the gate-level view. */
+  quadratic_terms: [number, number, number][]
   top_bitstrings: string[]
-  top_probabilities: number[]
-  top_energies: number[]
+  top_probabilities: (number | null)[]
+  top_energies: (number | null)[]
   train_loss: number | null
   train_optimizer: string | null
   backend_name: string | null
