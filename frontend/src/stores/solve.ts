@@ -223,6 +223,28 @@ export const useSolveStore = defineStore('solve', () => {
     await loadKeys()
   }
 
+  async function testKey(provider: string): Promise<{
+    ok: boolean
+    message?: string
+    error?: string
+    elapsed_ms?: number
+  }> {
+    try {
+      const r = await api.post<{
+        ok: boolean
+        message?: string
+        error?: string
+        elapsed_ms?: number
+      }>(`/api/keys/${provider}/test`)
+      return r.data
+    } catch (e: any) {
+      return {
+        ok: false,
+        error: e?.response?.data?.error || e?.message || 'Test request failed',
+      }
+    }
+  }
+
   function reset(): void {
     closeStream()
     currentJob.value = null
@@ -252,6 +274,7 @@ export const useSolveStore = defineStore('solve', () => {
     loadKeys,
     putKey,
     deleteKey,
+    testKey,
     loadSolvers,
     closeStream,
     reset,

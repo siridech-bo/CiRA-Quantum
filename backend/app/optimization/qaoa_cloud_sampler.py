@@ -285,11 +285,18 @@ class QAOACloudSampler(dimod.Sampler):
             prog << pq3.measure(q, i)
 
         # ---- Step 3: submit to cloud and wait ----
-        # Backend.run() has two flavours: a simulator-only path that
-        # takes just (prog, shots), and a "with options" path that
-        # takes (prog, shots, QCloudOptions) and works on both
-        # simulators *and* real QPUs. We always use the latter so the
-        # same sampler covers full_amplitude AND WK_C180.
+        # ``QCloudBackend.run()`` is overloaded but pyqpanda3 v0.3.5
+        # enforces a strict signature split at the C++ layer:
+        #   * Simulator backends (``full_amplitude``, etc.):
+        #     ``run(prog, shots)`` — passing ``QCloudOptions`` raises
+        #     ``RuntimeError: Run with QCloudOptions is only for QPU``.
+        #   * QPU backends (``WK_C180``, ``HanYuan_01``):
+        #     ``run(prog, shots, QCloudOptions)`` — the options enable
+        #     the mapping / optimization / amend passes the web UI
+        #     submits by default.
+        # This used to be flexible (v0.3.x earlier allowed options on
+        # simulators too); the Phase 9D investigation traced our
+        # "instant-fail" symptom to this tightening.
         from pyqpanda3.qcloud import QCloudOptions, QCloudService
 
         service = QCloudService(api_key=self._api_key, url=self._url)
@@ -301,18 +308,20 @@ class QAOACloudSampler(dimod.Sampler):
                 f"{self._url}: {type(e).__name__}: {e}"
             ) from e
 
-        options = QCloudOptions()
-        # Match the OriginQC web UI defaults: circuit optimization on,
-        # logical-to-physical qubit mapping on, error amendment on,
-        # and return measurement-count probabilities.
-        options.set_optimization(True)
-        options.set_mapping(True)
-        options.set_amend(True)
-        options.set_is_prob_counts(True)
-
+        is_real_hw = self._backend_name in _REAL_HARDWARE_BACKENDS
         submit_started = time.perf_counter()
         try:
-            job = backend.run(prog, self._shots, options)
+            if is_real_hw:
+                options = QCloudOptions()
+                # Match the OriginQC web UI defaults on the QPU path.
+                options.set_optimization(True)
+                options.set_mapping(True)
+                options.set_amend(True)
+                options.set_is_prob_counts(True)
+                job = backend.run(prog, self._shots, options)
+            else:
+                # Simulator path: NO QCloudOptions (raises in v0.3.5).
+                job = backend.run(prog, self._shots)
             job_id = job.job_id()
             result = job.result()  # blocks until done
         except Exception as e:  # noqa: BLE001

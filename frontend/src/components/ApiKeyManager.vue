@@ -10,11 +10,39 @@ const PROVIDERS = [
   { value: 'originqc', title: 'Origin Quantum (Wukong cloud)' },
 ] as const
 
+// Providers that the backend has a liveness test for. When we add
+// /api/keys/<provider>/test for other providers, append here.
+const TESTABLE_PROVIDERS = new Set(['originqc'])
+
 const addProvider = ref<'claude' | 'openai' | 'originqc'>('claude')
 const addKey = ref('')
 const saving = ref(false)
 const error = ref<string | null>(null)
 const confirmDeleteProvider = ref<string | null>(null)
+
+// Per-provider test state. Keyed by provider name so we can show
+// rolling feedback if the user clicks Test on several keys.
+const testing = ref<Set<string>>(new Set())
+const testResult = ref<Record<string, {
+  ok: boolean
+  message?: string
+  error?: string
+  elapsed_ms?: number
+  at: number
+}>>({})
+
+async function runTest(provider: string) {
+  testing.value.add(provider)
+  try {
+    const r = await solve.testKey(provider)
+    testResult.value = {
+      ...testResult.value,
+      [provider]: { ...r, at: Date.now() },
+    }
+  } finally {
+    testing.value.delete(provider)
+  }
+}
 
 async function save() {
   error.value = null
@@ -69,8 +97,44 @@ onMounted(() => {
             </v-list-item-title>
             <v-list-item-subtitle>
               Added {{ fmtDate(k.created_at) }}
+              <span v-if="testResult[k.provider]" class="ml-2">
+                <v-chip
+                  size="x-small"
+                  :color="testResult[k.provider].ok ? 'success' : 'error'"
+                  variant="tonal"
+                >
+                  <v-icon
+                    :icon="testResult[k.provider].ok ? 'mdi-check' : 'mdi-alert-circle'"
+                    size="x-small"
+                    start
+                  />
+                  {{
+                    testResult[k.provider].ok
+                      ? `Auth OK (${testResult[k.provider].elapsed_ms ?? '?'} ms)`
+                      : 'Auth failed'
+                  }}
+                </v-chip>
+                <span
+                  v-if="!testResult[k.provider].ok"
+                  class="text-caption text-error ml-2"
+                >
+                  {{ testResult[k.provider].error }}
+                </span>
+              </span>
             </v-list-item-subtitle>
             <template #append>
+              <v-btn
+                v-if="TESTABLE_PROVIDERS.has(k.provider)"
+                size="small"
+                variant="text"
+                prepend-icon="mdi-cloud-check-outline"
+                :loading="testing.has(k.provider)"
+                :aria-label="`Test ${k.provider} key`"
+                class="mr-1"
+                @click="runTest(k.provider)"
+              >
+                Test
+              </v-btn>
               <v-btn
                 icon="mdi-delete-outline"
                 size="small"

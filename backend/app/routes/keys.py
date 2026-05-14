@@ -14,13 +14,20 @@ provider names + creation dates, not opaque blobs.
 
 from __future__ import annotations
 
+import time
+
 from flask import Blueprint, jsonify, request
 
 from app.auth import get_current_user, login_required
 from app.config import KEY_ENCRYPTION_SECRET
-from app.crypto import encrypt_api_key
+from app.crypto import decrypt_api_key, encrypt_api_key
 from app.formulation import list_providers
-from app.models import delete_api_key, list_api_keys, put_api_key
+from app.models import (
+    delete_api_key,
+    get_api_key_ciphertext,
+    list_api_keys,
+    put_api_key,
+)
 
 keys_bp = Blueprint("keys", __name__)
 
@@ -81,3 +88,110 @@ def remove_key(provider: str):
     user = get_current_user()
     removed = delete_api_key(user["id"], provider)
     return jsonify({"success": True, "removed": removed})
+
+
+# ---- POST /<provider>/test --------------------------------------------------
+
+
+def _test_originqc(api_key: str) -> dict:
+    """Submit a 1-qubit Hadamard+measure to the cheap cloud simulator
+    (``full_amplitude``) and wait for the result. Returns a structured
+    dict — never raises. Total wall time is typically 5-10 seconds.
+    Confirms (a) the key authenticates with Origin's cloud, (b) the
+    pyqpanda3 submission pipeline still works, and (c) the cloud
+    simulator returns parseable probabilities.
+    """
+    try:
+        import pyqpanda3.core as pq3
+        import pyqpanda3.qcloud as qcloud_mod
+    except ImportError:
+        return {
+            "ok": False,
+            "error": "pyqpanda3 not installed on the server",
+            "code": "PYQPANDA_MISSING",
+        }
+
+    t0 = time.perf_counter()
+    try:
+        service = qcloud_mod.QCloudService(api_key=api_key)
+        backend = service.backend("full_amplitude")
+    except Exception as e:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": f"Cloud auth setup failed: {type(e).__name__}: {e}",
+            "code": "AUTH_SETUP_FAILED",
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+        }
+
+    prog = pq3.QProg()
+    prog << pq3.H(0)
+    prog << pq3.measure(0, 0)
+
+    try:
+        # Simulator path: NO QCloudOptions (raises in pyqpanda3 v0.3.5).
+        job = backend.run(prog, 100)
+        job_id = job.job_id()
+        result = job.result()
+        probs = result.get_probs()
+    except Exception as e:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": f"Cloud submission failed: {type(e).__name__}: {e}",
+            "code": "SUBMIT_FAILED",
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+        }
+
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    return {
+        "ok": True,
+        "message": (
+            f"Authenticated; submitted a 1-qubit H+measure job to "
+            f"full_amplitude and got back {len(probs)} outcome(s)."
+        ),
+        "job_id": job_id,
+        "probabilities": dict(probs),
+        "elapsed_ms": elapsed_ms,
+    }
+
+
+_PROVIDER_TESTERS = {
+    "originqc": _test_originqc,
+}
+
+
+@keys_bp.route("/<provider>/test", methods=["POST"])
+@login_required
+def test_key(provider: str):
+    """Liveness-check a stored BYOK key by running a minimal cheap
+    operation against the provider's API. The test never burns paid
+    resources (the originqc test hits the free cloud simulator, not
+    the QPU).
+    """
+    user = get_current_user()
+    tester = _PROVIDER_TESTERS.get(provider)
+    if tester is None:
+        return jsonify({
+            "ok": False,
+            "error": f"no liveness test wired for provider {provider!r}",
+            "code": "UNSUPPORTED",
+        }), 400
+
+    cipher = get_api_key_ciphertext(user["id"], provider)
+    if cipher is None:
+        return jsonify({
+            "ok": False,
+            "error": f"no stored {provider!r} key on file",
+            "code": "NO_KEY",
+        }), 404
+
+    try:
+        api_key = decrypt_api_key(cipher, KEY_ENCRYPTION_SECRET)
+    except ValueError as e:
+        return jsonify({
+            "ok": False,
+            "error": f"stored key is unreadable: {e}",
+            "code": "DECRYPT_FAILED",
+        }), 500
+
+    result = tester(api_key)
+    return jsonify(result), (200 if result["ok"] else 502)
