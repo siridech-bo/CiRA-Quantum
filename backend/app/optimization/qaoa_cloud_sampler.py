@@ -103,6 +103,61 @@ def _real_hardware_enabled() -> bool:
     )
 
 
+# Origin Quantum's pyqpanda3 v0.3.5 ``QCloudJob.result()`` blocks
+# until the cloud reports a status it considers terminal. In practice
+# we've observed it polling forever when the cloud-side job is
+# ``Failed`` (e.g. transient "Submit pilot task error" rejections),
+# hanging the orchestrator's daemon thread indefinitely. This helper
+# wraps the wait with a wall-clock timeout AND surfaces Failed /
+# Error states immediately instead of waiting for them to "resolve".
+def _wait_for_cloud_job(job, timeout_s: float):
+    """Poll a ``QCloudJob`` until it completes or fails; never block
+    forever. Returns the ``QCloudResult`` on success, raises
+    ``RuntimeError`` on failure or timeout."""
+    import time
+    poll_interval = 1.0
+    deadline = time.time() + timeout_s
+
+    while time.time() < deadline:
+        try:
+            status = job.status()
+        except Exception as e:  # noqa: BLE001 — defensive against SDK-level errors
+            raise RuntimeError(f"job.status() raised: {type(e).__name__}: {e}") from e
+
+        # pyqpanda3 returns ``JobStatus`` enum values; strip the prefix
+        # for case-insensitive name matching. Treat any unfamiliar
+        # status as "in progress" — never as terminal-success.
+        name = (
+            status.name if hasattr(status, "name")
+            else str(status).rsplit(".", 1)[-1]
+        ).upper()
+
+        if name in ("COMPLETED", "FINISHED", "SUCCESS"):
+            return job.query()
+
+        if name in ("FAILED", "ERROR", "CANCELLED", "CANCELED", "ABORTED"):
+            # Try to pull a useful error message off the result before bailing.
+            err_msg = ""
+            try:
+                r = job.query()
+                err_msg = r.error_message() or ""
+            except Exception:  # pragma: no cover — defensive
+                pass
+            raise RuntimeError(
+                f"Cloud-side job reported status {name!r}"
+                + (f": {err_msg}" if err_msg else ""),
+            )
+
+        # "QUEUED", "RUNNING", "COMPUTING", "PENDING", "UNKNOWN", … →
+        # keep waiting.
+        time.sleep(poll_interval)
+
+    raise RuntimeError(
+        f"Timed out waiting for cloud job after {timeout_s:.0f} s "
+        f"(last status: {name!r})"
+    )
+
+
 class QAOACloudSampler(dimod.Sampler):
     """Hybrid local-train + cloud-execute QAOA on OriginQC's cloud."""
 
@@ -310,6 +365,11 @@ class QAOACloudSampler(dimod.Sampler):
 
         is_real_hw = self._backend_name in _REAL_HARDWARE_BACKENDS
         submit_started = time.perf_counter()
+        # Wall-clock timeout for cloud waits. Real-QPU runs need
+        # more headroom (queue + ~minute of execution); simulator runs
+        # should complete in seconds. If this elapses, we raise — better
+        # than letting the orchestrator daemon thread block forever.
+        timeout_s = 300.0 if is_real_hw else 60.0
         try:
             if is_real_hw:
                 options = QCloudOptions()
@@ -323,7 +383,7 @@ class QAOACloudSampler(dimod.Sampler):
                 # Simulator path: NO QCloudOptions (raises in v0.3.5).
                 job = backend.run(prog, self._shots)
             job_id = job.job_id()
-            result = job.result()  # blocks until done
+            result = _wait_for_cloud_job(job, timeout_s)
         except Exception as e:  # noqa: BLE001
             raise RuntimeError(
                 f"Cloud submission to {self._backend_name} failed: "
