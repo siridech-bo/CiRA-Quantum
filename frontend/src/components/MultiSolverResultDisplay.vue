@@ -81,16 +81,28 @@ const rows = computed(() => {
     const ra = rank(a)
     const rb = rank(b)
     if (ra !== rb) return ra - rb
-    if (a.energy === undefined) return 1
-    if (b.energy === undefined) return -1
+    // Treat null / undefined / NaN energies as "no answer" — push to bottom.
+    const aBad = a.energy == null || Number.isNaN(a.energy)
+    const bBad = b.energy == null || Number.isNaN(b.energy)
+    if (aBad && bBad) return 0
+    if (aBad) return 1
+    if (bBad) return -1
     // For maximize problems, higher energy is better — sort descending
     // so the optimum row floats to the top alongside its trophy.
-    return isMaximize.value ? b.energy - a.energy : a.energy - b.energy
+    return isMaximize.value
+      ? (b.energy as number) - (a.energy as number)
+      : (a.energy as number) - (b.energy as number)
   })
 })
 
 const bestEnergy = computed(() => {
-  const completed = rows.value.filter((r) => r.status === 'complete' && r.feasible)
+  const completed = rows.value.filter(
+    (r) =>
+      r.status === 'complete' &&
+      r.feasible &&
+      r.energy != null &&
+      !Number.isNaN(r.energy),
+  )
   if (!completed.length) return null
   const energies = completed.map((r) => r.energy as number)
   return isMaximize.value ? Math.max(...energies) : Math.min(...energies)

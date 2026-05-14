@@ -185,23 +185,31 @@ class Orchestrator:
                 continue
 
             elapsed_ms = int((time.perf_counter() - t0) * 1000)
-            raw_energy = float(sampleset.first.energy)
+            raw_energy = _finite_or_none(sampleset.first.energy)
             best_sample = dict(sampleset.first.sample)
             cqm_sample = best_sample if is_cqm_native else invert(best_sample)
 
             # Honest feasibility + user-facing energy. The BQM energy from
             # the SampleSet includes the Lagrange penalty for violated
             # constraints; we report the CQM objective energy so all rows
-            # are comparable on the same scale.
+            # are comparable on the same scale. Non-converging stochastic
+            # samplers (e.g. simulated_bifurcation reporting "no agent
+            # converged") can emit NaN/inf; those have to be stripped
+            # BEFORE the row goes anywhere near json.dumps, or the
+            # background thread dies silently with the job stuck at
+            # status='solving' forever.
             try:
                 feasible = bool(cqm.check_feasible(cqm_sample))
             except Exception:  # pragma: no cover — defensive
                 feasible = False
             try:
-                obj_energy = float(cqm.objective.energy(cqm_sample))
+                obj_energy = _finite_or_none(cqm.objective.energy(cqm_sample))
             except Exception:  # pragma: no cover
                 obj_energy = raw_energy
-            user_energy = obj_energy if sense == "minimize" else -obj_energy
+            if obj_energy is None:
+                user_energy = None
+            else:
+                user_energy = obj_energy if sense == "minimize" else -obj_energy
 
             row: dict[str, Any] = {
                 "status": "complete",
@@ -437,30 +445,51 @@ def _build_qaoa_extras(
     # is exactly the "is this state feasible?" signal we want).
     bqm_bin = bqm.change_vartype(dimod.BINARY, inplace=False)
     n = len(variables_in_bqm)
-    energies: list[float] = []
+    energies: list[float | None] = []
     for bitstring in bitstrings:
         padded = str(bitstring).zfill(n)[-n:]
         sample = {v: int(padded[i]) for i, v in enumerate(variables_in_bqm)}
-        try:
-            raw = float(bqm_bin.energy(sample))
-        except Exception:  # pragma: no cover — defensive
-            raw = float("nan")
-        energies.append(raw if sense == "minimize" else -raw)
+        raw = _finite_or_none(bqm_bin.energy(sample))
+        if raw is None:
+            energies.append(None)
+        else:
+            energies.append(raw if sense == "minimize" else -raw)
 
     return {
         "layer": info.get("qaoa_layer"),
-        "trained_gammas": [float(g) for g in gammas],
-        "trained_betas": [float(b) for b in betas],
+        "trained_gammas": [_finite_or_none(g) for g in gammas],
+        "trained_betas": [_finite_or_none(b) for b in betas],
         "num_qubits": n,
         "top_bitstrings": [str(b) for b in bitstrings],
-        "top_probabilities": [float(p) for p in probs],
+        "top_probabilities": [_finite_or_none(p) for p in probs],
         "top_energies": energies,
-        "train_loss": info.get("qaoa_train_loss"),
+        "train_loss": _finite_or_none(info.get("qaoa_train_loss")),
         "train_optimizer": info.get("qaoa_optimizer"),
         "backend_name": info.get("cloud_backend"),
         "is_real_hardware": bool(info.get("cloud_is_real_hardware", False)),
         "job_id": info.get("cloud_job_id"),
     }
+
+
+def _finite_or_none(x: Any) -> float | None:
+    """Coerce a scalar to a JSON-safe float, returning ``None`` for
+    NaN/inf so the orchestrator's persistence layer (json.dumps) never
+    chokes on a non-converging sampler's output. This used to be the
+    silent-thread-death culprit before Phase 10 ship: simulated
+    bifurcation could emit NaN energies, json.dumps rejected the dict,
+    the orchestrator thread crashed, and the job row sat at
+    status='solving' forever with no error trail.
+    """
+    if x is None:
+        return None
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    import math
+    if math.isnan(v) or math.isinf(v):
+        return None
+    return v
 
 
 # Solvers that need a per-user credential from the api_keys table at
@@ -542,18 +571,25 @@ def _pick_primary(
     sentinel = float("-inf") if is_max else float("inf")
 
     def keyfn(kv: tuple[str, dict[str, Any]]) -> float:
-        energy = kv[1].get("energy", sentinel)
+        energy = kv[1].get("energy")
+        if energy is None:
+            return sentinel  # rows with no usable energy can't win
         return -energy if is_max else energy
 
+    # Rows where the sampler produced a non-finite energy (NaN, inf)
+    # are downgraded — they're "complete" by status but can't be primary.
     complete_feasible = [
         (name, r) for name, r in results.items()
-        if r.get("status") == "complete" and r.get("feasible")
+        if r.get("status") == "complete"
+        and r.get("feasible")
+        and r.get("energy") is not None
     ]
     if complete_feasible:
         return min(complete_feasible, key=keyfn)
 
     complete_any = [
-        (name, r) for name, r in results.items() if r.get("status") == "complete"
+        (name, r) for name, r in results.items()
+        if r.get("status") == "complete" and r.get("energy") is not None
     ]
     if complete_any:
         return min(complete_any, key=keyfn)
