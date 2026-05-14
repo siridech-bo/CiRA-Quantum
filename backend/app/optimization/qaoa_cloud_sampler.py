@@ -365,30 +365,61 @@ class QAOACloudSampler(dimod.Sampler):
 
         is_real_hw = self._backend_name in _REAL_HARDWARE_BACKENDS
         submit_started = time.perf_counter()
-        # Wall-clock timeout for cloud waits. Real-QPU runs need
+        # Wall-clock timeout for each cloud wait. Real-QPU runs need
         # more headroom (queue + ~minute of execution); simulator runs
-        # should complete in seconds. If this elapses, we raise — better
-        # than letting the orchestrator daemon thread block forever.
+        # should complete in seconds.
         timeout_s = 300.0 if is_real_hw else 60.0
-        try:
-            if is_real_hw:
-                options = QCloudOptions()
-                # Match the OriginQC web UI defaults on the QPU path.
-                options.set_optimization(True)
-                options.set_mapping(True)
-                options.set_amend(True)
-                options.set_is_prob_counts(True)
-                job = backend.run(prog, self._shots, options)
-            else:
-                # Simulator path: NO QCloudOptions (raises in v0.3.5).
-                job = backend.run(prog, self._shots)
-            job_id = job.job_id()
-            result = _wait_for_cloud_job(job, timeout_s)
-        except Exception as e:  # noqa: BLE001
+
+        # Retry-on-transient. Origin's QPanda-source jobs hit a
+        # different cloud-side scheduler queue than the web Composer
+        # uses, and that queue intermittently rejects pilot tasks with
+        # "Submit pilot task error, please try again later" — the
+        # screenshots from Phase 9D show Failed jobs sandwiched between
+        # successful ones, so a retry within a minute has a high hit
+        # rate. Backoff is 2 / 5 / 10 seconds — short enough to stay
+        # under the orchestrator's perceived "still working" budget.
+        retry_delays = [2.0, 5.0, 10.0]
+        max_attempts = len(retry_delays) + 1  # 1 initial + 3 retries
+        last_error: Exception | None = None
+        result = None
+        job_id = ""
+
+        for attempt in range(max_attempts):
+            try:
+                if is_real_hw:
+                    options = QCloudOptions()
+                    # Match the OriginQC web UI defaults on the QPU path.
+                    options.set_optimization(True)
+                    options.set_mapping(True)
+                    options.set_amend(True)
+                    options.set_is_prob_counts(True)
+                    job = backend.run(prog, self._shots, options)
+                else:
+                    # Simulator path: NO QCloudOptions (raises in v0.3.5).
+                    job = backend.run(prog, self._shots)
+                job_id = job.job_id()
+                result = _wait_for_cloud_job(job, timeout_s)
+                break  # success
+            except Exception as e:  # noqa: BLE001
+                last_error = e
+                msg = str(e).lower()
+                # Only retry transient pilot-task errors. Other errors
+                # (auth, malformed circuit, qubit budget) won't get
+                # better by waiting.
+                is_transient = (
+                    "pilot task" in msg
+                    or "please try again" in msg
+                    or "timed out waiting" in msg
+                )
+                if not is_transient or attempt == max_attempts - 1:
+                    break
+                time.sleep(retry_delays[attempt])
+
+        if result is None:
             raise RuntimeError(
-                f"Cloud submission to {self._backend_name} failed: "
-                f"{type(e).__name__}: {e}"
-            ) from e
+                f"Cloud submission to {self._backend_name} failed after "
+                f"{max_attempts} attempts: {type(last_error).__name__}: {last_error}"
+            ) from last_error
         submit_elapsed = time.perf_counter() - submit_started
 
         # Count this against the per-instance cap *after* a successful
