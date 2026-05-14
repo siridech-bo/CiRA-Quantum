@@ -253,45 +253,33 @@ def bootstrap_default_solvers() -> None:
     except Exception:  # pragma: no cover — optional dep
         logger.exception("Failed to register SimulatedBifurcationSampler")
 
-    # ---- Phase 9B — cloud QAOA (Origin Quantum) ----
-    # Registered only when both (a) pyqpanda is importable and (b) the
-    # operator has set ``QPANDA_API_KEY_FILE`` pointing at a readable
-    # credential file. The API key is bound into the registered class
-    # via a closure-style subclass — it is NOT exposed in
-    # ``record_run`` parameters, ``properties``, or any archived
-    # RunRecord JSON. The default backend is the cheap cloud simulator
-    # ``full_amplitude``; real-QPU backends remain gated behind
-    # ``ENABLE_ORIGIN_REAL_HARDWARE=1`` and are selected per-call
-    # via ``backend_name`` in the parameters dict.
-    api_key_path = os.environ.get("QPANDA_API_KEY_FILE")
-    if api_key_path and Path(api_key_path).exists():
-        try:
-            from app.optimization.qaoa_cloud_sampler import QAOACloudSampler
+    # ---- Phase 9B — cloud QAOA (Origin Quantum), BYOK ----
+    # Phase 5D switched this from a closure-bound, env-file-gated tier
+    # to a real BYOK tier: register the raw ``QAOACloudSampler`` and
+    # let callers pass ``api_key`` per request (the live solve path
+    # decrypts the user's stored ``qpanda`` API key; the benchmark
+    # scripts read ``QPANDA_API_KEY_FILE`` themselves and inject it).
+    # Registered whenever pyqpanda3 is importable; whether a given user
+    # can actually run a job depends on whether they have a stored key
+    # (the orchestrator surfaces a friendly per-row error if not).
+    try:
+        from app.optimization.qaoa_cloud_sampler import QAOACloudSampler
 
-            _api_key = Path(api_key_path).read_text(encoding="utf-8").strip()
-            if _api_key:
-                # Closure-bound subclass: omits api_key from the public
-                # ``__init__`` signature, so the records dispatcher
-                # never sees the key.
-                class _BoundQAOACloud(QAOACloudSampler):
-                    def __init__(self, **kwargs):
-                        super().__init__(api_key=_api_key, **kwargs)
-
-                _pq3 = importlib.import_module("pyqpanda3")
-                register_solver(
-                    SolverIdentity(
-                        name="qaoa_originqc",
-                        version=getattr(_pq3, "__version__", "0.3.5"),
-                        source="pyqpanda+originqc-cloud",
-                        hardware="originqc-cloud",
-                        parameter_schema=_load_schema(schemas_dir / "qaoa_originqc_params.json"),
-                    ),
-                    _BoundQAOACloud,
-                )
-        except ImportError:  # pragma: no cover
-            pass
-        except Exception:  # pragma: no cover
-            logger.exception("Failed to register QAOACloudSampler")
+        _pq3 = importlib.import_module("pyqpanda3")
+        register_solver(
+            SolverIdentity(
+                name="qaoa_originqc",
+                version=getattr(_pq3, "__version__", "0.3.5"),
+                source="pyqpanda+originqc-cloud",
+                hardware="originqc-cloud",
+                parameter_schema=_load_schema(schemas_dir / "qaoa_originqc_params.json"),
+            ),
+            QAOACloudSampler,
+        )
+    except ImportError:  # pragma: no cover
+        pass
+    except Exception:  # pragma: no cover
+        logger.exception("Failed to register QAOACloudSampler")
 
     try:
         from app.optimization.highs_sampler import HiGHSSampler

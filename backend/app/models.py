@@ -118,6 +118,11 @@ def init_db() -> None:
             cursor.execute("ALTER TABLE jobs ADD COLUMN template_id TEXT")
         if "expected_optimum" not in existing_columns:
             cursor.execute("ALTER TABLE jobs ADD COLUMN expected_optimum REAL")
+        # Phase 5D multi-solver: per-solver result map + the requested set.
+        if "solver_results" not in existing_columns:
+            cursor.execute("ALTER TABLE jobs ADD COLUMN solver_results TEXT")
+        if "solvers_requested" not in existing_columns:
+            cursor.execute("ALTER TABLE jobs ADD COLUMN solvers_requested TEXT")
 
         conn.commit()
 
@@ -255,6 +260,7 @@ def create_job(
     *,
     template_id: str | None = None,
     expected_optimum: float | None = None,
+    solvers_requested: str | None = None,
 ) -> str:
     """Insert a fresh job row in ``queued`` state. Returns the new job ID.
 
@@ -263,6 +269,10 @@ def create_job(
     ``POST /api/solve/from-template/<id>``). The detail view's match
     badge consumes them to compare the solver's actual answer to the
     template's documented one.
+
+    ``solvers_requested`` is a JSON-encoded list of solver names from
+    Phase 5D's multi-solver flow. ``NULL`` means the legacy path (the
+    orchestrator picks GPU SA on its own).
     """
     job_id = str(uuid.uuid4())
     conn = get_db_connection()
@@ -271,13 +281,13 @@ def create_job(
             """
             INSERT INTO jobs (
                 id, user_id, problem_statement, provider, status,
-                template_id, expected_optimum, created_at
+                template_id, expected_optimum, solvers_requested, created_at
             )
-            VALUES (?, ?, ?, ?, 'queued', ?, ?, ?)
+            VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?)
             """,
             (
                 job_id, user_id, problem_statement, provider,
-                template_id, expected_optimum,
+                template_id, expected_optimum, solvers_requested,
                 datetime.utcnow().isoformat(),
             ),
         )

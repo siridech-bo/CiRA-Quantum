@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,7 +18,7 @@ async function submit() {
   loading.value = true
   try {
     await auth.login(username.value.trim(), password.value)
-    const next = (route.query.redirect as string | undefined) || '/'
+    const next = (route.query.redirect as string | undefined) || '/solve'
     router.push(next)
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Login failed'
@@ -32,8 +33,21 @@ async function submit() {
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="5" lg="4">
         <v-card class="pa-6">
-          <v-card-title class="text-h5">Sign in to CiRA Quantum</v-card-title>
-          <v-card-subtitle>Academic quantum-optimization platform</v-card-subtitle>
+          <div class="d-flex justify-center mb-4">
+            <div
+              class="logo-link"
+              role="button"
+              tabindex="0"
+              @click="router.push('/')"
+              @keydown.enter="router.push('/')"
+            >
+              <CiraLogo :size="44" :with-wordmark="true" />
+            </div>
+          </div>
+          <v-card-title class="text-h5 text-center pa-0">Sign in</v-card-title>
+          <v-card-subtitle class="text-center pa-0 mb-4">
+            Academic quantum-optimization platform
+          </v-card-subtitle>
           <v-form @submit.prevent="submit">
             <v-text-field
               v-model="username"
@@ -71,3 +85,19 @@ async function submit() {
     </v-row>
   </v-container>
 </template>
+
+<style scoped>
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+  display: inline-flex;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+</style>

@@ -351,6 +351,45 @@ def findings():
     })
 
 
+def _resolve_originqc_key() -> tuple[str | None, str | None]:
+    """Pick a cloud credential for the Origin Quantum pending-jobs poller.
+
+    Order: (1) the current session user's BYOK ``originqc`` key if one
+    is stored, (2) the server-side ``QPANDA_API_KEY_FILE`` env var,
+    (3) ``(None, error_str)`` if neither is available. Returns
+    ``(api_key, None)`` on success.
+
+    The endpoint stays public (no ``@login_required``) so the panel
+    keeps working for anonymous visitors; they just need a logged-in
+    user's key or the operator env var to actually query the cloud.
+    """
+    from app.auth import get_current_user
+    from app.config import KEY_ENCRYPTION_SECRET
+    from app.crypto import decrypt_api_key
+    from app.models import get_api_key_ciphertext
+
+    user = get_current_user()
+    if user is not None:
+        cipher = get_api_key_ciphertext(user["id"], "originqc")
+        if cipher is not None:
+            try:
+                return decrypt_api_key(cipher, KEY_ENCRYPTION_SECRET), None
+            except ValueError:
+                pass  # fall through to env-file fallback
+
+    env_path = os.environ.get("QPANDA_API_KEY_FILE")
+    if env_path and Path(env_path).exists():
+        try:
+            return Path(env_path).read_text(encoding="utf-8").strip(), None
+        except OSError as e:
+            return None, f"server env-file unreadable: {e}"
+
+    return None, (
+        "no Origin Quantum credential available — log in and save an "
+        "\"originqc\" key in the API Keys tab"
+    )
+
+
 @benchmarks_bp.route("/cloud-jobs/pending", methods=["GET"])
 def cloud_jobs_pending():
     """List currently-pending cloud jobs with their live cloud status.
@@ -360,19 +399,21 @@ def cloud_jobs_pending():
     counts are available. The dashboard polls this endpoint every 30 s
     and auto-fires ``POST /materialize`` when a job becomes ready.
 
-    No auth required (matches the rest of ``/api/benchmarks/*``).
+    No auth required (matches the rest of ``/api/benchmarks/*``) — the
+    poller resolves a credential per-request, preferring the session
+    user's stored ``originqc`` BYOK key with the server env-file as
+    fallback.
     """
     from app.benchmarking import pending_jobs as pj
 
-    api_key_path = os.environ.get("QPANDA_API_KEY_FILE")
-    if not api_key_path or not Path(api_key_path).exists():
+    api_key, key_error = _resolve_originqc_key()
+    if api_key is None:
         return jsonify({
-            "error": "QPANDA_API_KEY_FILE not configured; can't query cloud status",
+            "error": key_error,
             "code": "NO_CREDENTIAL",
             "pending": [],
         }), 503
 
-    api_key = Path(api_key_path).read_text(encoding="utf-8").strip()
     try:
         import pyqpanda3.qcloud as qcloud_mod
         qcloud_mod.QCloudService(api_key=api_key)  # auth
@@ -430,10 +471,10 @@ def cloud_jobs_materialize(job_id: str):
         materialize,
     )
 
-    api_key_path = os.environ.get("QPANDA_API_KEY_FILE")
-    if not api_key_path or not Path(api_key_path).exists():
+    api_key, key_error = _resolve_originqc_key()
+    if api_key is None:
         return jsonify({
-            "error": "QPANDA_API_KEY_FILE not configured",
+            "error": key_error,
             "code": "NO_CREDENTIAL",
         }), 503
 
@@ -444,7 +485,6 @@ def cloud_jobs_materialize(job_id: str):
             "code": "NOT_FOUND",
         }), 404
 
-    api_key = Path(api_key_path).read_text(encoding="utf-8").strip()
     try:
         record_id = materialize(pending, api_key)
     except JobNotReadyError as e:

@@ -5,7 +5,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useSolveStore } from '@/stores/solve'
 import SolveStatus from '@/components/SolveStatus.vue'
 import ResultDisplay from '@/components/ResultDisplay.vue'
+import MultiSolverResultDisplay from '@/components/MultiSolverResultDisplay.vue'
 import TemplateMatchBadge from '@/components/TemplateMatchBadge.vue'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,7 +22,7 @@ async function load() {
   loading.value = true
   try {
     const jobId = String(route.params.id || '')
-    await solve.subscribeToJob(jobId)
+    await Promise.all([solve.subscribeToJob(jobId), solve.loadSolvers()])
   } catch (e: any) {
     error.value =
       e?.response?.status === 404
@@ -34,7 +36,7 @@ async function load() {
 async function logout() {
   solve.reset()
   await auth.logout()
-  router.push('/login')
+  router.push('/')
 }
 
 onMounted(load)
@@ -45,9 +47,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <v-app-bar color="surface" flat>
-    <v-btn icon="mdi-arrow-left" variant="text" @click="router.push('/')" />
-    <v-app-bar-title class="text-primary font-weight-bold">CiRA Quantum</v-app-bar-title>
+  <v-app-bar color="surface" flat aria-label="CiRA Quantum app bar">
+    <v-btn icon="mdi-arrow-left" variant="text" @click="router.push('/solve')" />
+    <div
+      class="d-flex align-center logo-link"
+      role="button"
+      tabindex="0"
+      @click="router.push('/')"
+      @keydown.enter="router.push('/')"
+    >
+      <CiraLogo :size="32" />
+    </div>
     <v-spacer />
     <span class="text-body-2 mr-4" v-if="auth.user">
       Signed in as <strong>{{ auth.user.display_name }}</strong>
@@ -89,7 +99,13 @@ onBeforeUnmount(() => {
           class="mb-3"
         />
         <SolveStatus v-if="!['complete', 'error'].includes(solve.currentJob.status)" />
-        <ResultDisplay v-else :job="solve.currentJob" />
+        <template v-else>
+          <MultiSolverResultDisplay
+            v-if="solve.currentJob.status === 'complete' && solve.currentJob.solver_results"
+            :job="solve.currentJob"
+          />
+          <ResultDisplay :job="solve.currentJob" />
+        </template>
       </template>
     </v-container>
   </v-main>
@@ -103,5 +119,17 @@ onBeforeUnmount(() => {
   font-family: inherit;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 </style>

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useBenchmarksStore } from '@/stores/benchmarks'
 import CitationButton from '@/components/CitationButton.vue'
 import ReproducibilityBadge from '@/components/ReproducibilityBadge.vue'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,10 +36,19 @@ function fmtTime(ms: number | null | undefined): string {
 </script>
 
 <template>
-  <v-app-bar color="surface" flat>
+  <v-app-bar color="surface" flat aria-label="Benchmark solver app bar">
     <v-btn icon="mdi-arrow-left" variant="text" @click="router.push('/benchmarks')" />
-    <v-app-bar-title class="text-primary font-weight-bold">
-      Solver · {{ solverName }}
+    <div
+      class="d-flex align-center logo-link"
+      role="button"
+      tabindex="0"
+      @click="router.push('/')"
+      @keydown.enter="router.push('/')"
+    >
+      <CiraLogo :size="28" />
+    </div>
+    <v-app-bar-title class="text-medium-emphasis ml-2">
+      Solver · <span class="font-weight-medium">{{ solverName }}</span>
     </v-app-bar-title>
   </v-app-bar>
 
@@ -164,5 +174,17 @@ function fmtTime(ms: number | null | undefined): string {
 }
 .suite-link:hover {
   color: rgb(var(--v-theme-primary));
+}
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 </style>

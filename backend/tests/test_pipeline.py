@@ -201,6 +201,45 @@ def test_pipeline_handles_validation_failure(isolated_db):
     assert report["oracle_agreement"] is False
 
 
+def test_pipeline_multi_solver_fanout(isolated_db):
+    """Phase 5D — when ``solvers=[...]`` is passed, the orchestrator
+    runs each registered solver on the same compiled CQM/BQM and stores
+    a per-solver comparison map. The legacy ``solution`` columns are
+    populated from the best (feasible, min-energy) row.
+    """
+    models, user = isolated_db
+    from app.pipeline.events import EventBus
+    from app.pipeline.orchestrator import Orchestrator
+
+    job_id = models.create_job(user["id"], "knapsack multi", "stub")
+    bus = EventBus()
+    # cpu_sa_neal is in-tree, pure-Python, no GPU/network. Two reps of
+    # the same solver lets us assert the fan-out structure without
+    # depending on multiple optional registry entries.
+    orch = Orchestrator(provider_resolver=lambda _: _StubProvider())
+    import asyncio
+    asyncio.run(orch.run(
+        job_id=job_id, user_id=user["id"],
+        problem_statement="knapsack",
+        provider_name="stub", api_key="", event_bus=bus,
+        solvers=["cpu_sa_neal"],
+    ))
+
+    job = models.get_job(job_id, user_id=user["id"])
+    assert job["status"] == "complete", job.get("error")
+    assert job["solver_results"], "multi-solver fan-out should populate solver_results"
+    payload = json.loads(job["solver_results"])
+    assert "solvers" in payload and "primary" in payload
+    assert "cpu_sa_neal" in payload["solvers"]
+    row = payload["solvers"]["cpu_sa_neal"]
+    assert row["status"] == "complete"
+    assert isinstance(row["energy"], (int, float))
+    assert isinstance(row["elapsed_ms"], int)
+    assert "_cqm_sample" not in row, "private sample copy must be stripped before persisting"
+    # The winning solver should be the only one we ran.
+    assert payload["primary"] == "cpu_sa_neal"
+
+
 def test_pipeline_handles_solver_timeout(isolated_db):
     """A sampler that raises mid-solve must be caught and surfaced as
     an 'error' job — not propagate to the route handler."""

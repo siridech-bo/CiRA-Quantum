@@ -3,6 +3,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBenchmarksStore } from '@/stores/benchmarks'
 import SolverComparisonTable from '@/components/SolverComparisonTable.vue'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,10 +33,19 @@ function openSolver(solverName: string) {
 </script>
 
 <template>
-  <v-app-bar color="surface" flat>
+  <v-app-bar color="surface" flat aria-label="Benchmark suite app bar">
     <v-btn icon="mdi-arrow-left" variant="text" @click="router.push('/benchmarks')" />
-    <v-app-bar-title class="text-primary font-weight-bold">
-      Benchmarks · {{ suiteId }}
+    <div
+      class="d-flex align-center logo-link"
+      role="button"
+      tabindex="0"
+      @click="router.push('/')"
+      @keydown.enter="router.push('/')"
+    >
+      <CiraLogo :size="28" />
+    </div>
+    <v-app-bar-title class="text-medium-emphasis ml-2">
+      Benchmarks · <span class="font-weight-medium">{{ suiteId }}</span>
     </v-app-bar-title>
   </v-app-bar>
 
@@ -56,3 +66,18 @@ function openSolver(solverName: string) {
     </v-container>
   </v-main>
 </template>
+
+<style scoped>
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+</style>

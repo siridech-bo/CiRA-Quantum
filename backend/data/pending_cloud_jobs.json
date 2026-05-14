@@ -1,22 +1,3 @@
 {
-  "jobs": [
-    {
-      "job_id": "93A2EAE605B2A94FB8E0DD269F042376",
-      "solver_name": "qaoa_originqc",
-      "instance_id": "_synthetic/diagnostic/2var_qaoa",
-      "parameters": {
-        "backend_name": "WK_C180",
-        "layer": 1,
-        "shots": 1000,
-        "max_qubits": 7,
-        "max_submissions": 1,
-        "top_k": 5,
-        "trained_gamma": 1.5699395450267277,
-        "trained_beta": 0.3928135610037942
-      },
-      "lagrange_multiplier": 0.0,
-      "submitted_at": "2026-05-13T19:18:10+00:00",
-      "notes": "Phase 9B real-QPU smoke. Trained 2-qubit QAOA submitted to Wukong 180."
-    }
-  ]
+  "jobs": []
 }

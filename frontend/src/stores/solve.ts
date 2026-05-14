@@ -54,8 +54,39 @@ export interface Job {
   solve_time_ms?: number | null
   template_id?: string | null
   expected_optimum?: number | null
+  solvers_requested?: string[] | null
+  solver_results?: {
+    solvers: Record<string, SolverResult>
+    primary: string
+    sense?: 'minimize' | 'maximize'
+  } | null
   created_at: string
   completed_at?: string | null
+}
+
+export interface SolverResult {
+  status: 'complete' | 'error'
+  energy?: number
+  raw_energy?: number
+  feasible?: boolean
+  elapsed_ms: number
+  tier_source?: string
+  version?: string
+  hardware?: string | null
+  error?: string
+}
+
+export interface SolverInfo {
+  name: string
+  version: string
+  source: string
+  hardware: string | null
+  tier: string
+  tier_label: string
+  tier_color: string
+  recommended_default: boolean
+  warning: string | null
+  requires_key: string | null
 }
 
 export interface StoredKey {
@@ -71,6 +102,7 @@ export const useSolveStore = defineStore('solve', () => {
   const historyTotal = ref(0)
   const historyPage = ref(1)
   const keys = ref<StoredKey[]>([])
+  const solvers = ref<SolverInfo[]>([])
   const error = ref<string | null>(null)
   let eventSource: EventSource | null = null
 
@@ -126,12 +158,20 @@ export const useSolveStore = defineStore('solve', () => {
     provider: 'claude' | 'openai' | 'local'
     api_key?: string
     use_stored_key?: boolean
+    solvers?: string[]
   }): Promise<Job> {
     error.value = null
     const r = await api.post<{ success: boolean; job: Job }>('/api/solve', payload)
     currentJob.value = r.data.job
     streamStatus(r.data.job.id)
     return r.data.job
+  }
+
+  async function loadSolvers(): Promise<SolverInfo[]> {
+    if (solvers.value.length) return solvers.value
+    const r = await api.get<{ solvers: SolverInfo[] }>('/api/solvers')
+    solvers.value = r.data.solvers
+    return solvers.value
   }
 
   async function subscribeToJob(jobId: string): Promise<void> {
@@ -188,6 +228,7 @@ export const useSolveStore = defineStore('solve', () => {
     currentJob.value = null
     history.value = []
     keys.value = []
+    solvers.value = []
     error.value = null
   }
 
@@ -198,6 +239,7 @@ export const useSolveStore = defineStore('solve', () => {
     historyTotal,
     historyPage,
     keys,
+    solvers,
     error,
     // computed
     isRunning,
@@ -210,6 +252,7 @@ export const useSolveStore = defineStore('solve', () => {
     loadKeys,
     putKey,
     deleteKey,
+    loadSolvers,
     closeStream,
     reset,
   }

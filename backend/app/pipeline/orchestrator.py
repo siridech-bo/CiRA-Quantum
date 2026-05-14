@@ -40,6 +40,25 @@ from app.optimization.interpreter import interpret_solution
 from app.optimization.validation import validate_cqm
 from app.pipeline.events import EventBus
 
+# Per-solver parameters used by the multi-solver fan-out (Phase 5D).
+# Conservative defaults — the goal is interactive-latency comparison
+# across the whole registry, not the best possible per-solver score
+# (the Benchmark dashboard's Experiment scripts already do the latter).
+# Keys must match each sampler's actual __init__ / sample() signatures
+# exactly; _split_parameters routes init-only kwargs vs sample kwargs
+# from records._INIT_ONLY_KWARGS_BY_SOLVER.
+_DEFAULT_PARAMS_BY_SOLVER: dict[str, dict[str, Any]] = {
+    "gpu_sa":                {"kernel": "jit", "num_reads": 200, "num_sweeps": 500},
+    "cpu_sa_neal":           {"num_reads": 200, "num_sweeps": 500},
+    "parallel_tempering":    {"num_reads": 50, "num_sweeps": 1000, "num_replicas": 8},
+    "simulated_bifurcation": {"max_steps": 500, "agents": 128},
+    "qaoa_sim":              {"layer": 1, "max_qubits": 12},
+    "qaoa_originqc":         {"layer": 1, "max_qubits": 7, "shots": 200},
+    "cpsat":                 {"time_limit": 5.0},
+    "highs":                 {"time_limit": 5.0},
+    "exact_cqm":             {},
+}
+
 
 class PipelineError(Exception):
     """Stage failure inside the orchestrator. Carries the stage name in
@@ -81,6 +100,125 @@ class Orchestrator:
         self.sampler = GPUSimulatedAnnealingSampler(kernel="jit")
         return self.sampler
 
+    def _run_multi_solver(
+        self,
+        cqm: dimod.ConstrainedQuadraticModel,
+        sense: str,
+        solver_names: list[str],
+        user_id: int,
+    ) -> dict[str, dict[str, Any]]:
+        """Run each registered solver on the same problem and return a
+        per-solver summary dict. CQM-native solvers consume the CQM
+        directly; everything else gets the BQM lowered once and reused.
+        One solver failing is captured per-row — it never aborts the
+        fan-out.
+
+        ``user_id`` is needed so BYOK-bearing solvers (``qaoa_originqc``)
+        can look up the user's stored credential at runtime instead of
+        relying on a server-level env var.
+        """
+        # Lazy imports keep this module free of CUDA / dwave hard deps.
+        from app.benchmarking.records import _split_parameters
+        from app.benchmarking.registry import bootstrap_default_solvers, get_solver
+
+        bootstrap_default_solvers()
+
+        # Lower CQM → BQM once. The penalty is applied here so every
+        # BQM-style solver sees the same lifted problem.
+        bqm, invert = dimod.cqm_to_bqm(
+            cqm, lagrange_multiplier=self.lagrange_multiplier
+        )
+
+        results: dict[str, dict[str, Any]] = {}
+        for name in solver_names:
+            t0 = time.perf_counter()
+            try:
+                ident, sampler_cls = get_solver(name)
+            except KeyError as e:
+                results[name] = {
+                    "status": "error",
+                    "error": str(e),
+                    "elapsed_ms": 0,
+                }
+                continue
+
+            is_cqm_native = (
+                sampler_cls.__name__ == "ExactCQMSolver"
+                or getattr(sampler_cls, "_CQM_NATIVE", False)
+            )
+            params = dict(_DEFAULT_PARAMS_BY_SOLVER.get(name, {}))
+
+            # BYOK injection. qaoa_originqc requires an Origin Quantum
+            # API key stored under provider "qpanda" in the api_keys
+            # table; the key is decrypted just-in-time and passed to
+            # the sampler constructor. Missing key → friendly row
+            # error so the other solvers in the fan-out still run.
+            byok_err = _inject_byok_credentials(name, params, user_id)
+            if byok_err is not None:
+                results[name] = {
+                    "status": "error",
+                    "error": byok_err,
+                    "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+                    "tier_source": ident.source,
+                    "version": ident.version,
+                    "hardware": ident.hardware,
+                }
+                continue
+
+            init_kwargs, sample_kwargs = _split_parameters(name, params)
+
+            try:
+                sampler = sampler_cls(**init_kwargs)
+                if is_cqm_native:
+                    sampleset = sampler.sample_cqm(cqm, **sample_kwargs)
+                else:
+                    sampleset = sampler.sample(bqm, **sample_kwargs)
+            except Exception as e:
+                results[name] = {
+                    "status": "error",
+                    "error": f"{type(e).__name__}: {e}",
+                    "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+                    "tier_source": ident.source,
+                    "version": ident.version,
+                    "hardware": ident.hardware,
+                }
+                continue
+
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            raw_energy = float(sampleset.first.energy)
+            best_sample = dict(sampleset.first.sample)
+            cqm_sample = best_sample if is_cqm_native else invert(best_sample)
+
+            # Honest feasibility + user-facing energy. The BQM energy from
+            # the SampleSet includes the Lagrange penalty for violated
+            # constraints; we report the CQM objective energy so all rows
+            # are comparable on the same scale.
+            try:
+                feasible = bool(cqm.check_feasible(cqm_sample))
+            except Exception:  # pragma: no cover — defensive
+                feasible = False
+            try:
+                obj_energy = float(cqm.objective.energy(cqm_sample))
+            except Exception:  # pragma: no cover
+                obj_energy = raw_energy
+            user_energy = obj_energy if sense == "minimize" else -obj_energy
+
+            results[name] = {
+                "status": "complete",
+                "energy": user_energy,
+                "raw_energy": raw_energy,
+                "feasible": feasible,
+                "elapsed_ms": elapsed_ms,
+                "tier_source": ident.source,
+                "version": ident.version,
+                "hardware": ident.hardware,
+                # Private — stripped before persistence; used only to
+                # populate the legacy ``solution`` column from the winner.
+                "_cqm_sample": cqm_sample,
+            }
+
+        return results
+
     async def run(
         self,
         *,
@@ -90,10 +228,18 @@ class Orchestrator:
         provider_name: str,
         api_key: str,
         event_bus: EventBus,
+        solvers: list[str] | None = None,
     ) -> None:
         """End-to-end pipeline. Updates the ``jobs`` row at each stage
         and emits SSE events; never raises — every failure path lands
-        on the ``error`` status."""
+        on the ``error`` status.
+
+        ``solvers`` is the Phase 5D fan-out list. When ``None`` or empty,
+        the legacy single-solver path is used (GPU SA via ``_build_sampler``).
+        When supplied, stage 4 runs each solver sequentially and stage 5
+        interprets the winning result while preserving the per-solver
+        comparison map in ``solver_results``.
+        """
         # Import models here, not at module load, so the orchestrator
         # module is import-safe without an initialized SQLite schema
         # (matters for the auto-bootstrap behavior in ``app.formulation``).
@@ -154,19 +300,41 @@ class Orchestrator:
             event_bus.emit(job_id, "solving")
             update_job(job_id, status="solving")
 
-            t0 = time.perf_counter()
-            bqm, invert = dimod.cqm_to_bqm(
-                cqm, lagrange_multiplier=self.lagrange_multiplier
-            )
-            sampler = self._build_sampler()
-            sampleset = sampler.sample(
-                bqm, num_reads=self.num_reads, num_sweeps=self.num_sweeps,
-            )
-            elapsed_ms = int((time.perf_counter() - t0) * 1000)
-
-            # Map BQM-space sample back to CQM space.
-            best_bqm = sampleset.first.sample
-            cqm_sample = invert(best_bqm)
+            if solvers:
+                solver_results = self._run_multi_solver(cqm, sense, solvers, user_id)
+                primary_name, primary = _pick_primary(solver_results, sense)
+                if primary is None or primary.get("status") != "complete":
+                    # Every solver errored — surface the first error message.
+                    first_err = next(
+                        (r.get("error") for r in solver_results.values()
+                         if r.get("error")),
+                        "all solvers failed",
+                    )
+                    raise PipelineError(f"solving: {first_err}")
+                cqm_sample = primary["_cqm_sample"]
+                elapsed_ms = int(primary["elapsed_ms"])
+                # Strip the private full-sample copies before we persist —
+                # only the winning sample is materialized into ``solution``;
+                # the per-solver map keeps a per-row summary, not full
+                # ndarrays.
+                public_solver_results = {
+                    name: {k: v for k, v in r.items() if k != "_cqm_sample"}
+                    for name, r in solver_results.items()
+                }
+            else:
+                # Legacy single-solver path (GPU SA via _build_sampler).
+                t0 = time.perf_counter()
+                bqm, invert = dimod.cqm_to_bqm(
+                    cqm, lagrange_multiplier=self.lagrange_multiplier
+                )
+                sampler = self._build_sampler()
+                sampleset = sampler.sample(
+                    bqm, num_reads=self.num_reads, num_sweeps=self.num_sweeps,
+                )
+                elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                cqm_sample = invert(sampleset.first.sample)
+                public_solver_results = None
+                primary_name = "gpu_sa"
 
             # ---- Stage 5: interpret + complete ------------------------------
             interpreted = interpret_solution(cqm_sample, registry, cqm, sense=sense)
@@ -178,15 +346,25 @@ class Orchestrator:
                 str(k): (v.item() if hasattr(v, "item") else v)
                 for k, v in cqm_sample.items()
             }
-            update_job(
-                job_id,
-                status="complete",
-                solution=json.dumps(solution_payload),
-                interpreted_solution=interpreted,
+            completion_fields: dict[str, Any] = {
+                "status": "complete",
+                "solution": json.dumps(solution_payload),
+                "interpreted_solution": interpreted,
+                "solve_time_ms": elapsed_ms,
+                "completed_at": datetime.utcnow().isoformat(),
+            }
+            if public_solver_results is not None:
+                completion_fields["solver_results"] = json.dumps({
+                    "solvers": public_solver_results,
+                    "primary": primary_name,
+                    "sense": sense,
+                })
+            update_job(job_id, **completion_fields)
+            event_bus.emit(
+                job_id, "complete",
                 solve_time_ms=elapsed_ms,
-                completed_at=datetime.utcnow().isoformat(),
+                primary_solver=primary_name,
             )
-            event_bus.emit(job_id, "complete", solve_time_ms=elapsed_ms)
 
         except PipelineError as e:
             update_job(
@@ -208,6 +386,105 @@ class Orchestrator:
                 completed_at=datetime.utcnow().isoformat(),
             )
             event_bus.emit(job_id, "error", error=msg)
+
+
+# Solvers that need a per-user credential from the api_keys table at
+# run time. Map from solver name → BYOK provider string. The
+# orchestrator decrypts the stored ciphertext and injects the plaintext
+# as ``api_key`` into the parameters dict. Plus a fallback to the
+# server-side ``QPANDA_API_KEY_FILE`` env var for benchmark-script
+# parity — that path is admin-controlled and only fires when no
+# user-stored key is found.
+#
+# The provider string matches the ``ApiKeyManager`` dropdown value
+# ("originqc") so users see the same label across the Keys tab and the
+# error messages in MultiSolverResultDisplay.
+_BYOK_BY_SOLVER: dict[str, str] = {
+    "qaoa_originqc": "originqc",
+}
+
+
+def _inject_byok_credentials(
+    solver_name: str, params: dict[str, Any], user_id: int,
+) -> str | None:
+    """Inject ``api_key`` into ``params`` for BYOK-bearing solvers.
+    Returns ``None`` on success or a user-facing error string when the
+    user has no key on file. Mutates ``params`` in place.
+    """
+    provider = _BYOK_BY_SOLVER.get(solver_name)
+    if provider is None:
+        return None  # not a BYOK solver — nothing to do
+
+    # Lazy imports — keeps this module free of route/crypto deps at load.
+    from app.config import KEY_ENCRYPTION_SECRET
+    from app.crypto import decrypt_api_key
+    from app.models import get_api_key_ciphertext
+
+    cipher = get_api_key_ciphertext(user_id, provider)
+    if cipher is not None:
+        try:
+            params["api_key"] = decrypt_api_key(cipher, KEY_ENCRYPTION_SECRET)
+            return None
+        except ValueError as e:
+            return f"stored {provider!r} key is unreadable: {e}"
+
+    # No user key — try the server-side env-file fallback so admin-side
+    # benchmark scripts that import this orchestrator still work.
+    import os
+    from pathlib import Path
+    env_path = os.environ.get("QPANDA_API_KEY_FILE")
+    if env_path and Path(env_path).exists():
+        try:
+            params["api_key"] = Path(env_path).read_text(encoding="utf-8").strip()
+            return None
+        except OSError:  # pragma: no cover — defensive
+            pass
+
+    return (
+        "no Origin Quantum API key on file — save your credential in "
+        "the API Keys tab (provider \"originqc\") to enable this solver"
+    )
+
+
+def _pick_primary(
+    results: dict[str, dict[str, Any]],
+    sense: str,
+) -> tuple[str | None, dict[str, Any] | None]:
+    """Pick the row that drives the legacy ``solution`` / ``interpreted_solution``
+    columns. "Best" depends on the CQM's optimization sense — for
+    minimize problems we want the row with the lowest energy; for
+    maximize problems, the highest. Preference order:
+    complete-and-feasible-with-best-energy, falling back to
+    complete-with-best-energy, then to the first error row.
+    Returns ``(name, row)`` or ``(None, None)`` when no rows exist."""
+    if not results:
+        return None, None
+
+    # For maximize problems, ``user_energy`` retains the original sign
+    # (we negated back inside ``_run_multi_solver``), so "best" is the
+    # largest value. For minimize, smallest.
+    is_max = sense == "maximize"
+    sentinel = float("-inf") if is_max else float("inf")
+
+    def keyfn(kv: tuple[str, dict[str, Any]]) -> float:
+        energy = kv[1].get("energy", sentinel)
+        return -energy if is_max else energy
+
+    complete_feasible = [
+        (name, r) for name, r in results.items()
+        if r.get("status") == "complete" and r.get("feasible")
+    ]
+    if complete_feasible:
+        return min(complete_feasible, key=keyfn)
+
+    complete_any = [
+        (name, r) for name, r in results.items() if r.get("status") == "complete"
+    ]
+    if complete_any:
+        return min(complete_any, key=keyfn)
+
+    # No completes — pass back the first row so the caller can surface the error.
+    return next(iter(results.items()))
 
 
 def _serialize_validation_report(report: Any) -> dict[str, Any]:

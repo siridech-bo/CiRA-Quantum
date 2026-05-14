@@ -6,6 +6,7 @@ import { useSolveStore } from '@/stores/solve'
 import { useTemplatesStore, type TemplateDetail, type TemplateSummary } from '@/stores/templates'
 import TemplateCard from '@/components/TemplateCard.vue'
 import TemplateDetailModal from '@/components/TemplateDetailModal.vue'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const auth = useAuthStore()
 const solve = useSolveStore()
@@ -43,7 +44,7 @@ async function openTemplate(t: TemplateSummary) {
 async function logout() {
   solve.reset()
   await auth.logout()
-  router.push('/login')
+  router.push('/')
 }
 
 onMounted(async () => {
@@ -56,11 +57,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <v-app-bar color="surface" flat>
-    <v-btn icon="mdi-arrow-left" variant="text" @click="router.push('/')" />
-    <v-app-bar-title class="text-primary font-weight-bold">
-      CiRA Quantum
-    </v-app-bar-title>
+  <v-app-bar color="surface" flat aria-label="CiRA Quantum app bar">
+    <v-btn icon="mdi-arrow-left" variant="text" @click="router.push('/solve')" />
+    <div
+      class="d-flex align-center logo-link"
+      role="button"
+      tabindex="0"
+      @click="router.push('/')"
+      @keydown.enter="router.push('/')"
+    >
+      <CiraLogo :size="32" />
+    </div>
     <v-spacer />
     <span class="text-body-2 mr-4" v-if="auth.user">
       Signed in as <strong>{{ auth.user.display_name }}</strong>
@@ -236,5 +243,17 @@ onMounted(async () => {
 }
 .lesson-card:hover {
   transform: translateY(-1px);
+}
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 </style>

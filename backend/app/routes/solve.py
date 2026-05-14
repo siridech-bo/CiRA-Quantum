@@ -36,6 +36,22 @@ from app.models import (
 )
 from app.pipeline import Orchestrator, get_event_bus
 
+# Phase 5D — multi-solver pickers. Tier metadata isn't carried on
+# ``SolverIdentity`` itself (the registry is intentionally minimal), so
+# we keep the name→tier map here. Adding a new solver to the registry
+# without a tier entry falls through to "other" — the UI handles that.
+_SOLVER_TIERS: dict[str, dict[str, Any]] = {
+    "exact_cqm":             {"tier": "classical_exact",   "tier_label": "Classical SOTA",         "tier_color": "success", "recommended_default": False, "warning": "Exponential time on large CQMs — keep instances small.", "requires_key": None},
+    "cpsat":                 {"tier": "classical_exact",   "tier_label": "Classical SOTA",         "tier_color": "success", "recommended_default": True,  "warning": None, "requires_key": None},
+    "highs":                 {"tier": "classical_exact",   "tier_label": "Classical SOTA",         "tier_color": "success", "recommended_default": True,  "warning": None, "requires_key": None},
+    "gpu_sa":                {"tier": "qubo_heuristic",    "tier_label": "QUBO heuristic (GPU)",   "tier_color": "primary", "recommended_default": True,  "warning": None, "requires_key": None},
+    "cpu_sa_neal":           {"tier": "qubo_heuristic",    "tier_label": "QUBO heuristic (CPU)",   "tier_color": "primary", "recommended_default": True,  "warning": None, "requires_key": None},
+    "parallel_tempering":    {"tier": "quantum_inspired",  "tier_label": "Quantum-inspired",       "tier_color": "info",    "recommended_default": True,  "warning": None, "requires_key": None},
+    "simulated_bifurcation": {"tier": "quantum_inspired",  "tier_label": "Quantum-inspired",       "tier_color": "info",    "recommended_default": True,  "warning": None, "requires_key": None},
+    "qaoa_sim":              {"tier": "quantum_simulator", "tier_label": "Quantum (simulator)",    "tier_color": "warning", "recommended_default": True,  "warning": "Slow above ~12 qubits.", "requires_key": None},
+    "qaoa_originqc":         {"tier": "quantum_qpu",       "tier_label": "Quantum (real QPU)",     "tier_color": "error",   "recommended_default": False, "warning": "Real superconducting QPU — minutes per shot and uses Origin cloud quota. Keep problems ≤7 qubits.", "requires_key": "originqc"},
+}
+
 logger = logging.getLogger(__name__)
 
 solve_bp = Blueprint("solve", __name__)
@@ -87,6 +103,7 @@ def _launch_pipeline_in_background(
     problem_statement: str,
     provider_name: str,
     api_key: str,
+    solvers: list[str],
 ) -> None:
     """Spawn a daemon thread that runs the async pipeline. Tests
     monkeypatch this with a synchronous stub."""
@@ -102,6 +119,7 @@ def _launch_pipeline_in_background(
                     problem_statement=problem_statement,
                     provider_name=provider_name, api_key=api_key,
                     event_bus=bus,
+                    solvers=solvers,
                 )
             )
         except Exception:
@@ -114,6 +132,74 @@ def _launch_pipeline_in_background(
             loop.close()
 
     threading.Thread(target=target, daemon=True).start()
+
+
+# ---- GET /api/solvers --------------------------------------------------------
+
+
+@solve_bp.route("/solvers", methods=["GET"])
+@login_required
+def solvers_index():
+    """List registered solvers + their tier metadata so the frontend's
+    SolverPicker can render dynamically. Bootstraps the registry on
+    first call (safe to call repeatedly — bootstrap is idempotent)."""
+    from app.benchmarking.registry import bootstrap_default_solvers, list_solvers
+
+    bootstrap_default_solvers()
+    out = []
+    for ident in list_solvers():
+        meta = _SOLVER_TIERS.get(ident.name, {})
+        out.append({
+            "name": ident.name,
+            "version": ident.version,
+            "source": ident.source,
+            "hardware": ident.hardware,
+            "tier": meta.get("tier", "other"),
+            "tier_label": meta.get("tier_label", "Other"),
+            "tier_color": meta.get("tier_color", "default"),
+            "recommended_default": meta.get("recommended_default", False),
+            "warning": meta.get("warning"),
+            "requires_key": meta.get("requires_key"),
+        })
+    return jsonify({"solvers": out})
+
+
+def _validate_solvers(payload: dict) -> tuple[list[str], tuple]:
+    """Normalize the ``solvers`` field. Returns ``(solvers, ())`` on success
+    or ``(_, (error_dict, status))`` on failure.
+
+    Defaults to the legacy single-solver behavior (``["gpu_sa"]``) when
+    the field is absent. Empty list is treated the same as absent. A cap
+    of 9 keeps a misbehaving client from queuing the whole registry on
+    a single problem instance.
+    """
+    from app.benchmarking.registry import bootstrap_default_solvers, list_solvers
+
+    raw = payload.get("solvers")
+    if raw in (None, []):
+        return ["gpu_sa"], ()
+    if not isinstance(raw, list) or not all(isinstance(s, str) for s in raw):
+        return [], ({"error": "solvers must be a list of strings",
+                     "code": "BAD_SOLVERS"}, 400)
+    # Dedup but preserve order — the first occurrence wins so the UI's
+    # ordering choice is what the user sees in the result panel.
+    seen: set[str] = set()
+    requested = []
+    for s in raw:
+        if s not in seen:
+            seen.add(s)
+            requested.append(s)
+    if len(requested) > 9:
+        return [], ({"error": "at most 9 solvers per request",
+                     "code": "TOO_MANY_SOLVERS"}, 400)
+
+    bootstrap_default_solvers()
+    registered = {ident.name for ident in list_solvers()}
+    unknown = [s for s in requested if s not in registered]
+    if unknown:
+        return [], ({"error": f"unknown solver(s): {', '.join(unknown)}",
+                     "code": "UNKNOWN_SOLVER"}, 400)
+    return requested, ()
 
 
 # ---- POST /api/solve ---------------------------------------------------------
@@ -145,11 +231,20 @@ def solve():
         body, status = err
         return jsonify(body), status
 
-    job_id = create_job(user["id"], statement, provider)
+    solvers, err = _validate_solvers(payload)
+    if err:
+        body, status = err
+        return jsonify(body), status
+
+    job_id = create_job(
+        user["id"], statement, provider,
+        solvers_requested=json.dumps(solvers),
+    )
     _launch_pipeline_in_background(
         job_id=job_id, user_id=user["id"],
         problem_statement=statement,
         provider_name=provider, api_key=api_key or "",
+        solvers=solvers,
     )
 
     # The Phase-5 frontend's solve store reads .job.id then opens SSE.
@@ -166,7 +261,10 @@ def _public_job(job: dict[str, Any] | None) -> dict[str, Any] | None:
     if job is None:
         return None
     out = dict(job)
-    for column in ("cqm_json", "variable_registry", "validation_report", "solution"):
+    for column in (
+        "cqm_json", "variable_registry", "validation_report", "solution",
+        "solver_results", "solvers_requested",
+    ):
         if out.get(column):
             try:
                 out[column] = json.loads(out[column])

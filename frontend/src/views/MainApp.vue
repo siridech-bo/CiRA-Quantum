@@ -6,9 +6,11 @@ import { useSolveStore } from '@/stores/solve'
 import ProblemInput from '@/components/ProblemInput.vue'
 import SolveStatus from '@/components/SolveStatus.vue'
 import ResultDisplay from '@/components/ResultDisplay.vue'
+import MultiSolverResultDisplay from '@/components/MultiSolverResultDisplay.vue'
 import JobHistory from '@/components/JobHistory.vue'
 import ApiKeyManager from '@/components/ApiKeyManager.vue'
 import TemplateMatchBadge from '@/components/TemplateMatchBadge.vue'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const auth = useAuthStore()
 const solve = useSolveStore()
@@ -33,7 +35,7 @@ const isNewUser = computed(
 async function logout() {
   solve.reset()
   await auth.logout()
-  router.push('/login')
+  router.push('/')
 }
 
 onMounted(() => {
@@ -44,8 +46,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <v-app-bar color="surface" flat>
-    <v-app-bar-title class="text-primary font-weight-bold">CiRA Quantum</v-app-bar-title>
+  <v-app-bar color="surface" flat aria-label="CiRA Quantum app bar">
+    <div
+      class="d-flex align-center logo-link ml-3"
+      role="button"
+      tabindex="0"
+      @click="router.push('/')"
+      @keydown.enter="router.push('/')"
+    >
+      <CiraLogo :size="32" />
+    </div>
     <v-spacer />
     <v-btn
       variant="text"
@@ -137,6 +147,10 @@ onMounted(() => {
                   :job="solve.currentJob!"
                   class="mb-3"
                 />
+                <MultiSolverResultDisplay
+                  v-if="hasResult && solve.currentJob?.solver_results"
+                  :job="solve.currentJob!"
+                />
                 <ResultDisplay :job="solve.currentJob!" />
               </template>
               <v-card v-else class="pa-5 h-100">
@@ -177,3 +191,18 @@ onMounted(() => {
     </v-container>
   </v-main>
 </template>
+
+<style scoped>
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+</style>

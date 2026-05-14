@@ -142,11 +142,14 @@ _INIT_ONLY_KWARGS_BY_SOLVER: dict[str, set[str]] = {
     "highs": {"presolve"},
     # Phase 9A — QAOA hyperparameters are constructor-time only.
     "qaoa_sim": {"layer", "optimizer", "top_k", "max_qubits"},
-    # Phase 9B — cloud QAOA. ``api_key`` is bound into the registered
-    # class via a closure (see registry.bootstrap_default_solvers), so
-    # it never appears in the parameters dict that gets saved into
-    # RunRecord JSONs.
+    # Phase 9B — cloud QAOA. Phase 5D moved this to BYOK: ``api_key`` is
+    # a real constructor parameter now (each user passes their own
+    # Origin Quantum credential). ``api_key`` is listed here so it gets
+    # routed into ``__init__``, but ``record_run`` scrubs it from the
+    # archived parameters dict so the credential never lands in a
+    # RunRecord JSON.
     "qaoa_originqc": {
+        "api_key",
         "backend_name",
         "url",
         "layer",
@@ -349,7 +352,17 @@ def record_run(
     record_id = _new_record_id()
     code_version = _detect_code_version()
     hardware_id = _detect_hardware_id(identity.hardware)
-    repro_hash = compute_repro_hash(code_version, instance_id, identity, parameters)
+
+    # Scrub credential-style kwargs before they touch the persisted
+    # RunRecord. ``api_key`` (qaoa_originqc BYOK) and any future
+    # auth-bearing param goes through this list — the archived JSON
+    # must NEVER contain a plaintext key. The repro hash uses the
+    # scrubbed params too so two reproductions with the same kwargs
+    # but different keys still match.
+    archived_parameters = {
+        k: v for k, v in (parameters or {}).items() if k not in _SECRET_PARAM_KEYS
+    }
+    repro_hash = compute_repro_hash(code_version, instance_id, identity, archived_parameters)
 
     sample_set_path = _archive_sample_set(record_id, sampleset) if archive_samples else None
 
@@ -357,7 +370,7 @@ def record_run(
         record_id=record_id,
         code_version=code_version,
         solver=identity,
-        parameters=dict(parameters),
+        parameters=archived_parameters,
         instance_id=instance_id,
         hardware_id=hardware_id,
         started_at=started,
@@ -368,6 +381,12 @@ def record_run(
     )
     _write_record(record)
     return record
+
+
+# Parameter keys that carry credentials. Stripped before persistence
+# AND before the repro hash so credential rotation doesn't break
+# reproducibility checks.
+_SECRET_PARAM_KEYS: frozenset[str] = frozenset({"api_key"})
 
 
 def _summarize(

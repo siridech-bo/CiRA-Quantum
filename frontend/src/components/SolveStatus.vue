@@ -4,13 +4,26 @@ import { useSolveStore, type JobStatus } from '@/stores/solve'
 
 const solve = useSolveStore()
 
-const STAGES: { key: JobStatus; label: string; hint: string }[] = [
+const solverList = computed<string[]>(
+  () => solve.currentJob?.solvers_requested ?? [],
+)
+const solvingHint = computed(() => {
+  if (solverList.value.length > 1) {
+    return `Running ${solverList.value.length} solvers in parallel`
+  }
+  if (solverList.value.length === 1) {
+    return `Running ${solverList.value[0]}`
+  }
+  return 'Sampling the BQM lowering'
+})
+
+const STAGES = computed<{ key: JobStatus; label: string; hint: string }[]>(() => [
   { key: 'formulating', label: 'Formulating', hint: 'LLM is writing the CQM' },
   { key: 'compiling',   label: 'Compiling',   hint: 'JSON → dimod.CQM' },
   { key: 'validating',  label: 'Validating',  hint: 'Oracle + constraint checks' },
-  { key: 'solving',     label: 'Solving',     hint: 'GPU SA on the BQM lowering' },
+  { key: 'solving',     label: 'Solving',     hint: solvingHint.value },
   { key: 'complete',    label: 'Done',        hint: 'Interpreting the result' },
-]
+])
 
 const STAGE_INDEX: Record<JobStatus, number> = {
   queued: -1,
@@ -109,7 +122,7 @@ onUnmounted(() => {
       type="error"
       variant="tonal"
       class="mt-4"
-      :title="`Pipeline failed during ${STAGES[currentIndex]?.label ?? 'unknown'}`"
+      title="Pipeline failed"
     >
       {{ solve.currentJob?.error || 'Unknown error' }}
     </v-alert>

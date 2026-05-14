@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useBenchmarksStore } from '@/stores/benchmarks'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -14,18 +15,27 @@ onMounted(() => {
 </script>
 
 <template>
-  <v-app-bar color="surface" flat>
-    <v-app-bar-title class="text-primary font-weight-bold">
-      CiRA Quantum Benchmarks
-    </v-app-bar-title>
+  <v-app-bar color="surface" flat aria-label="CiRA Quantum Benchmarks app bar">
+    <div
+      class="d-flex align-center logo-link ml-3"
+      role="button"
+      tabindex="0"
+      @click="router.push('/')"
+      @keydown.enter="router.push('/')"
+    >
+      <CiraLogo :size="32" />
+      <span class="text-body-2 text-medium-emphasis ml-3 d-none d-sm-inline">
+        Benchmarks
+      </span>
+    </div>
     <v-spacer />
     <v-btn
       v-if="auth.user"
       variant="text"
-      prepend-icon="mdi-arrow-left"
-      @click="router.push('/')"
+      prepend-icon="mdi-rocket-launch"
+      @click="router.push('/solve')"
     >
-      Back to app
+      Open app
     </v-btn>
     <v-btn
       v-else
@@ -102,3 +112,18 @@ onMounted(() => {
     </v-container>
   </v-main>
 </template>
+
+<style scoped>
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+</style>

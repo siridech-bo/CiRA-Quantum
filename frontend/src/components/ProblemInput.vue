@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useSolveStore } from '@/stores/solve'
+import SolverPicker from '@/components/SolverPicker.vue'
 
 const solve = useSolveStore()
 
@@ -16,6 +17,7 @@ const statement = ref('')
 const provider = ref<Provider>('claude')
 const useStoredKey = ref(true)
 const apiKey = ref('')
+const selectedSolvers = ref<string[]>([])
 const submitError = ref<string | null>(null)
 const submitting = ref(false)
 
@@ -54,6 +56,7 @@ const canSubmit = computed(() => {
   if (overLength.value) return false
   if (provider.value !== 'local' && useStoredKey.value && !hasStoredKey.value) return false
   if (provider.value !== 'local' && !useStoredKey.value && !apiKey.value) return false
+  if (selectedSolvers.value.length === 0) return false
   return !submitting.value
 })
 
@@ -66,6 +69,7 @@ async function submit() {
       provider: provider.value,
       use_stored_key: useStoredKey.value,
       ...(useStoredKey.value ? {} : { api_key: apiKey.value }),
+      solvers: selectedSolvers.value,
     })
   } catch (e: any) {
     submitError.value = e?.response?.data?.error || e?.message || 'Submit failed'
@@ -153,6 +157,10 @@ onMounted(async () => {
       />
     </template>
 
+    <div class="mt-4">
+      <SolverPicker v-model="selectedSolvers" />
+    </div>
+
     <v-alert v-if="submitError" type="error" variant="tonal" class="mt-3">
       {{ submitError }}
     </v-alert>
@@ -166,7 +174,13 @@ onMounted(async () => {
         prepend-icon="mdi-rocket-launch"
         @click="submit"
       >
-        {{ solve.isRunning ? 'A solve is already running…' : 'Solve' }}
+        {{
+          solve.isRunning
+            ? 'A solve is already running…'
+            : selectedSolvers.length > 1
+              ? `Solve with ${selectedSolvers.length} solvers`
+              : 'Solve'
+        }}
       </v-btn>
     </v-card-actions>
   </v-card>

@@ -3,6 +3,10 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBenchmarksStore, type FindingsCell, type SolverSummary } from '@/stores/benchmarks'
 import PendingCloudJobsPanel from '@/components/PendingCloudJobsPanel.vue'
+import CiraLogo from '@/components/CiraLogo.vue'
+import SolverMatchRateChart from '@/components/SolverMatchRateChart.vue'
+import SolverMeanTimeChart from '@/components/SolverMeanTimeChart.vue'
+import TimeQualityScatter from '@/components/TimeQualityScatter.vue'
 
 const router = useRouter()
 const benchmarks = useBenchmarksStore()
@@ -71,10 +75,19 @@ function matchRateForSummary(s: SolverSummary): number {
 </script>
 
 <template>
-  <v-app-bar color="surface" flat>
+  <v-app-bar color="surface" flat aria-label="Benchmark findings app bar">
     <v-btn icon="mdi-arrow-left" variant="text" @click="router.push('/benchmarks')" />
-    <v-app-bar-title class="text-primary font-weight-bold">
-      Benchmarks · Findings
+    <div
+      class="d-flex align-center logo-link"
+      role="button"
+      tabindex="0"
+      @click="router.push('/')"
+      @keydown.enter="router.push('/')"
+    >
+      <CiraLogo :size="28" />
+    </div>
+    <v-app-bar-title class="text-medium-emphasis ml-2">
+      Benchmarks · <span class="font-weight-medium">Findings</span>
     </v-app-bar-title>
   </v-app-bar>
 
@@ -105,6 +118,21 @@ function matchRateForSummary(s: SolverSummary): number {
             See <code>BENCHMARK_REPORT_001.md</code> at the repo root for the full prose writeup with five headline findings and recommendations forward.
           </v-card-subtitle>
         </v-card>
+
+        <!-- Comparative charts (Phase 5D) — quick visual overview before
+             the dense per-cell table further down. -->
+        <div class="text-h6 mb-2">At a glance</div>
+        <v-row class="mb-4">
+          <v-col cols="12" md="6">
+            <SolverMatchRateChart :summaries="benchmarks.findings.solver_summaries" />
+          </v-col>
+          <v-col cols="12" md="6">
+            <SolverMeanTimeChart :cells="benchmarks.findings.cells" />
+          </v-col>
+          <v-col cols="12">
+            <TimeQualityScatter :cells="benchmarks.findings.cells" />
+          </v-col>
+        </v-row>
 
         <!-- Per-solver summary cards -->
         <div class="text-h6 mb-2">Per-solver headline stats</div>
@@ -308,5 +336,17 @@ function matchRateForSummary(s: SolverSummary): number {
 }
 .cell-best {
   background: rgba(80, 200, 120, 0.10);
+}
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 </style>

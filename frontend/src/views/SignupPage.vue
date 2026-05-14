@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import CiraLogo from '@/components/CiraLogo.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -23,7 +24,7 @@ async function submit() {
       display_name.value.trim() || undefined,
       email.value.trim() || undefined,
     )
-    router.push('/')
+    router.push('/solve')
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Signup failed'
   } finally {
@@ -37,8 +38,21 @@ async function submit() {
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="5" lg="4">
         <v-card class="pa-6">
-          <v-card-title class="text-h5">Create an account</v-card-title>
-          <v-card-subtitle>3-32 chars username; password 8+ chars</v-card-subtitle>
+          <div class="d-flex justify-center mb-4">
+            <div
+              class="logo-link"
+              role="button"
+              tabindex="0"
+              @click="router.push('/')"
+              @keydown.enter="router.push('/')"
+            >
+              <CiraLogo :size="44" :with-wordmark="true" />
+            </div>
+          </div>
+          <v-card-title class="text-h5 text-center pa-0">Create an account</v-card-title>
+          <v-card-subtitle class="text-center pa-0 mb-4">
+            3-32 chars username; password 8+ chars
+          </v-card-subtitle>
           <v-form @submit.prevent="submit">
             <v-text-field v-model="username" label="Username" autocomplete="username" required />
             <v-text-field
@@ -81,3 +95,19 @@ async function submit() {
     </v-row>
   </v-container>
 </template>
+
+<style scoped>
+.logo-link {
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+  display: inline-flex;
+}
+.logo-link:hover {
+  opacity: 0.8;
+}
+.logo-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+</style>

@@ -7,6 +7,7 @@ import {
 import LoginPage from '@/views/LoginPage.vue'
 import SignupPage from '@/views/SignupPage.vue'
 import MainApp from '@/views/MainApp.vue'
+import LandingPage from '@/views/LandingPage.vue'
 import JobDetailPage from '@/views/JobDetailPage.vue'
 import TemplateGalleryPage from '@/views/TemplateGalleryPage.vue'
 import BenchmarkDashboardPage from '@/views/BenchmarkDashboardPage.vue'
@@ -27,7 +28,11 @@ declare module 'vue-router' {
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginPage, meta: { requiresGuest: true } },
   { path: '/signup', component: SignupPage, meta: { requiresGuest: true } },
-  { path: '/', component: MainApp, meta: { requiresAuth: true } },
+  // Public landing page — Phase 5D. Doubles as the entry point for
+  // unauthenticated visitors.
+  { path: '/', component: LandingPage },
+  // The solve app moved here in Phase 5D so the landing page can own /.
+  { path: '/solve', component: MainApp, meta: { requiresAuth: true } },
   { path: '/jobs/:id', component: JobDetailPage, meta: { requiresAuth: true } },
   { path: '/templates', component: TemplateGalleryPage, meta: { requiresAuth: true } },
   // Phase 5C — public Benchmark dashboard (no auth required).
