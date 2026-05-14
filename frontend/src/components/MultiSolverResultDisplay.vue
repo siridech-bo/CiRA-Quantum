@@ -295,12 +295,10 @@ const errorCount = computed(
 </template>
 
 <style scoped>
-.comparison-table {
-  /* Fixed layout so columns honor their declared widths instead of
-   * growing to fit the widest cell (the gate-level QAOA circuit SVG,
-   * which is much wider than the card). Without this, the whole
-   * table — and every cell in it including the text content of the
-   * explainer panel — gets pushed past the card's right edge. */
+/* Vuetify's <v-table> renders a wrapper div, NOT a <table>, so the
+ * `class="comparison-table"` ends up on the wrapper. We need :deep()
+ * to reach the actual <table> for table-layout to take effect. */
+.comparison-table :deep(table) {
   table-layout: fixed;
   width: 100%;
 }
