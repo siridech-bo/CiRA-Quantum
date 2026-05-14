@@ -322,6 +322,12 @@ const errorCount = computed(
 .explainer-row :deep(td) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0;
+  /* The canonical "let me scroll inside without expanding the table" hack.
+   * max-width:0 + width:100% forces the cell to honor its column width
+   * instead of growing to fit a wide child (e.g. the gate-level QAOA
+   * circuit SVG). Children with overflow-x:auto can then scroll. */
+  max-width: 0;
+  width: 100%;
 }
 .best-energy {
   color: rgb(var(--v-theme-success));

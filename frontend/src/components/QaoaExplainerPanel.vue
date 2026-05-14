@@ -671,6 +671,8 @@ function fmtEnergy(e: number): string {
   background: rgba(124, 58, 237, 0.04);
   border-left: 3px solid rgb(var(--v-theme-primary));
   border-radius: 4px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .explainer-section {
   font-size: 0.9rem;
@@ -689,13 +691,18 @@ function fmtEnergy(e: number): string {
 
 .circuit-scroll {
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 0.4rem;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 4px;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Force a horizontal scrollbar to appear when needed, even on
+   * platforms (macOS) that auto-hide scrollbars by default. */
+  scrollbar-gutter: stable;
 }
 .qcircuit-svg {
   display: block;
-  min-width: max-content;
 }
 .slack-banner {
   background: rgba(255, 200, 100, 0.06);
