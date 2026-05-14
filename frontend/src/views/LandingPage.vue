@@ -41,6 +41,7 @@ const tiers = [
     <v-container class="d-flex align-center pa-0">
       <CiraLogo :size="36" />
       <v-spacer />
+      <v-btn variant="text" @click="router.push('/learn/quantum')">Quantum 101</v-btn>
       <v-btn variant="text" @click="goBenchmarks">Benchmarks</v-btn>
       <v-btn variant="text" @click="router.push('/templates')">Examples</v-btn>
       <v-btn v-if="!auth.user" variant="outlined" class="ml-2" @click="router.push('/login')">Log in</v-btn>

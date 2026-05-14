@@ -203,7 +203,7 @@ class Orchestrator:
                 obj_energy = raw_energy
             user_energy = obj_energy if sense == "minimize" else -obj_energy
 
-            results[name] = {
+            row: dict[str, Any] = {
                 "status": "complete",
                 "energy": user_energy,
                 "raw_energy": raw_energy,
@@ -216,6 +216,20 @@ class Orchestrator:
                 # populate the legacy ``solution`` column from the winner.
                 "_cqm_sample": cqm_sample,
             }
+
+            # Phase 10A — capture QAOA-specific telemetry so the
+            # explainer panel can render the trained circuit, the
+            # measurement histogram, and the top-K classical filter
+            # step. Only the QAOA samplers populate ``ss.info`` with
+            # these keys, so this is a no-op for everything else.
+            qaoa_extras = _build_qaoa_extras(
+                sampleset, bqm, variables_in_bqm=list(bqm.variables),
+                sense=sense,
+            )
+            if qaoa_extras is not None:
+                row["qaoa_extras"] = qaoa_extras
+
+            results[name] = row
 
         return results
 
@@ -386,6 +400,67 @@ class Orchestrator:
                 completed_at=datetime.utcnow().isoformat(),
             )
             event_bus.emit(job_id, "error", error=msg)
+
+
+def _build_qaoa_extras(
+    sampleset: dimod.SampleSet,
+    bqm: dimod.BinaryQuadraticModel,
+    *,
+    variables_in_bqm: list,
+    sense: str,
+) -> dict[str, Any] | None:
+    """Return the QAOA-specific telemetry the Explainer panel needs, or
+    ``None`` if the sampleset isn't from a QAOA solver.
+
+    The QAOA samplers (Phase 9A local, Phase 9B cloud) stamp
+    ``sampleset.info`` with the trained ``(γ, β)`` angles, the layer
+    count, and the top-K measurement bitstrings + probabilities.
+    Detecting any of those keys is the cheapest "is this QAOA?" check —
+    we don't want to plumb a solver-name allow-list through to this
+    helper.
+    """
+    info = getattr(sampleset, "info", None) or {}
+    bitstrings = info.get("qaoa_top_bitstrings")
+    if bitstrings is None:
+        return None  # not a QAOA result — nothing to surface
+
+    probs = info.get("qaoa_top_probabilities") or []
+    gammas = info.get("qaoa_trained_gammas") or []
+    betas = info.get("qaoa_trained_betas") or []
+
+    # Compute the user-facing energy for each top bitstring so the
+    # frontend can colour the histogram bars + run the top-K filter
+    # without ever seeing the BQM. ``cqm_to_bqm`` keeps binary
+    # variables 1:1 with the CQM, so a bitstring evaluated against the
+    # BQM gives the same energy you'd get plugging into the CQM
+    # objective (modulo Lagrange penalty for infeasible samples, which
+    # is exactly the "is this state feasible?" signal we want).
+    bqm_bin = bqm.change_vartype(dimod.BINARY, inplace=False)
+    n = len(variables_in_bqm)
+    energies: list[float] = []
+    for bitstring in bitstrings:
+        padded = str(bitstring).zfill(n)[-n:]
+        sample = {v: int(padded[i]) for i, v in enumerate(variables_in_bqm)}
+        try:
+            raw = float(bqm_bin.energy(sample))
+        except Exception:  # pragma: no cover — defensive
+            raw = float("nan")
+        energies.append(raw if sense == "minimize" else -raw)
+
+    return {
+        "layer": info.get("qaoa_layer"),
+        "trained_gammas": [float(g) for g in gammas],
+        "trained_betas": [float(b) for b in betas],
+        "num_qubits": n,
+        "top_bitstrings": [str(b) for b in bitstrings],
+        "top_probabilities": [float(p) for p in probs],
+        "top_energies": energies,
+        "train_loss": info.get("qaoa_train_loss"),
+        "train_optimizer": info.get("qaoa_optimizer"),
+        "backend_name": info.get("cloud_backend"),
+        "is_real_hardware": bool(info.get("cloud_is_real_hardware", False)),
+        "job_id": info.get("cloud_job_id"),
+    }
 
 
 # Solvers that need a per-user credential from the api_keys table at

@@ -74,6 +74,22 @@ export interface SolverResult {
   version?: string
   hardware?: string | null
   error?: string
+  qaoa_extras?: QaoaExtras
+}
+
+export interface QaoaExtras {
+  layer: number | null
+  trained_gammas: number[]
+  trained_betas: number[]
+  num_qubits: number
+  top_bitstrings: string[]
+  top_probabilities: number[]
+  top_energies: number[]
+  train_loss: number | null
+  train_optimizer: string | null
+  backend_name: string | null
+  is_real_hardware: boolean
+  job_id: string | null
 }
 
 export interface SolverInfo {

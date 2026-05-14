@@ -8,12 +8,39 @@
  * standard ``ResultDisplay`` (which keeps showing the winning solver's
  * solution / cqm / validation tabs).
  */
-import { computed } from 'vue'
-import type { Job, SolverResult } from '@/stores/solve'
+import { computed, ref } from 'vue'
+import type { Job, SolverResult, QaoaExtras } from '@/stores/solve'
 import { useSolveStore } from '@/stores/solve'
+import QaoaExplainerPanel from '@/components/QaoaExplainerPanel.vue'
+import ClassicalExplainerPanel from '@/components/ClassicalExplainerPanel.vue'
+
+// Solvers that ClassicalExplainerPanel knows how to render. Kept in
+// sync with that component's family-dispatch logic.
+const CLASSICAL_EXPLAINER_SOLVERS = new Set([
+  'gpu_sa',
+  'cpu_sa_neal',
+  'parallel_tempering',
+  'simulated_bifurcation',
+  'cpsat',
+  'highs',
+  'exact_cqm',
+])
 
 const props = defineProps<{ job: Job }>()
 const solve = useSolveStore()
+
+const expanded = ref<Set<string>>(new Set())
+
+function toggleExpand(name: string) {
+  if (expanded.value.has(name)) expanded.value.delete(name)
+  else expanded.value.add(name)
+  // trigger reactivity
+  expanded.value = new Set(expanded.value)
+}
+
+function getExtras(name: string): QaoaExtras | undefined {
+  return props.job.solver_results?.solvers?.[name]?.qaoa_extras
+}
 
 const isMaximize = computed(
   () => props.job.solver_results?.sense === 'maximize',
@@ -38,6 +65,9 @@ const rows = computed(() => {
       hardware: r.hardware ?? meta?.hardware ?? null,
       error: r.error,
       is_primary: name === primary,
+      has_explainer: !!r.qaoa_extras || CLASSICAL_EXPLAINER_SOLVERS.has(name),
+      explainer_kind: r.qaoa_extras ? 'qaoa' : (CLASSICAL_EXPLAINER_SOLVERS.has(name) ? 'classical' : null),
+      solver_result: r,
     }
   })
   // Sort: completed-feasible by energy asc, then completed-only by energy asc,
@@ -119,6 +149,7 @@ const errorCount = computed(
     <v-table density="compact" class="comparison-table">
       <thead>
         <tr>
+          <th class="text-left" style="width: 32px"></th>
           <th class="text-left">Solver</th>
           <th class="text-left">Tier</th>
           <th class="text-right">Energy</th>
@@ -128,14 +159,24 @@ const errorCount = computed(
         </tr>
       </thead>
       <tbody>
+        <template v-for="r in rows" :key="r.name">
         <tr
-          v-for="r in rows"
-          :key="r.name"
           :class="{
             'row-best': r.is_primary,
             'row-error': r.status === 'error',
+            'row-clickable': r.has_explainer,
           }"
+          @click="r.has_explainer && toggleExpand(r.name)"
         >
+          <td class="expand-cell">
+            <v-icon
+              v-if="r.has_explainer"
+              :icon="expanded.has(r.name) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+              size="small"
+              color="primary"
+              :title="expanded.has(r.name) ? 'Hide explainer' : 'How did this solver get its answer?'"
+            />
+          </td>
           <td>
             <div class="d-flex align-center">
               <v-icon
@@ -210,6 +251,27 @@ const errorCount = computed(
             </v-tooltip>
           </td>
         </tr>
+        <tr
+          v-if="r.has_explainer && expanded.has(r.name)"
+          class="explainer-row"
+        >
+          <td :colspan="7" class="pa-0">
+            <QaoaExplainerPanel
+              v-if="r.explainer_kind === 'qaoa'"
+              :job="job"
+              :extras="getExtras(r.name)!"
+              :tier-color="r.tier_color"
+              :sense="isMaximize ? 'maximize' : 'minimize'"
+            />
+            <ClassicalExplainerPanel
+              v-else-if="r.explainer_kind === 'classical'"
+              :solver-name="r.name"
+              :result="r.solver_result"
+              :sense="isMaximize ? 'maximize' : 'minimize'"
+            />
+          </td>
+        </tr>
+        </template>
       </tbody>
     </v-table>
 
@@ -234,6 +296,20 @@ const errorCount = computed(
 }
 .row-error :deep(td) {
   opacity: 0.7;
+}
+.row-clickable {
+  cursor: pointer;
+}
+.row-clickable:hover {
+  background: rgba(124, 58, 237, 0.05);
+}
+.expand-cell {
+  width: 32px;
+  padding-right: 0 !important;
+}
+.explainer-row :deep(td) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0;
 }
 .best-energy {
   color: rgb(var(--v-theme-success));
