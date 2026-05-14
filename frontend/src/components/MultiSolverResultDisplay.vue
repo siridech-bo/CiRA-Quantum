@@ -162,12 +162,12 @@ const errorCount = computed(
       <thead>
         <tr>
           <th class="text-left" style="width: 32px"></th>
-          <th class="text-left">Solver</th>
-          <th class="text-left">Tier</th>
-          <th class="text-right">Energy</th>
-          <th class="text-center">Feasible</th>
-          <th class="text-right">Time</th>
-          <th class="text-left">Status</th>
+          <th class="text-left" style="width: 28%">Solver</th>
+          <th class="text-left" style="width: 20%">Tier</th>
+          <th class="text-right" style="width: 12%">Energy</th>
+          <th class="text-center" style="width: 9%">Feasible</th>
+          <th class="text-right" style="width: 12%">Time</th>
+          <th class="text-left" style="width: 19%">Status</th>
         </tr>
       </thead>
       <tbody>
@@ -295,9 +295,21 @@ const errorCount = computed(
 </template>
 
 <style scoped>
+.comparison-table {
+  /* Fixed layout so columns honor their declared widths instead of
+   * growing to fit the widest cell (the gate-level QAOA circuit SVG,
+   * which is much wider than the card). Without this, the whole
+   * table — and every cell in it including the text content of the
+   * explainer panel — gets pushed past the card's right edge. */
+  table-layout: fixed;
+  width: 100%;
+}
 .comparison-table :deep(td),
 .comparison-table :deep(th) {
   padding: 6px 8px;
+  /* Allow long solver names / hardware strings to wrap rather than
+   * forcing the column wide. */
+  word-break: break-word;
 }
 .solver-name {
   font-family: 'Cascadia Code', 'Consolas', monospace;
@@ -322,12 +334,10 @@ const errorCount = computed(
 .explainer-row :deep(td) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0;
-  /* The canonical "let me scroll inside without expanding the table" hack.
-   * max-width:0 + width:100% forces the cell to honor its column width
-   * instead of growing to fit a wide child (e.g. the gate-level QAOA
-   * circuit SVG). Children with overflow-x:auto can then scroll. */
-  max-width: 0;
-  width: 100%;
+  /* table-layout:fixed on the parent table already prevents this td
+   * from blowing past its column allocation, so wide children like
+   * the gate-level QAOA circuit SVG can scroll horizontally inside
+   * .circuit-scroll without dragging the whole row off-screen. */
 }
 .best-energy {
   color: rgb(var(--v-theme-success));
