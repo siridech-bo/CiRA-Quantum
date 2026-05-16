@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useSolveStore } from '@/stores/solve'
 
 const solve = useSolveStore()
@@ -11,11 +11,84 @@ const PROVIDERS = [
   { value: 'ibm_quantum', title: 'IBM Quantum (Open Plan)' },
 ] as const
 
+interface ProviderHelp {
+  /** Marketing-style one-line summary. */
+  blurb: string
+  /** URL to open in a new tab for the user to sign up / retrieve their key. */
+  consoleUrl: string
+  /** Step-by-step instructions. Each item is one short line. */
+  steps: string[]
+  /** Whether the provider has a usable free tier. Used to pick the chip color. */
+  freeTier: boolean
+  /** Free-tier note (when applicable) or pricing note. Optional. */
+  pricingNote?: string
+  /** Optional format hint to show next to the API key input. */
+  formatHint?: string
+}
+
+const PROVIDER_HELP: Record<string, ProviderHelp> = {
+  claude: {
+    blurb: 'Anthropic Claude — used by the LLM formulator to turn plain-English problems into CQM JSON.',
+    consoleUrl: 'https://console.anthropic.com/settings/keys',
+    steps: [
+      'Sign in (or sign up) at console.anthropic.com.',
+      'Open Settings → API Keys.',
+      'Click "Create Key" and copy the resulting value.',
+    ],
+    freeTier: false,
+    pricingNote: 'Pay-as-you-go (Claude Sonnet 4.6: $3 / 1M input · $15 / 1M output tokens). A typical solve costs about $0.01–$0.05.',
+    formatHint: 'Starts with sk-ant-...',
+  },
+  openai: {
+    blurb: 'OpenAI — alternative LLM formulator (GPT-5-mini by default).',
+    consoleUrl: 'https://platform.openai.com/api-keys',
+    steps: [
+      'Sign in (or sign up) at platform.openai.com.',
+      'Open API Keys.',
+      'Click "Create new secret key" and copy the value immediately — it is shown only once.',
+    ],
+    freeTier: false,
+    pricingNote: 'Pay-as-you-go. GPT-5-mini is cheaper than Claude per token; a typical solve costs about $0.001–$0.01. New accounts sometimes get $5 in trial credit.',
+    formatHint: 'Starts with sk-...',
+  },
+  originqc: {
+    blurb: 'Origin Quantum — submits the trained QAOA circuit to real superconducting hardware (Wukong) or their cloud simulator.',
+    consoleUrl: 'https://console.originqc.com.cn',
+    steps: [
+      'Sign in (or sign up) at console.originqc.com.cn — academic email is fine.',
+      'Open your account / Personal Center → API Key (or "My API key").',
+      'Generate or copy the existing API key. It is a long hex-encoded string.',
+    ],
+    freeTier: true,
+    pricingNote: 'Free quota for academic users. Submissions queue on the Origin scheduler — sometimes seconds, sometimes minutes. We auto-retry transient pilot-task errors.',
+    formatHint: 'Long hex-encoded string. Recent keys start ~890… (older PKCS#8-style 30 2e 02 01… keys may no longer authenticate).',
+  },
+  ibm_quantum: {
+    blurb: 'IBM Quantum — Free Open Plan with access to real 127+ qubit superconducting QPUs (Eagle, Heron r2).',
+    consoleUrl: 'https://quantum.ibm.com',
+    steps: [
+      'Sign in (or sign up free) at quantum.ibm.com — academic email is welcome.',
+      'On the Dashboard your "API token" is shown at the top-right with a Copy button.',
+      'Paste the copied value below and save.',
+    ],
+    freeTier: true,
+    pricingNote: '10 min/month free on real QPUs + 180 min bonus for 12 months once you log 20 min of total usage. No credit card. Jobs queue 30 s to several hours depending on chip load.',
+    formatHint: 'Long alphanumeric string from the IBM Quantum dashboard.',
+  },
+}
+
 // Providers that the backend has a liveness test for. When we add
 // /api/keys/<provider>/test for other providers, append here.
 const TESTABLE_PROVIDERS = new Set(['originqc', 'ibm_quantum'])
 
 const addProvider = ref<'claude' | 'openai' | 'originqc' | 'ibm_quantum'>('claude')
+
+const currentHelp = computed<ProviderHelp | undefined>(
+  () => PROVIDER_HELP[addProvider.value],
+)
+const currentProviderTitle = computed(
+  () => PROVIDERS.find((p) => p.value === addProvider.value)?.title || addProvider.value,
+)
 const addKey = ref('')
 const saving = ref(false)
 const error = ref<string | null>(null)
@@ -166,6 +239,46 @@ onMounted(() => {
           label="Provider"
           density="comfortable"
         />
+
+        <!-- Per-provider help card. Drives off the selected provider so
+             switching the dropdown updates the instructions live. -->
+        <div v-if="currentHelp" class="provider-help mb-3 pa-3">
+          <div class="d-flex align-center mb-2">
+            <v-icon icon="mdi-information-outline" size="small" class="mr-2" color="info" />
+            <span class="text-subtitle-2 flex-grow-1">
+              How to get your {{ currentProviderTitle }} key
+            </span>
+            <v-chip
+              size="x-small"
+              :color="currentHelp.freeTier ? 'success' : 'warning'"
+              variant="tonal"
+            >
+              {{ currentHelp.freeTier ? 'Free tier' : 'Paid' }}
+            </v-chip>
+          </div>
+          <div class="text-body-2 text-medium-emphasis mb-2">
+            {{ currentHelp.blurb }}
+          </div>
+          <v-btn
+            :href="currentHelp.consoleUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="tonal"
+            color="primary"
+            size="small"
+            prepend-icon="mdi-open-in-new"
+            class="mb-2"
+          >
+            Open {{ new URL(currentHelp.consoleUrl).host }}
+          </v-btn>
+          <ol class="help-steps text-body-2">
+            <li v-for="(step, i) in currentHelp.steps" :key="i">{{ step }}</li>
+          </ol>
+          <div v-if="currentHelp.pricingNote" class="text-caption text-medium-emphasis mt-2">
+            <v-icon icon="mdi-cash-multiple" size="x-small" /> {{ currentHelp.pricingNote }}
+          </div>
+        </div>
+
         <v-text-field
           v-model="addKey"
           label="API key"
@@ -173,19 +286,29 @@ onMounted(() => {
           autocomplete="off"
           prepend-inner-icon="mdi-key"
           density="comfortable"
+          :hint="currentHelp?.formatHint"
+          persistent-hint
         />
-        <v-alert v-if="error" type="error" variant="tonal" class="mb-2">
+        <v-alert v-if="error" type="error" variant="tonal" class="mb-2 mt-2">
           {{ error }}
         </v-alert>
-        <v-btn
-          color="primary"
-          :loading="saving"
-          :disabled="!addKey"
-          @click="save"
-          prepend-icon="mdi-content-save"
-        >
-          Save key
-        </v-btn>
+        <div class="d-flex align-center mt-3">
+          <v-btn
+            color="primary"
+            :loading="saving"
+            :disabled="!addKey"
+            @click="save"
+            prepend-icon="mdi-content-save"
+          >
+            Save key
+          </v-btn>
+          <span
+            v-if="TESTABLE_PROVIDERS.has(addProvider)"
+            class="text-caption text-medium-emphasis ml-3"
+          >
+            After saving, click <strong>TEST</strong> on the stored row to verify the key works.
+          </span>
+        </div>
       </v-card>
     </v-col>
 
@@ -215,3 +338,19 @@ onMounted(() => {
     </v-dialog>
   </v-row>
 </template>
+
+<style scoped>
+.provider-help {
+  background: rgba(33, 150, 243, 0.04);
+  border-left: 3px solid rgb(var(--v-theme-info));
+  border-radius: 4px;
+}
+.help-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.help-steps li {
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+</style>
