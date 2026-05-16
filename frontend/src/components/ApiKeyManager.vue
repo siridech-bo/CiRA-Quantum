@@ -16,6 +16,8 @@ interface ProviderHelp {
   blurb: string
   /** URL to open in a new tab for the user to sign up / retrieve their key. */
   consoleUrl: string
+  /** Display label for the open-in-new-tab button (typically the URL's host). */
+  consoleHost: string
   /** Step-by-step instructions. Each item is one short line. */
   steps: string[]
   /** Whether the provider has a usable free tier. Used to pick the chip color. */
@@ -30,6 +32,7 @@ const PROVIDER_HELP: Record<string, ProviderHelp> = {
   claude: {
     blurb: 'Anthropic Claude — used by the LLM formulator to turn plain-English problems into CQM JSON.',
     consoleUrl: 'https://console.anthropic.com/settings/keys',
+    consoleHost: 'console.anthropic.com',
     steps: [
       'Sign in (or sign up) at console.anthropic.com.',
       'Open Settings → API Keys.',
@@ -42,6 +45,7 @@ const PROVIDER_HELP: Record<string, ProviderHelp> = {
   openai: {
     blurb: 'OpenAI — alternative LLM formulator (GPT-5-mini by default).',
     consoleUrl: 'https://platform.openai.com/api-keys',
+    consoleHost: 'platform.openai.com',
     steps: [
       'Sign in (or sign up) at platform.openai.com.',
       'Open API Keys.',
@@ -54,6 +58,7 @@ const PROVIDER_HELP: Record<string, ProviderHelp> = {
   originqc: {
     blurb: 'Origin Quantum — submits the trained QAOA circuit to real superconducting hardware (Wukong) or their cloud simulator.',
     consoleUrl: 'https://console.originqc.com.cn',
+    consoleHost: 'console.originqc.com.cn',
     steps: [
       'Sign in (or sign up) at console.originqc.com.cn — academic email is fine.',
       'Open your account / Personal Center → API Key (or "My API key").',
@@ -66,6 +71,7 @@ const PROVIDER_HELP: Record<string, ProviderHelp> = {
   ibm_quantum: {
     blurb: 'IBM Quantum — Free Open Plan with access to real 127+ qubit superconducting QPUs (Eagle, Heron r2).',
     consoleUrl: 'https://quantum.ibm.com',
+    consoleHost: 'quantum.ibm.com',
     steps: [
       'Sign in (or sign up free) at quantum.ibm.com — academic email is welcome.',
       'On the Dashboard your "API token" is shown at the top-right with a Copy button.',
@@ -269,7 +275,7 @@ onMounted(() => {
             prepend-icon="mdi-open-in-new"
             class="mb-2"
           >
-            Open {{ new URL(currentHelp.consoleUrl).host }}
+            Open {{ currentHelp.consoleHost }}
           </v-btn>
           <ol class="help-steps text-body-2">
             <li v-for="(step, i) in currentHelp.steps" :key="i">{{ step }}</li>
