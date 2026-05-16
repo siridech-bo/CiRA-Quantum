@@ -132,6 +132,17 @@ class _FakeQCloudJob:
     def job_id(self) -> str:
         return self._id
 
+    def status(self) -> str:
+        """Phase 9D bounded-poll helper calls this — return a terminal
+        status so ``_wait_for_cloud_job`` short-circuits to query()."""
+        return "DONE"
+
+    def query(self):
+        """Phase 9D bounded-poll helper calls this after status() returns
+        a terminal-success state. The result has the get_probs() the
+        sampler expects to extract bitstring probabilities from."""
+        return _FakeQCloudResult(self._probs, job_id=self._id)
+
     def result(self):
         return _FakeQCloudResult(self._probs, job_id=self._id)
 

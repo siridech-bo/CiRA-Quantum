@@ -132,7 +132,7 @@ def _wait_for_cloud_job(job, timeout_s: float):
             else str(status).rsplit(".", 1)[-1]
         ).upper()
 
-        if name in ("COMPLETED", "FINISHED", "SUCCESS"):
+        if name in ("COMPLETED", "FINISHED", "SUCCESS", "DONE"):
             return job.query()
 
         if name in ("FAILED", "ERROR", "CANCELLED", "CANCELED", "ABORTED"):
@@ -479,6 +479,319 @@ class QAOACloudSampler(dimod.Sampler):
         ss.info["cloud_shots"] = self._shots
         ss.info["cloud_is_real_hardware"] = self._backend_name in _REAL_HARDWARE_BACKENDS
         return ss
+
+
+    # ----- Async interface (Phase 11.5) -----
+    # Used by the live multi-solver fan-out so the orchestrator can
+    # submit the cloud job and immediately move on, leaving the
+    # pending-jobs poller to fill in the row when the cloud finishes.
+
+    def submit_async(
+        self,
+        bqm: dimod.BinaryQuadraticModel,
+        seed: int | None = None,
+    ) -> dict[str, Any]:
+        """Submit + return immediately. Returns the cloud_job_id plus
+        enough context for the poller to recompute the SampleSet later
+        when the cloud reports terminal state.
+
+        Empty-BQM short-circuits to ``{"empty": True}``; the orchestrator
+        treats that as a synchronous "complete" row.
+        """
+        # Empty-BQM short-circuit
+        if bqm.num_variables == 0:
+            return {"empty": True, **_empty_result_envelope()}
+
+        # Guards
+        n = bqm.num_variables
+        if n > self._max_qubits:
+            raise ValueError(
+                f"QAOACloudSampler: this CQM lowered to {n} variables, which "
+                f"exceeds backend {self._backend_name!r}'s qubit budget of "
+                f"{self._max_qubits}."
+            )
+        if self._submissions_so_far >= self._max_submissions:
+            raise RuntimeError(
+                "QAOACloudSampler: per-instance submission cap reached."
+            )
+
+        # Train locally (same as sync sample()).
+        bqm_bin = bqm.change_vartype(dimod.BINARY, inplace=False)
+        variables = list(bqm_bin.variables)
+        gammas, betas = self._train_locally(bqm_bin, variables)
+
+        # Build the trained circuit.
+        prog = self._build_trained_circuit(bqm_bin, variables, gammas, betas)
+
+        # Submit with retry-on-transient.
+        submitted = self._submit_one_with_retries(prog)
+        return {
+            "cloud_job_id": submitted["job_id"],
+            "backend_name": submitted["backend_name"],
+            "trained_gammas": gammas,
+            "trained_betas": betas,
+            "layer": self._layer,
+            "shots": self._shots,
+        }
+
+    def try_materialize(
+        self,
+        cloud_job_id: str,
+    ) -> dict[str, Any] | None:
+        """Poll once. Returns ``None`` when the cloud job isn't yet
+        terminal; a structured result dict when it is (success carries
+        ``cloud_probs``, failure carries ``error``)."""
+        from pyqpanda3.qcloud import QCloudJob, QCloudService
+
+        # Re-authenticate so pyqpanda3's internal handle is populated.
+        try:
+            QCloudService(api_key=self._api_key, url=self._url)
+        except Exception as e:  # noqa: BLE001
+            return {
+                "terminal": True,
+                "status": "error",
+                "error": f"QCloudService init failed: {type(e).__name__}: {e}",
+                "cloud_job_id": cloud_job_id,
+            }
+        try:
+            job = QCloudJob(cloud_job_id)
+            q = job.query()
+        except Exception as e:  # noqa: BLE001
+            return {
+                "terminal": True,
+                "status": "error",
+                "error": f"job.query() failed: {type(e).__name__}: {e}",
+                "cloud_job_id": cloud_job_id,
+            }
+
+        try:
+            status = q.job_status()
+            status_str = (
+                str(status).rsplit(".", 1)[-1] if hasattr(status, "name") else str(status)
+            ).upper()
+        except Exception:  # pragma: no cover — defensive
+            status_str = "UNKNOWN"
+
+        try:
+            err = q.error_message() or ""
+        except Exception:  # pragma: no cover
+            err = ""
+        try:
+            probs = q.get_probs()
+        except Exception:  # pragma: no cover
+            probs = {}
+
+        if probs:
+            return {
+                "terminal": True,
+                "status": "complete",
+                "cloud_probs": dict(probs),
+                "cloud_job_id": cloud_job_id,
+            }
+        if err or status_str in {"FAILED", "ERROR", "CANCELLED", "CANCELED"}:
+            return {
+                "terminal": True,
+                "status": "error",
+                "error": err or f"cloud status {status_str}",
+                "cloud_job_id": cloud_job_id,
+            }
+        return {
+            "terminal": False,
+            "status": "queued",
+            "live_status": status_str,
+            "cloud_job_id": cloud_job_id,
+        }
+
+    # ----- Internal helpers used by both sync sample() and async path -----
+
+    def _train_locally(self, bqm_bin, variables) -> tuple[list[float], list[float]]:
+        """Run pyqpanda_alg local statevector QAOA training. Returns
+        (gammas, betas) — interleaved-pair output of the optimizer
+        already split into separate lists."""
+        import sympy as sp
+        from pyqpanda_alg.QAOA.qaoa import QAOA as QAOA_local
+
+        sym_for_var = {v: sp.Symbol(f"x{i}") for i, v in enumerate(variables)}
+        expr: Any = sp.Float(float(bqm_bin.offset))
+        for v, coeff in bqm_bin.linear.items():
+            if coeff == 0:
+                continue
+            expr = expr + sp.Float(float(coeff)) * sym_for_var[v]
+        for (u, w), coeff in bqm_bin.quadratic.items():
+            if coeff == 0:
+                continue
+            expr = expr + sp.Float(float(coeff)) * sym_for_var[u] * sym_for_var[w]
+
+        local_qaoa = QAOA_local(expr)
+        _local_probs, trained_params, _train_loss = local_qaoa.run(
+            layer=self._layer, optimizer=self._train_optimizer,
+        )
+        gammas = [float(trained_params[2 * p]) for p in range(self._layer)]
+        betas = [float(trained_params[2 * p + 1]) for p in range(self._layer)]
+        return gammas, betas
+
+    def _build_trained_circuit(self, bqm_bin, variables, gammas, betas):
+        """Build the pyqpanda3 QProg with trained angles baked in."""
+        import sympy as sp
+        import pyqpanda3.core as pq3
+        from pyqpanda_alg.QAOA.qaoa import (
+            pauli_z_operator_to_circuit,
+            problem_to_z_operator,
+        )
+
+        sym_for_var = {v: sp.Symbol(f"x{i}") for i, v in enumerate(variables)}
+        expr: Any = sp.Float(float(bqm_bin.offset))
+        for v, coeff in bqm_bin.linear.items():
+            if coeff == 0:
+                continue
+            expr = expr + sp.Float(float(coeff)) * sym_for_var[v]
+        for (u, w), coeff in bqm_bin.quadratic.items():
+            if coeff == 0:
+                continue
+            expr = expr + sp.Float(float(coeff)) * sym_for_var[u] * sym_for_var[w]
+
+        problem_op = problem_to_z_operator(expr, norm=False)
+        n = len(variables)
+        qubits = list(range(n))
+        prog = pq3.QProg()
+        for q in qubits:
+            prog << pq3.H(q)
+        for p in range(self._layer):
+            sub_circuit, _ = pauli_z_operator_to_circuit(
+                problem_op, qubits, gamma=gammas[p],
+            )
+            prog << sub_circuit
+            for q in qubits:
+                prog << pq3.RX(q, 2.0 * betas[p])
+        for i, q in enumerate(qubits):
+            prog << pq3.measure(q, i)
+        return prog
+
+    def _submit_one_with_retries(self, prog) -> dict[str, Any]:
+        """Submit the circuit to the cloud with retry-on-transient. Does
+        NOT wait for the result — returns the job handle + job_id as
+        soon as the cloud accepts the submission."""
+        from pyqpanda3.qcloud import QCloudOptions, QCloudService
+
+        service = QCloudService(api_key=self._api_key, url=self._url)
+        try:
+            backend = service.backend(self._backend_name)
+        except Exception as e:  # noqa: BLE001
+            raise RuntimeError(
+                f"Failed to acquire backend {self._backend_name!r}: "
+                f"{type(e).__name__}: {e}"
+            ) from e
+
+        is_real_hw = self._backend_name in _REAL_HARDWARE_BACKENDS
+        retry_delays = [2.0, 5.0, 10.0]
+        max_attempts = len(retry_delays) + 1
+        last_error: Exception | None = None
+        for attempt in range(max_attempts):
+            try:
+                if is_real_hw:
+                    options = QCloudOptions()
+                    options.set_optimization(True)
+                    options.set_mapping(True)
+                    options.set_amend(True)
+                    options.set_is_prob_counts(True)
+                    job = backend.run(prog, self._shots, options)
+                else:
+                    job = backend.run(prog, self._shots)
+                self._submissions_so_far += 1
+                return {
+                    "job": job,
+                    "job_id": job.job_id(),
+                    "backend_name": self._backend_name,
+                }
+            except Exception as e:  # noqa: BLE001
+                last_error = e
+                msg = str(e).lower()
+                is_transient = (
+                    "pilot task" in msg or "please try again" in msg
+                )
+                if not is_transient or attempt == max_attempts - 1:
+                    break
+                time.sleep(retry_delays[attempt])
+        raise RuntimeError(
+            f"Cloud submit failed after {max_attempts} attempts: "
+            f"{type(last_error).__name__}: {last_error}"
+        ) from last_error
+
+    def sampleset_from_cloud_probs(
+        self,
+        cloud_probs: dict[str, float],
+        bqm_bin: dimod.BinaryQuadraticModel,
+        *,
+        trained_gammas: list[float],
+        trained_betas: list[float],
+        backend_name: str,
+        cloud_job_id: str,
+        train_loss: float = 0.0,
+        train_elapsed_s: float = 0.0,
+        submit_elapsed_s: float = 0.0,
+    ) -> dimod.SampleSet:
+        """Build a ``dimod.SampleSet`` from cloud-reported bitstring
+        probabilities. Shared between the sync ``sample()`` path and the
+        async ``solve_job_materialize`` flow."""
+        variables = list(bqm_bin.variables)
+        n = len(variables)
+        idx_for_var = {v: i for i, v in enumerate(variables)}
+
+        top_by_prob = sorted(
+            cloud_probs.items(), key=lambda kv: kv[1], reverse=True
+        )[: self._top_k]
+        rows: list[tuple[float, np.ndarray, str, float]] = []
+        for bitstring, prob in top_by_prob:
+            padded = bitstring.zfill(n)[-n:]
+            row = np.zeros(n, dtype=np.int8)
+            for i_var, bit_char in enumerate(padded):
+                row[idx_for_var[variables[i_var]]] = int(bit_char)
+            energy = float(bqm_bin.energy(dict(zip(variables, row, strict=True))))
+            rows.append((energy, row, bitstring, float(prob)))
+        rows.sort(key=lambda t: t[0])
+        samples_array = (
+            np.stack([r[1] for r in rows]) if rows else np.zeros((0, n), dtype=np.int8)
+        )
+        ss = dimod.SampleSet.from_samples(
+            (samples_array, variables),
+            vartype=dimod.BINARY,
+            energy=[r[0] for r in rows],
+        )
+        ss.info["qaoa_top_bitstrings"] = [r[2] for r in rows]
+        ss.info["qaoa_top_probabilities"] = [r[3] for r in rows]
+        ss.info["qaoa_layer"] = self._layer
+        ss.info["qaoa_optimizer"] = self._train_optimizer
+        ss.info["qaoa_trained_gammas"] = trained_gammas
+        ss.info["qaoa_trained_betas"] = trained_betas
+        ss.info["qaoa_train_loss"] = float(train_loss)
+        ss.info["qaoa_train_elapsed_s"] = train_elapsed_s
+        ss.info["cloud_backend"] = backend_name
+        ss.info["cloud_url"] = self._url
+        ss.info["cloud_job_id"] = cloud_job_id
+        ss.info["cloud_submit_elapsed_s"] = submit_elapsed_s
+        ss.info["cloud_shots"] = self._shots
+        ss.info["cloud_is_real_hardware"] = backend_name in _REAL_HARDWARE_BACKENDS
+        return ss
+
+
+def _empty_sampleset_origin(bqm: dimod.BinaryQuadraticModel) -> dimod.SampleSet:
+    samples_array = np.empty((1, 0), dtype=np.int8)
+    return dimod.SampleSet.from_samples(
+        (samples_array, []),
+        vartype=bqm.vartype,
+        energy=[float(bqm.offset)],
+    )
+
+
+def _empty_result_envelope() -> dict[str, Any]:
+    return {
+        "cloud_job_id": "empty-no-cloud-roundtrip",
+        "backend_name": "n/a",
+        "trained_gammas": [],
+        "trained_betas": [],
+        "layer": 0,
+        "shots": 0,
+    }
 
 
 def _simulator_backend_hints() -> list[str]:

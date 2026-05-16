@@ -154,14 +154,24 @@ def _try_materialize_via_sampler(
         )
 
     if solver_name == "qaoa_originqc":
-        from app.optimization.qaoa_cloud_sampler import QAOACloudSampler  # noqa: F401
-        # Origin async parity ships in a later milestone; for now this
-        # path isn't exercised because the orchestrator's submit_async
-        # check fails for QAOACloudSampler.
-        return {
-            "status": "error",
-            "error": "qaoa_originqc async materialization not yet implemented",
-        }
+        from app.optimization.qaoa_cloud_sampler import QAOACloudSampler
+        sampler = QAOACloudSampler(
+            api_key=api_key,
+            backend_name=(
+                materialize_context.get("backend_name")
+                or "full_amplitude"
+            ),
+            layer=int(materialize_context.get("layer") or 1),
+            shots=int(materialize_context.get("shots") or 200),
+        )
+        try_result = sampler.try_materialize(cloud_job_id)
+        if try_result is None or not try_result.get("terminal"):
+            return None
+        if try_result.get("status") == "error":
+            return {"status": "error", "error": try_result.get("error", "")}
+        return _row_from_originqc_result(
+            try_result, materialize_context, sampler=sampler,
+        )
 
     return {"status": "error", "error": f"unknown solver {solver_name!r}"}
 
@@ -252,6 +262,67 @@ def _row_from_ibmq_result(
         "tier_source": "qiskit-ibm-runtime",
         "version": ctx.get("version") or "",
         "hardware": "ibm-quantum-cloud",
+    }
+    if qaoa_extras is not None:
+        row["qaoa_extras"] = qaoa_extras
+    return {"status": "complete", "row": row}
+
+
+def _row_from_originqc_result(
+    try_result: dict[str, Any],
+    ctx: dict[str, Any],
+    *,
+    sampler,
+) -> dict[str, Any]:
+    """Convert Origin's cloud_probs dict into a public solver_results
+    row, plus the qaoa_extras Phase 10A's explainer panel reads."""
+    from app.pipeline.orchestrator import (
+        _build_qaoa_extras,
+        _finite_or_none,
+        deserialize_bqm,
+    )
+
+    bqm_blob = ctx.get("bqm") or {}
+    bqm = deserialize_bqm(bqm_blob)
+    sense = ctx.get("sense", "minimize")
+    bqm_bin = bqm.change_vartype(dimod.BINARY, inplace=False)
+    variables = list(bqm_bin.variables)
+    n = len(variables)
+
+    sampleset = sampler.sampleset_from_cloud_probs(
+        try_result["cloud_probs"],
+        bqm_bin,
+        trained_gammas=ctx.get("trained_gammas", []),
+        trained_betas=ctx.get("trained_betas", []),
+        backend_name=ctx.get("backend_name", ""),
+        cloud_job_id=try_result.get("cloud_job_id", ""),
+    )
+
+    raw_energy = _finite_or_none(sampleset.first.energy)
+    feasible = raw_energy is not None
+    user_energy = (
+        None if raw_energy is None
+        else (raw_energy if sense == "minimize" else -raw_energy)
+    )
+
+    qaoa_extras = _build_qaoa_extras(
+        sampleset, bqm_bin,
+        variables_in_bqm=variables,
+        sense=sense,
+        num_logical_vars=None,
+    )
+
+    row: dict[str, Any] = {
+        "status": "complete",
+        "energy": user_energy,
+        "raw_energy": raw_energy,
+        "feasible": feasible,
+        "elapsed_ms": 0,
+        "cloud_job_id": try_result.get("cloud_job_id"),
+        "backend_name": ctx.get("backend_name"),
+        "tier_source": "pyqpanda+originqc-cloud",
+        "version": ctx.get("version") or "",
+        "hardware": "originqc-cloud",
     }
     if qaoa_extras is not None:
         row["qaoa_extras"] = qaoa_extras
