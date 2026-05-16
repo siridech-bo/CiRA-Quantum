@@ -19,10 +19,12 @@ const solvingHint = computed(() => {
 
 interface SolverProgressRow {
   name: string
-  status: 'pending' | 'running' | 'complete' | 'error'
+  status: 'pending' | 'running' | 'queued' | 'complete' | 'error'
   energy?: number
   elapsed_ms?: number
   error?: string
+  cloud_job_id?: string
+  backend_name?: string
 }
 
 const solverProgressRows = computed<SolverProgressRow[]>(() => {
@@ -40,6 +42,8 @@ const solverProgressRows = computed<SolverProgressRow[]>(() => {
       energy: r?.energy ?? undefined,
       elapsed_ms: r?.elapsed_ms ?? undefined,
       error: r?.error,
+      cloud_job_id: r?.cloud_job_id,
+      backend_name: r?.backend_name,
     }
   })
 })
@@ -177,6 +181,12 @@ onUnmounted(() => {
                 color="error"
                 size="x-small"
               />
+              <v-icon
+                v-else-if="row.status === 'queued'"
+                icon="mdi-cloud-clock-outline"
+                color="info"
+                size="x-small"
+              />
               <v-progress-circular
                 v-else-if="row.status === 'running'"
                 indeterminate
@@ -203,6 +213,9 @@ onUnmounted(() => {
                   </template>
                   <span>{{ row.error || 'Unknown error' }}</span>
                 </v-tooltip>
+              </template>
+              <template v-else-if="row.status === 'queued'">
+                queued in cloud<span v-if="row.backend_name"> @ {{ row.backend_name }}</span>
               </template>
               <template v-else-if="row.status === 'running'">
                 running…

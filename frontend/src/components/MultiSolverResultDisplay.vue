@@ -68,6 +68,8 @@ const rows = computed(() => {
       has_explainer: !!r.qaoa_extras || CLASSICAL_EXPLAINER_SOLVERS.has(name),
       explainer_kind: r.qaoa_extras ? 'qaoa' : (CLASSICAL_EXPLAINER_SOLVERS.has(name) ? 'classical' : null),
       solver_result: r,
+      cloud_job_id: r.cloud_job_id,
+      backend_name: r.backend_name ?? null,
     }
   })
   // Sort: completed-feasible by energy asc, then completed-only by energy asc,
@@ -235,9 +237,13 @@ const errorCount = computed(
             <span v-else class="text-medium-emphasis">—</span>
           </td>
           <td class="text-right">
-            <span :class="{ 'best-time': r.status === 'complete' && r.elapsed_ms === fastestMs }">
+            <span
+              v-if="r.elapsed_ms !== undefined && r.status === 'complete'"
+              :class="{ 'best-time': r.elapsed_ms === fastestMs }"
+            >
               {{ fmtTime(r.elapsed_ms) }}
             </span>
+            <span v-else class="text-medium-emphasis">—</span>
           </td>
           <td>
             <v-chip
@@ -248,6 +254,23 @@ const errorCount = computed(
             >
               complete
             </v-chip>
+            <v-tooltip v-else-if="r.status === 'queued'" location="top">
+              <template #activator="{ props: tipProps }">
+                <v-chip
+                  v-bind="tipProps"
+                  size="x-small"
+                  color="info"
+                  variant="tonal"
+                  prepend-icon="mdi-cloud-clock-outline"
+                >
+                  queued
+                </v-chip>
+              </template>
+              <span>
+                Submitted to {{ r.backend_name || 'cloud QPU' }}.
+                Polling every 30 s — this row will fill in when the cloud finishes.
+              </span>
+            </v-tooltip>
             <v-tooltip v-else location="top">
               <template #activator="{ props: tipProps }">
                 <v-chip

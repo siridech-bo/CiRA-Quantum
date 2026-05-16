@@ -394,66 +394,182 @@ def _resolve_originqc_key() -> tuple[str | None, str | None]:
 def cloud_jobs_pending():
     """List currently-pending cloud jobs with their live cloud status.
 
-    For each pending entry, queries the cloud for the latest
-    ``JobStatus``, error message (if any), and whether probability
-    counts are available. The dashboard polls this endpoint every 30 s
-    and auto-fires ``POST /materialize`` when a job becomes ready.
+    Per-entry polling dispatches on the solver name so we can handle
+    qaoa_originqc (pyqpanda3) and qaoa_ibmq (qiskit-ibm-runtime) on
+    the same panel. Entries whose ``target`` field begins with
+    ``"solve_job:"`` are auto-materialized into the live-solve job's
+    ``solver_results`` column when they reach terminal state — no
+    second click needed.
 
-    No auth required (matches the rest of ``/api/benchmarks/*``) — the
-    poller resolves a credential per-request, preferring the session
-    user's stored ``originqc`` BYOK key with the server env-file as
-    fallback.
+    No auth required for the GET (matches the rest of
+    ``/api/benchmarks/*``); per-entry polling resolves credentials
+    based on the entry's target. Solve-job entries pull from the
+    parent solve job's owning user; benchmark-archive entries fall
+    back to the session user's stored key with the server env-file
+    as last resort.
     """
     from app.benchmarking import pending_jobs as pj
-
-    api_key, key_error = _resolve_originqc_key()
-    if api_key is None:
-        return jsonify({
-            "error": key_error,
-            "code": "NO_CREDENTIAL",
-            "pending": [],
-        }), 503
-
-    try:
-        import pyqpanda3.qcloud as qcloud_mod
-        qcloud_mod.QCloudService(api_key=api_key)  # auth
-    except Exception as e:  # noqa: BLE001
-        return jsonify({
-            "error": f"cloud auth failed: {type(e).__name__}: {e}",
-            "code": "AUTH_FAILED",
-            "pending": [],
-        }), 502
 
     pendings = pj.list_pending()
     out = []
     for entry in pendings:
-        cell = {
-            "job_id": entry.job_id,
-            "solver_name": entry.solver_name,
-            "instance_id": entry.instance_id,
-            "parameters": entry.parameters,
-            "submitted_at": entry.submitted_at,
-            "notes": entry.notes,
-            "live_status": "UNKNOWN",
-            "live_error": "",
-            "has_probs": False,
-        }
-        try:
-            import pyqpanda3.qcloud as qcloud_mod
-            job = qcloud_mod.QCloudJob(entry.job_id)
-            q = job.query()
-            status = q.job_status()
-            cell["live_status"] = (
-                str(status).rsplit(".", 1)[-1] if hasattr(status, "name") else str(status)
-            )
-            err = q.error_message() or ""
-            cell["live_error"] = err
-            cell["has_probs"] = bool(q.get_probs())
-        except Exception as e:  # noqa: BLE001
-            cell["live_error"] = f"{type(e).__name__}: {e}"
+        cell = _poll_one_pending(entry)
+        # Auto-materialize solve-job targets that have reached
+        # terminal state. We do this server-side every poll cycle
+        # so the live-solve UI doesn't need a separate "ready"
+        # signal to act on.
+        if cell.get("is_terminal") and entry.target.startswith("solve_job:"):
+            _materialize_solve_job(entry, cell)
         out.append(cell)
 
     return jsonify({"pending": out})
+
+
+def _poll_one_pending(entry) -> dict:
+    """Query one pending entry's live cloud status. Returns the cell
+    dict the dashboard panel renders — plus an internal ``is_terminal``
+    flag the auto-materializer uses."""
+    cell = {
+        "job_id": entry.job_id,
+        "solver_name": entry.solver_name,
+        "instance_id": entry.instance_id,
+        "parameters": entry.parameters,
+        "submitted_at": entry.submitted_at,
+        "notes": entry.notes,
+        "target": getattr(entry, "target", "benchmark_archive"),
+        "live_status": "UNKNOWN",
+        "live_error": "",
+        "has_probs": False,
+        "is_terminal": False,
+    }
+
+    api_key = _resolve_byok_for_entry(entry)
+    if api_key is None:
+        cell["live_error"] = (
+            "No API key available to poll cloud status. "
+            "Log in and save the right BYOK key."
+        )
+        return cell
+
+    if entry.solver_name == "qaoa_originqc":
+        return _poll_originqc(entry, api_key, cell)
+    if entry.solver_name == "qaoa_ibmq":
+        return _poll_ibmq(entry, api_key, cell)
+    cell["live_error"] = f"no poller wired for solver {entry.solver_name!r}"
+    return cell
+
+
+def _resolve_byok_for_entry(entry) -> str | None:
+    """Look up the right BYOK key for this entry. For solve-job entries
+    we resolve via the parent job's user_id; for benchmark-archive
+    entries we fall back to the existing _resolve_originqc_key path."""
+    target = getattr(entry, "target", "benchmark_archive")
+    if target.startswith("solve_job:"):
+        try:
+            _, parent_job_id, _solver = target.split(":", 2)
+        except ValueError:
+            return None
+        return _resolve_byok_from_parent_job(parent_job_id, entry.solver_name)
+    # Legacy benchmark-archive path: session-user / env-file fallback.
+    if entry.solver_name == "qaoa_originqc":
+        api_key, _ = _resolve_originqc_key()
+        return api_key
+    # No fallback for qaoa_ibmq benchmark-archive — that path would need
+    # its own key resolver; we defer until someone actually runs it.
+    return None
+
+
+def _resolve_byok_from_parent_job(parent_job_id: str, solver_name: str) -> str | None:
+    """Look up the owning user of a live-solve job and decrypt their
+    stored BYOK key for the appropriate provider."""
+    from app.config import KEY_ENCRYPTION_SECRET
+    from app.crypto import decrypt_api_key
+    from app.models import get_api_key_ciphertext, get_job
+    provider_by_solver = {
+        "qaoa_originqc": "originqc",
+        "qaoa_ibmq": "ibm_quantum",
+    }
+    provider = provider_by_solver.get(solver_name)
+    if provider is None:
+        return None
+    # is_admin=True so we can look up the job regardless of caller.
+    job = get_job(parent_job_id, is_admin=True)
+    if job is None:
+        return None
+    cipher = get_api_key_ciphertext(int(job["user_id"]), provider)
+    if cipher is None:
+        return None
+    try:
+        return decrypt_api_key(cipher, KEY_ENCRYPTION_SECRET)
+    except ValueError:
+        return None
+
+
+def _poll_originqc(entry, api_key: str, cell: dict) -> dict:
+    try:
+        import pyqpanda3.qcloud as qcloud_mod
+        qcloud_mod.QCloudService(api_key=api_key)
+        job = qcloud_mod.QCloudJob(entry.job_id)
+        q = job.query()
+        status = q.job_status()
+        cell["live_status"] = (
+            str(status).rsplit(".", 1)[-1] if hasattr(status, "name") else str(status)
+        )
+        cell["live_error"] = q.error_message() or ""
+        cell["has_probs"] = bool(q.get_probs())
+        if cell["has_probs"] or cell["live_error"]:
+            cell["is_terminal"] = True
+    except Exception as e:  # noqa: BLE001
+        cell["live_error"] = f"{type(e).__name__}: {e}"
+    return cell
+
+
+def _poll_ibmq(entry, api_key: str, cell: dict) -> dict:
+    try:
+        from qiskit_ibm_runtime import QiskitRuntimeService
+        service = QiskitRuntimeService(channel="ibm_quantum", token=api_key)
+        job = service.job(entry.job_id)
+        status = job.status()
+        status_str = (status.name if hasattr(status, "name") else str(status)).upper()
+        cell["live_status"] = status_str
+        try:
+            queue_pos = job.queue_position()
+            if queue_pos is not None:
+                cell["queue_position"] = int(queue_pos)
+        except Exception:  # pragma: no cover
+            pass
+        if status_str in {"DONE", "COMPLETED", "FINISHED"}:
+            cell["has_probs"] = True
+            cell["is_terminal"] = True
+        elif status_str in {"ERROR", "FAILED", "CANCELLED", "CANCELED"}:
+            try:
+                cell["live_error"] = str(job.error_message() or "") or status_str
+            except Exception:  # pragma: no cover
+                cell["live_error"] = status_str
+            cell["is_terminal"] = True
+    except Exception as e:  # noqa: BLE001
+        cell["live_error"] = f"{type(e).__name__}: {e}"
+    return cell
+
+
+def _materialize_solve_job(entry, cell: dict) -> None:
+    """A solve-job pending entry reached terminal cloud state. Convert
+    the cloud result into a finished solver_results row inside the
+    parent solve job. Removes the pending entry on success."""
+    from app.benchmarking import pending_jobs as pj
+    from app.benchmarking.solve_job_materialize import (
+        materialize_into_solve_job,
+    )
+    try:
+        materialize_into_solve_job(entry, cell)
+        pj.remove(entry.job_id)
+    except Exception as e:  # noqa: BLE001
+        # Don't crash the poll loop — surface the error in the cell so
+        # the panel can show it. The pending entry stays in place so
+        # the next poll retries.
+        cell["live_error"] = (
+            cell.get("live_error", "") + f" | materialize failed: {e}"
+        )
 
 
 @benchmarks_bp.route("/cloud-jobs/<job_id>/materialize", methods=["POST"])

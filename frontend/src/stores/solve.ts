@@ -69,7 +69,7 @@ export interface Job {
 }
 
 export interface SolverResult {
-  status: 'pending' | 'running' | 'complete' | 'error'
+  status: 'pending' | 'running' | 'queued' | 'complete' | 'error'
   energy?: number
   raw_energy?: number
   feasible?: boolean
@@ -79,6 +79,11 @@ export interface SolverResult {
   hardware?: string | null
   error?: string
   qaoa_extras?: QaoaExtras
+  /** Set on rows that submitted asynchronously to a real-QPU cloud
+   * (Phase 11). Polling materializes the row into ``status='complete'``
+   * when the cloud job finishes. */
+  cloud_job_id?: string
+  backend_name?: string
 }
 
 export interface QaoaExtras {
@@ -126,6 +131,13 @@ export interface StoredKey {
 }
 
 const TERMINAL_STATUSES: JobStatus[] = ['complete', 'error']
+
+function hasQueuedRows(job: Job | null): boolean {
+  if (!job?.solver_results?.solvers) return false
+  return Object.values(job.solver_results.solvers).some(
+    (r) => r.status === 'queued',
+  )
+}
 
 export const useSolveStore = defineStore('solve', () => {
   const currentJob = ref<Job | null>(null)
@@ -176,9 +188,15 @@ export const useSolveStore = defineStore('solve', () => {
           ...(data.error !== undefined && { error: data.error }),
         }
         if (TERMINAL_STATUSES.includes(data.status)) {
-          closeStream()
           // Refresh the full job detail so result/cqm/validation tabs populate.
-          void loadJob(jobId)
+          void loadJob(jobId).then(() => {
+            // Phase 11: keep the SSE alive while any queued cloud rows
+            // are still waiting on async materialization. The poller
+            // will emit solver_progress when each one resolves.
+            if (!hasQueuedRows(currentJob.value)) {
+              closeStream()
+            }
+          })
         }
       } catch (e) {
         // Malformed SSE chunk — ignore (the next event will arrive cleanly).
@@ -218,6 +236,11 @@ export const useSolveStore = defineStore('solve', () => {
     // the user navigates to its URL directly.
     await loadJob(jobId)
     if (currentJob.value && !TERMINAL_STATUSES.includes(currentJob.value.status)) {
+      streamStatus(jobId)
+    } else if (hasQueuedRows(currentJob.value)) {
+      // Phase 11: job is "complete" but real-QPU rows are still queued
+      // in cloud. Attach the SSE so we see the materialize events when
+      // they fire.
       streamStatus(jobId)
     }
   }

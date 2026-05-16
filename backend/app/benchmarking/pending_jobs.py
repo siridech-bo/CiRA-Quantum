@@ -43,7 +43,21 @@ _LOCK = threading.Lock()
 
 @dataclass
 class PendingJob:
-    """A cloud-submitted job we're tracking until it completes."""
+    """A cloud-submitted job we're tracking until it completes.
+
+    Two target modes (Phase 11):
+    * ``target="benchmark_archive"`` (default, legacy) — materializes
+      into a ``RunRecord`` in ``benchmarks/archive/``. Used by the
+      benchmark scripts that submit cloud jobs from the command line.
+    * ``target="solve_job:<job_uuid>:<solver_name>"`` — materializes
+      into the ``solver_results`` column of the named live-solve job
+      row in the SQLite ``jobs`` table. Used by the multi-solver
+      fan-out when the orchestrator submits a real-QPU solver
+      asynchronously instead of blocking on the queue.
+
+    Both targets share the rest of the schema (job_id, solver_name,
+    parameters, etc.) — only the materializer differs.
+    """
 
     job_id: str                       # cloud-side identifier
     solver_name: str                  # e.g. "qaoa_originqc"
@@ -52,6 +66,17 @@ class PendingJob:
     lagrange_multiplier: float        # used to re-lower the CQM at materialize time
     submitted_at: str                 # ISO-8601 UTC
     notes: str = ""                   # optional free-form annotation
+    # Phase 11 — destination for the materialized result. Legacy
+    # benchmark-archive entries omit this field; reading code defaults
+    # to ``"benchmark_archive"`` in that case.
+    target: str = "benchmark_archive"
+    # Phase 11 — opaque blob the live-solve materializer reads to
+    # rebuild the SampleSet. Only populated when target starts with
+    # ``"solve_job:"``. JSON-encoded so the file stays human-readable
+    # but the schema can evolve without a migration. For qaoa_ibmq:
+    # {"bqm_linear": {...}, "bqm_quadratic": {...}, "vartype": "BINARY",
+    #  "variables": [...], "qaoa_extras_seed": {...}}
+    materialize_context: dict[str, Any] | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)

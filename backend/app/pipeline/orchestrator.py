@@ -224,6 +224,33 @@ class Orchestrator:
 
             init_kwargs, sample_kwargs = _split_parameters(name, params)
 
+            # Phase 11 M2 — async submit for cloud solvers that
+            # implement ``submit_async``. The orchestrator submits the
+            # cloud job, stashes the cloud_job_id + materialize context
+            # in the pending-jobs queue, and records a "queued" row
+            # without ever blocking. The pending-jobs poller picks the
+            # job up later and fills in the row when the cloud is done.
+            #
+            # This avoids the pain of long IBM queue times (30 min to
+            # hours on the free Open Plan) and Origin's intermittent
+            # pilot-task rejections. Either way, the solve UI completes
+            # in seconds with classical results; cloud rows materialize
+            # whenever they're ready.
+            if hasattr(sampler_cls, "submit_async"):
+                if _try_submit_async(
+                    name=name, sampler_cls=sampler_cls,
+                    init_kwargs=init_kwargs, sample_kwargs=sample_kwargs,
+                    bqm=bqm, ident=ident, results=results,
+                    job_id=job_id, sense=sense, t0=t0,
+                ):
+                    _publish(results)
+                    continue
+                # If the async submit itself fails (e.g. auth error
+                # detected immediately at submit time), the helper
+                # records the error row and we move on. No exception
+                # propagation needed — _try_submit_async returns True
+                # in both the queued and error-row cases.
+
             # Wall-clock timeout per solver. If the sampler blocks past
             # this, we abandon it (the worker thread keeps running in
             # the background; it'll exit whenever pyqpanda3 / the
@@ -499,6 +526,149 @@ class Orchestrator:
                 completed_at=datetime.utcnow().isoformat(),
             )
             event_bus.emit(job_id, "error", error=msg)
+
+
+def _try_submit_async(
+    *,
+    name: str,
+    sampler_cls: type,
+    init_kwargs: dict[str, Any],
+    sample_kwargs: dict[str, Any],
+    bqm: dimod.BinaryQuadraticModel,
+    ident: Any,
+    results: dict[str, dict[str, Any]],
+    job_id: str,
+    sense: str,
+    t0: float,
+) -> bool:
+    """Submit this solver asynchronously and record a 'queued' row.
+
+    Returns True when handling is complete (either queued successfully
+    OR errored in a way the orchestrator should treat as terminal for
+    this row). Returns False if we couldn't even attempt the async
+    submit (e.g. constructor failed) and the caller should fall back
+    to the sync path.
+    """
+    from app.benchmarking import pending_jobs as pj
+
+    # Construct the sampler. This shouldn't take long for any of our
+    # cloud samplers — heavy work happens in submit_async (training).
+    try:
+        sampler = sampler_cls(**init_kwargs)
+    except Exception as e:  # noqa: BLE001
+        results[name] = {
+            "status": "error",
+            "error": f"sampler init failed: {type(e).__name__}: {e}",
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+            "tier_source": getattr(ident, "source", ""),
+            "version": getattr(ident, "version", ""),
+            "hardware": getattr(ident, "hardware", ""),
+        }
+        return True
+
+    # Submit. submit_async signature is (bqm, **kwargs_subset) where
+    # kwargs include at most ``seed``. Filter sample_kwargs accordingly.
+    seed = sample_kwargs.get("seed")
+    try:
+        submission = sampler.submit_async(bqm, seed=seed)
+    except Exception as e:  # noqa: BLE001
+        # Auth errors, immediate API errors, etc. — record as a row
+        # error and let the user retry. Async submit shouldn't take
+        # long (just the LLM-free training step + a network round-trip).
+        results[name] = {
+            "status": "error",
+            "error": f"async submit failed: {type(e).__name__}: {e}",
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+            "tier_source": getattr(ident, "source", ""),
+            "version": getattr(ident, "version", ""),
+            "hardware": getattr(ident, "hardware", ""),
+        }
+        return True
+
+    cloud_job_id = submission.get("cloud_job_id", "")
+    if submission.get("empty"):
+        # The empty-BQM short-circuit. Skip the queue entirely.
+        results[name] = {
+            "status": "complete",
+            "energy": 0.0,
+            "feasible": True,
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+            "tier_source": getattr(ident, "source", ""),
+            "version": getattr(ident, "version", ""),
+            "hardware": getattr(ident, "hardware", ""),
+        }
+        return True
+
+    # Persist the BQM so the poller can recompute per-bitstring energies
+    # later without re-running anything. Stored once, reused on every
+    # poll cycle until materialization.
+    bqm_blob = _serialize_bqm(bqm)
+    materialize_ctx = {
+        "bqm": bqm_blob,
+        "sense": sense,
+        "solver_name": name,
+        "parent_job_id": job_id,
+        "trained_gammas": submission.get("trained_gammas", []),
+        "trained_betas": submission.get("trained_betas", []),
+        "layer": submission.get("layer"),
+        "shots": submission.get("shots"),
+        "backend_name": submission.get("backend_name"),
+    }
+    pending = pj.PendingJob(
+        job_id=cloud_job_id,
+        solver_name=name,
+        instance_id=f"solve-job:{job_id}",
+        parameters={
+            k: v for k, v in init_kwargs.items()
+            if k not in ("api_key",)  # never persist credentials
+        },
+        lagrange_multiplier=0.0,  # not used by solve-job materializer
+        submitted_at=datetime.utcnow().isoformat() + "Z",
+        notes=f"async cloud submit from solve job {job_id[:8]}",
+        target=f"solve_job:{job_id}:{name}",
+        materialize_context=materialize_ctx,
+    )
+    pj.add(pending)
+
+    results[name] = {
+        "status": "queued",
+        "cloud_job_id": cloud_job_id,
+        "backend_name": submission.get("backend_name"),
+        "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+        "tier_source": getattr(ident, "source", ""),
+        "version": getattr(ident, "version", ""),
+        "hardware": getattr(ident, "hardware", ""),
+    }
+    return True
+
+
+def _serialize_bqm(bqm: dimod.BinaryQuadraticModel) -> dict[str, Any]:
+    """JSON-safe snapshot of a BQM. The poller deserializes back via
+    ``dimod.BinaryQuadraticModel.from_serializable``-style reconstruction
+    in the materializer."""
+    variables = [str(v) for v in bqm.variables]
+    return {
+        "linear": {str(v): float(c) for v, c in bqm.linear.items()},
+        "quadratic": {
+            f"{u}\x1f{v}": float(c)  # \x1f is a safe in-string separator
+            for (u, v), c in bqm.quadratic.items()
+        },
+        "offset": float(bqm.offset),
+        "vartype": "BINARY" if bqm.vartype == dimod.BINARY else "SPIN",
+        "variables": variables,
+    }
+
+
+def deserialize_bqm(blob: dict[str, Any]) -> dimod.BinaryQuadraticModel:
+    """Rebuild a BQM from a ``_serialize_bqm`` snapshot."""
+    vartype = dimod.BINARY if blob["vartype"] == "BINARY" else dimod.SPIN
+    linear = blob["linear"]
+    quadratic = {}
+    for k, v in blob["quadratic"].items():
+        u_str, v_str = k.split("\x1f", 1)
+        quadratic[(u_str, v_str)] = float(v)
+    bqm = dimod.BinaryQuadraticModel(linear, quadratic, float(blob["offset"]), vartype)
+    return bqm
 
 
 def _build_qaoa_extras(
