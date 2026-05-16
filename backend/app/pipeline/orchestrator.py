@@ -106,6 +106,9 @@ class Orchestrator:
         sense: str,
         solver_names: list[str],
         user_id: int,
+        *,
+        job_id: str,
+        event_bus: EventBus,
     ) -> dict[str, dict[str, Any]]:
         """Run each registered solver on the same problem and return a
         per-solver summary dict. CQM-native solvers consume the CQM
@@ -129,9 +132,41 @@ class Orchestrator:
             cqm, lagrange_multiplier=self.lagrange_multiplier
         )
 
-        results: dict[str, dict[str, Any]] = {}
+        from app.models import update_job
+
+        def _publish(partial: dict[str, dict[str, Any]]) -> None:
+            """Persist a snapshot of the per-solver results dict + emit
+            an SSE so the frontend can render live progress. Strips the
+            private _cqm_sample copies before serializing."""
+            public = {
+                k: {kk: vv for kk, vv in v.items() if kk != "_cqm_sample"}
+                for k, v in partial.items()
+            }
+            payload = json.dumps({
+                "solvers": public,
+                "primary": None,  # picked at the end of stage 4
+                "sense": sense,
+                "in_progress": True,
+            })
+            try:
+                update_job(job_id, solver_results=payload)
+            except Exception:  # pragma: no cover — defensive
+                pass
+            event_bus.emit(job_id, "solver_progress")
+
+        results: dict[str, dict[str, Any]] = {
+            # Seed pending rows for every requested solver up-front so
+            # the frontend can render the checklist immediately.
+            n: {"status": "pending"} for n in solver_names
+        }
+        _publish(results)
+
         for name in solver_names:
             t0 = time.perf_counter()
+            # Mark this solver as actively running so the UI can show a
+            # spinner on the right row.
+            results[name] = {"status": "running"}
+            _publish(results)
             try:
                 ident, sampler_cls = get_solver(name)
             except KeyError as e:
@@ -140,6 +175,7 @@ class Orchestrator:
                     "error": str(e),
                     "elapsed_ms": 0,
                 }
+                _publish(results)
                 continue
 
             is_cqm_native = (
@@ -163,6 +199,7 @@ class Orchestrator:
                     "version": ident.version,
                     "hardware": ident.hardware,
                 }
+                _publish(results)
                 continue
 
             init_kwargs, sample_kwargs = _split_parameters(name, params)
@@ -182,6 +219,7 @@ class Orchestrator:
                     "version": ident.version,
                     "hardware": ident.hardware,
                 }
+                _publish(results)
                 continue
 
             elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -239,6 +277,7 @@ class Orchestrator:
                 row["qaoa_extras"] = qaoa_extras
 
             results[name] = row
+            _publish(results)
 
         return results
 
@@ -324,7 +363,10 @@ class Orchestrator:
             update_job(job_id, status="solving")
 
             if solvers:
-                solver_results = self._run_multi_solver(cqm, sense, solvers, user_id)
+                solver_results = self._run_multi_solver(
+                    cqm, sense, solvers, user_id,
+                    job_id=job_id, event_bus=event_bus,
+                )
                 primary_name, primary = _pick_primary(solver_results, sense)
                 if primary is None or primary.get("status") != "complete":
                     # Every solver errored — surface the first error message.

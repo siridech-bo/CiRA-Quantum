@@ -57,19 +57,23 @@ export interface Job {
   solvers_requested?: string[] | null
   solver_results?: {
     solvers: Record<string, SolverResult>
-    primary: string
+    primary: string | null
     sense?: 'minimize' | 'maximize'
+    /** True while the orchestrator is still iterating through solvers
+     * — incremental snapshots get this flag set; the final write at
+     * stage-4 completion does not. */
+    in_progress?: boolean
   } | null
   created_at: string
   completed_at?: string | null
 }
 
 export interface SolverResult {
-  status: 'complete' | 'error'
+  status: 'pending' | 'running' | 'complete' | 'error'
   energy?: number
   raw_energy?: number
   feasible?: boolean
-  elapsed_ms: number
+  elapsed_ms?: number
   tier_source?: string
   version?: string
   hardware?: string | null
@@ -154,6 +158,14 @@ export const useSolveStore = defineStore('solve', () => {
       try {
         const data = JSON.parse((raw as MessageEvent).data)
         if (currentJob.value?.id !== jobId) return
+        // Per-solver progress: the orchestrator emits this every time a
+        // solver in the fan-out starts, completes, or errors. The status
+        // field is "solver_progress" (not a JobStatus); we re-fetch the
+        // full job so the live solver_results dict is in sync.
+        if (data.status === 'solver_progress') {
+          void loadJob(jobId)
+          return
+        }
         // Patch the live job with whatever the event carried.
         currentJob.value = {
           ...currentJob.value,
