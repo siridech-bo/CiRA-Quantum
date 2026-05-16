@@ -55,6 +55,19 @@ quantum = [
     "sympy>=1.12,<2.0",
 ]
 
+# Phase 11 — IBM Quantum cloud QAOA via Qiskit Runtime. Optional
+# because qiskit + qiskit-ibm-runtime add ~150 MB and not every
+# install needs the IBM tier. Local training is Qiskit-pure
+# (StatevectorSampler + scipy.optimize), so this group also pulls
+# scipy.
+#
+# Install:  pip install ".[ibm-quantum]"
+ibm-quantum = [
+    "qiskit>=1.2,<2.0",
+    "qiskit-ibm-runtime>=0.21,<1.0",
+    "scipy>=1.11,<2.0",
+]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

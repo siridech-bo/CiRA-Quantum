@@ -50,6 +50,7 @@ _SOLVER_TIERS: dict[str, dict[str, Any]] = {
     "simulated_bifurcation": {"tier": "quantum_inspired",  "tier_label": "Quantum-inspired",       "tier_color": "info",    "recommended_default": True,  "warning": None, "requires_key": None},
     "qaoa_sim":              {"tier": "quantum_simulator", "tier_label": "Quantum (simulator)",    "tier_color": "warning", "recommended_default": True,  "warning": "Slow above ~12 qubits.", "requires_key": None},
     "qaoa_originqc":         {"tier": "quantum_qpu",       "tier_label": "Quantum (real QPU)",     "tier_color": "error",   "recommended_default": False, "warning": "Real superconducting QPU — minutes per shot and uses Origin cloud quota. Keep problems ≤7 qubits.", "requires_key": "originqc"},
+    "qaoa_ibmq":             {"tier": "quantum_qpu",       "tier_label": "Quantum (real QPU)",     "tier_color": "error",   "recommended_default": False, "warning": "Real superconducting QPU on IBM Quantum. Free Open Plan gives ~10 min/month. Jobs may queue 30 s – several hours; the row is non-blocking and will materialize asynchronously.", "requires_key": "ibm_quantum"},
 }
 
 logger = logging.getLogger(__name__)

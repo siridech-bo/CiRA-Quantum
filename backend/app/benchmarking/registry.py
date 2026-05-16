@@ -281,6 +281,32 @@ def bootstrap_default_solvers() -> None:
     except Exception:  # pragma: no cover
         logger.exception("Failed to register QAOACloudSampler")
 
+    # ---- Phase 11 — cloud QAOA (IBM Quantum), BYOK ----
+    # Parallel to qaoa_originqc but Qiskit-native. Registered whenever
+    # qiskit-ibm-runtime is importable; the orchestrator handles the
+    # BYOK key injection per-request from the api_keys table.
+    try:
+        from app.optimization.qaoa_ibmq_sampler import QAOAIBMQSampler
+
+        qiskit_runtime_version = _package_version("qiskit_ibm_runtime")
+        register_solver(
+            SolverIdentity(
+                name="qaoa_ibmq",
+                version=qiskit_runtime_version,
+                source="qiskit-ibm-runtime",
+                hardware="ibm-quantum-cloud",
+                parameter_schema=_load_schema(schemas_dir / "qaoa_ibmq_params.json"),
+            ),
+            QAOAIBMQSampler,
+        )
+    except ImportError:  # pragma: no cover — optional dep
+        logger.info(
+            "qiskit-ibm-runtime not installed; skipping qaoa_ibmq registration "
+            "(install with: pip install '.[ibm-quantum]')"
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("Failed to register QAOAIBMQSampler")
+
     try:
         from app.optimization.highs_sampler import HiGHSSampler
 

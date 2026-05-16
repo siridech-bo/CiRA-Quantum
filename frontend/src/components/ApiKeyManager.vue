@@ -8,13 +8,14 @@ const PROVIDERS = [
   { value: 'claude', title: 'Claude (Anthropic)' },
   { value: 'openai', title: 'OpenAI' },
   { value: 'originqc', title: 'Origin Quantum (Wukong cloud)' },
+  { value: 'ibm_quantum', title: 'IBM Quantum (Open Plan)' },
 ] as const
 
 // Providers that the backend has a liveness test for. When we add
 // /api/keys/<provider>/test for other providers, append here.
-const TESTABLE_PROVIDERS = new Set(['originqc'])
+const TESTABLE_PROVIDERS = new Set(['originqc', 'ibm_quantum'])
 
-const addProvider = ref<'claude' | 'openai' | 'originqc'>('claude')
+const addProvider = ref<'claude' | 'openai' | 'originqc' | 'ibm_quantum'>('claude')
 const addKey = ref('')
 const saving = ref(false)
 const error = ref<string | null>(null)

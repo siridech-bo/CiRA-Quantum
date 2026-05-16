@@ -36,7 +36,7 @@ keys_bp = Blueprint("keys", __name__)
 # providers — these authenticate against quantum-cloud APIs (Origin
 # Quantum, future IBM Q, etc.) rather than LLM endpoints. The keys
 # table is provider-agnostic, so we just expand the allow-list.
-_QUANTUM_PROVIDERS = frozenset({"originqc"})
+_QUANTUM_PROVIDERS = frozenset({"originqc", "ibm_quantum"})
 
 
 def _is_known_provider(name: str) -> bool:
@@ -154,8 +154,66 @@ def _test_originqc(api_key: str) -> dict:
     }
 
 
+def _test_ibm_quantum(api_key: str) -> dict:
+    """Authenticate against IBM Quantum Platform and list a few of the
+    user's accessible backends. Cheap (~3 s, no shots consumed) — just
+    a round-trip to ``/instances`` + ``/backends``. Confirms (a) the
+    token is recognized, (b) the user has at least one provider/instance
+    available, (c) at least one real QPU backend is reachable."""
+    try:
+        from qiskit_ibm_runtime import QiskitRuntimeService
+    except ImportError:
+        return {
+            "ok": False,
+            "error": "qiskit-ibm-runtime not installed on the server",
+            "code": "QISKIT_MISSING",
+        }
+
+    t0 = time.perf_counter()
+    try:
+        service = QiskitRuntimeService(channel="ibm_quantum", token=api_key)
+    except Exception as e:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": f"IBM auth failed: {type(e).__name__}: {e}",
+            "code": "AUTH_FAILED",
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+        }
+
+    try:
+        # Slice to the first 5 names so the UI chip stays short.
+        backend_names: list[str] = []
+        for b in service.backends(operational=True, simulator=False):
+            backend_names.append(b.name)
+            if len(backend_names) >= 5:
+                break
+    except Exception as e:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": f"Backend lookup failed: {type(e).__name__}: {e}",
+            "code": "BACKEND_LOOKUP_FAILED",
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+        }
+
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    return {
+        "ok": True,
+        "message": (
+            "Authenticated; "
+            + (
+                f"first reachable QPU(s): {', '.join(backend_names)}"
+                if backend_names else
+                "but no operational real QPUs visible from this token."
+            )
+        ),
+        "backends": backend_names,
+        "elapsed_ms": elapsed_ms,
+    }
+
+
 _PROVIDER_TESTERS = {
     "originqc": _test_originqc,
+    "ibm_quantum": _test_ibm_quantum,
 }
 
 

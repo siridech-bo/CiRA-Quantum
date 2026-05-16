@@ -50,6 +50,11 @@ from app.pipeline.events import EventBus
 _SOLVER_WALLCLOCK_TIMEOUT_S: dict[str, float] = {
     "qaoa_originqc": 90.0,
     "qaoa_sim": 60.0,
+    # M1 places a generous cap so sync sample() works for early
+    # testing. M2 will short-circuit qaoa_ibmq into the async path
+    # which doesn't need a sync timeout at all (the orchestrator
+    # returns immediately after submit_async).
+    "qaoa_ibmq": 900.0,
 }
 _DEFAULT_SOLVER_TIMEOUT_S: float = 30.0
 
@@ -68,6 +73,7 @@ _DEFAULT_PARAMS_BY_SOLVER: dict[str, dict[str, Any]] = {
     "simulated_bifurcation": {"max_steps": 500, "agents": 128},
     "qaoa_sim":              {"layer": 1, "max_qubits": 12},
     "qaoa_originqc":         {"layer": 1, "max_qubits": 7, "shots": 200},
+    "qaoa_ibmq":             {"layer": 1, "max_qubits": 20, "shots": 200},
     "cpsat":                 {"time_limit": 5.0},
     "highs":                 {"time_limit": 5.0},
     "exact_cqm":             {},
@@ -614,6 +620,7 @@ def _finite_or_none(x: Any) -> float | None:
 # error messages in MultiSolverResultDisplay.
 _BYOK_BY_SOLVER: dict[str, str] = {
     "qaoa_originqc": "originqc",
+    "qaoa_ibmq": "ibm_quantum",
 }
 
 

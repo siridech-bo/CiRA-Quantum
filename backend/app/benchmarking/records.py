@@ -159,6 +159,22 @@ _INIT_ONLY_KWARGS_BY_SOLVER: dict[str, set[str]] = {
         "top_k",
         "train_optimizer",
     },
+    # Phase 11 — IBM Quantum cloud QAOA. Same shape as qaoa_originqc
+    # (api_key scrubbed before archive); plus channel + instance for
+    # IBM Cloud / IBM Quantum Platform routing.
+    "qaoa_ibmq": {
+        "api_key",
+        "backend_name",
+        "channel",
+        "instance",
+        "layer",
+        "shots",
+        "max_qubits",
+        "max_submissions",
+        "top_k",
+        "train_optimizer",
+        "optimization_level",
+    },
     # Phase 9C — quantum-inspired classical tiers.
     "parallel_tempering": {"num_replicas", "beta_range"},
     "simulated_bifurcation": {"mode"},
