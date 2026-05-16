@@ -40,6 +40,20 @@ from app.optimization.interpreter import interpret_solution
 from app.optimization.validation import validate_cqm
 from app.pipeline.events import EventBus
 
+# Per-solver wall-clock timeouts (seconds). If a sampler hangs past
+# this, the orchestrator abandons it and moves on. Critical for
+# qaoa_originqc — pyqpanda3's ``backend.run()`` can block indefinitely
+# on certain Origin cloud-side states (Phase 9D investigation in
+# progress). The orphaned worker thread keeps running in the
+# background; it'll free its resources whenever pyqpanda3 finally
+# returns or the Flask process restarts.
+_SOLVER_WALLCLOCK_TIMEOUT_S: dict[str, float] = {
+    "qaoa_originqc": 90.0,
+    "qaoa_sim": 60.0,
+}
+_DEFAULT_SOLVER_TIMEOUT_S: float = 30.0
+
+
 # Per-solver parameters used by the multi-solver fan-out (Phase 5D).
 # Conservative defaults — the goal is interactive-latency comparison
 # across the whole registry, not the best possible per-solver score
@@ -204,12 +218,40 @@ class Orchestrator:
 
             init_kwargs, sample_kwargs = _split_parameters(name, params)
 
-            try:
+            # Wall-clock timeout per solver. If the sampler blocks past
+            # this, we abandon it (the worker thread keeps running in
+            # the background; it'll exit whenever pyqpanda3 / the
+            # underlying lib finally returns). The orchestrator thread
+            # stays free to continue the fan-out.
+            timeout_s = _SOLVER_WALLCLOCK_TIMEOUT_S.get(
+                name, _DEFAULT_SOLVER_TIMEOUT_S,
+            )
+
+            def _run_sampler() -> Any:
                 sampler = sampler_cls(**init_kwargs)
                 if is_cqm_native:
-                    sampleset = sampler.sample_cqm(cqm, **sample_kwargs)
-                else:
-                    sampleset = sampler.sample(bqm, **sample_kwargs)
+                    return sampler.sample_cqm(cqm, **sample_kwargs)
+                return sampler.sample(bqm, **sample_kwargs)
+
+            try:
+                import concurrent.futures as _cf
+                with _cf.ThreadPoolExecutor(
+                    max_workers=1,
+                    thread_name_prefix=f"solver-{name}",
+                ) as pool:
+                    future = pool.submit(_run_sampler)
+                    try:
+                        sampleset = future.result(timeout=timeout_s)
+                    except _cf.TimeoutError:
+                        # We're abandoning the future intentionally —
+                        # the C-extension thread will keep running, but
+                        # we can't kill it cooperatively from Python.
+                        raise RuntimeError(
+                            f"Solver {name!r} did not return within "
+                            f"{timeout_s:.0f} s (wall-clock cap). The "
+                            f"underlying call may still be running; "
+                            f"the orchestrator moves on."
+                        )
             except Exception as e:
                 results[name] = {
                     "status": "error",
