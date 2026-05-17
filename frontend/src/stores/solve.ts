@@ -285,6 +285,30 @@ export const useSolveStore = defineStore('solve', () => {
     await loadKeys()
   }
 
+  /** Phase 11 — kick the server-side pending-jobs poller, then reload
+   * the current job. Hitting ``/api/benchmarks/cloud-jobs/pending``
+   * triggers materialization as a side-effect for any cloud jobs that
+   * have reached terminal state, including any queued rows on the
+   * currently-displayed solve job. Returns the number of pending
+   * entries remaining (useful for the auto-poll loop to decide
+   * whether to stop). */
+  async function refreshCloudPoll(): Promise<number> {
+    try {
+      const r = await api.get<{ pending: unknown[] }>(
+        '/api/benchmarks/cloud-jobs/pending',
+      )
+      const pendingCount = (r.data.pending ?? []).length
+      if (currentJob.value) {
+        await loadJob(currentJob.value.id)
+      }
+      return pendingCount
+    } catch {
+      // Network error / 503 — leave the row unchanged. The next poll
+      // will retry. We don't surface this in the panel.
+      return -1
+    }
+  }
+
   async function testKey(provider: string): Promise<{
     ok: boolean
     message?: string
@@ -338,6 +362,7 @@ export const useSolveStore = defineStore('solve', () => {
     deleteKey,
     testKey,
     loadSolvers,
+    refreshCloudPoll,
     closeStream,
     reset,
   }

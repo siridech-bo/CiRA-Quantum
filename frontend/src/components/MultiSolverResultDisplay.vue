@@ -8,7 +8,7 @@
  * standard ``ResultDisplay`` (which keeps showing the winning solver's
  * solution / cqm / validation tabs).
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Job, SolverResult, QaoaExtras } from '@/stores/solve'
 import { useSolveStore } from '@/stores/solve'
 import QaoaExplainerPanel from '@/components/QaoaExplainerPanel.vue'
@@ -136,6 +136,70 @@ const completedCount = computed(
 const errorCount = computed(
   () => rows.value.filter((r) => r.status === 'error').length,
 )
+const queuedCount = computed(
+  () => rows.value.filter((r) => r.status === 'queued').length,
+)
+
+// Phase 11 — auto-poll the pending-jobs endpoint every 30 s while
+// any row is queued. Hitting that endpoint triggers materialization
+// server-side as a side effect, so the queued row will fill in
+// without the user having to manually refresh. Stops the loop as
+// soon as no queued rows remain.
+const POLL_INTERVAL_MS = 30_000
+const lastPolledAt = ref<number | null>(null)
+const isRefreshing = ref(false)
+let pollTimer: number | null = null
+
+async function manualRefresh() {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  try {
+    await solve.refreshCloudPoll()
+    lastPolledAt.value = Date.now()
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+function startPollingIfNeeded() {
+  if (pollTimer !== null) return
+  if (queuedCount.value === 0) return
+  pollTimer = window.setInterval(() => {
+    if (queuedCount.value === 0) {
+      stopPolling()
+      return
+    }
+    void manualRefresh()
+  }, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollTimer !== null) {
+    window.clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+onMounted(() => {
+  startPollingIfNeeded()
+})
+onBeforeUnmount(() => {
+  stopPolling()
+})
+watch(queuedCount, (n) => {
+  if (n > 0) {
+    startPollingIfNeeded()
+  } else {
+    stopPolling()
+  }
+})
+
+function fmtAgo(ms: number | null): string {
+  if (ms === null) return 'not yet'
+  const dt = Math.floor((Date.now() - ms) / 1000)
+  if (dt < 60) return `${dt}s ago`
+  return `${Math.floor(dt / 60)} min ago`
+}
 </script>
 
 <template>
@@ -146,9 +210,22 @@ const errorCount = computed(
         <div class="text-h6">Solver comparison</div>
         <div class="text-caption text-medium-emphasis">
           {{ rows.length }} solver{{ rows.length === 1 ? '' : 's' }} ·
-          {{ completedCount }} completed<span v-if="errorCount > 0">, {{ errorCount }} errored</span>
+          {{ completedCount }} completed<span v-if="errorCount > 0">, {{ errorCount }} errored</span><span v-if="queuedCount > 0">, {{ queuedCount }} queued</span>
         </div>
       </div>
+      <v-btn
+        v-if="queuedCount > 0"
+        size="small"
+        variant="tonal"
+        color="info"
+        :loading="isRefreshing"
+        prepend-icon="mdi-refresh"
+        class="mr-2"
+        :title="`Last checked ${fmtAgo(lastPolledAt)}. Auto-polls every 30 s.`"
+        @click="manualRefresh"
+      >
+        Refresh
+      </v-btn>
       <v-chip
         v-if="bestEnergy !== null"
         size="small"
