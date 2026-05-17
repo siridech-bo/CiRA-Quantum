@@ -439,9 +439,17 @@ class QAOAIBMQSampler(dimod.Sampler):
         backend = self._pick_backend(service, prepared["n"])
         backend_name = backend.name
 
+        # Newer IBM Heron backends (ibm_kingston, ibm_fez, …) advertise
+        # a preferred translation plugin ``ibm_dynamic_circuits`` that
+        # ships in a separate package. Without that plugin installed,
+        # ``generate_preset_pass_manager(backend=...)`` blows up with
+        # ``TranspilerError: Invalid plugin name ibm_dynamic_circuits``.
+        # Override the translation stage to the default ``translator``
+        # method which has no plugin dependency.
         pm = generate_preset_pass_manager(
             backend=backend,
             optimization_level=self._optimization_level,
+            translation_method="translator",
         )
         qc_isa = pm.run(prepared["qc"])
         # Bind the trained parameters.
