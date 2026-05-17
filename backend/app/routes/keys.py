@@ -171,7 +171,12 @@ def _test_ibm_quantum(api_key: str) -> dict:
 
     t0 = time.perf_counter()
     try:
-        service = QiskitRuntimeService(channel="ibm_quantum", token=api_key)
+        # qiskit-ibm-runtime v0.30+ uses ``ibm_quantum_platform`` for the
+        # unified IBM Quantum Platform (Open Plan + paid). The legacy
+        # ``ibm_quantum`` channel raises ValueError in current SDKs.
+        service = QiskitRuntimeService(
+            channel="ibm_quantum_platform", token=api_key,
+        )
     except Exception as e:  # noqa: BLE001
         return {
             "ok": False,

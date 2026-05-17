@@ -99,7 +99,11 @@ class QAOAIBMQSampler(dimod.Sampler):
         api_key: str,
         backend_name: str | None = None,
         instance: str | None = None,
-        channel: str = "ibm_quantum",
+        # qiskit-ibm-runtime v0.30+ renamed the legacy "ibm_quantum"
+        # channel to "ibm_quantum_platform" when IBM merged their
+        # consoles into the unified IBM Quantum Platform. The old name
+        # raises ValueError on init in current SDK versions.
+        channel: str = "ibm_quantum_platform",
         layer: int = _DEFAULT_LAYER,
         shots: int = _DEFAULT_SHOTS,
         max_qubits: int = _DEFAULT_MAX_QUBITS,
