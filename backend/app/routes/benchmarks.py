@@ -527,7 +527,13 @@ def _poll_originqc(entry, api_key: str, cell: dict) -> dict:
 def _poll_ibmq(entry, api_key: str, cell: dict) -> dict:
     try:
         from qiskit_ibm_runtime import QiskitRuntimeService
-        service = QiskitRuntimeService(channel="ibm_quantum", token=api_key)
+        # Use the current channel name (Phase 11: qiskit-ibm-runtime
+        # v0.30+ removed the legacy 'ibm_quantum' channel — the
+        # unified IBM Quantum Platform now goes through
+        # 'ibm_quantum_platform').
+        service = QiskitRuntimeService(
+            channel="ibm_quantum_platform", token=api_key,
+        )
         job = service.job(entry.job_id)
         status = job.status()
         status_str = (status.name if hasattr(status, "name") else str(status)).upper()
