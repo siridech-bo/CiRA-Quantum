@@ -26,6 +26,15 @@ interface ProviderHelp {
   pricingNote?: string
   /** Optional format hint to show next to the API key input. */
   formatHint?: string
+  /** Optional cautionary callout (e.g. reliability quirks, alternative
+   * auth paths the user should know about). Rendered as a warning
+   * box below the pricing note. */
+  caution?: {
+    title: string
+    intro: string
+    steps?: string[]
+    footnote?: string
+  }
 }
 
 const PROVIDER_HELP: Record<string, ProviderHelp> = {
@@ -67,6 +76,17 @@ const PROVIDER_HELP: Record<string, ProviderHelp> = {
     freeTier: true,
     pricingNote: 'Free quota for academic users. Submissions queue on the Origin scheduler — sometimes seconds, sometimes minutes. We auto-retry transient pilot-task errors.',
     formatHint: 'Long hex-encoded string. Recent keys start ~890… (older PKCS#8-style 30 2e 02 01… keys may no longer authenticate).',
+    caution: {
+      title: 'Why qaoa_originqc sometimes errors — and the alternative we didn\'t ship',
+      intro: 'Origin Quantum runs two scheduler queues with different reliability: API-key submissions (what this key enables) hit the "QPanda source" queue, which intermittently rejects pilot tasks with "Submit pilot task error". The web Composer uses session cookies and goes through a more reliable queue. To use the Composer queue from this platform, a student would need to:',
+      steps: [
+        'Log into console.originqc.com.cn in their browser',
+        'Open DevTools → Application → Cookies and copy both originqsid and XSRF-TOKEN values',
+        'Paste them as a separate "originqc-session" credential here',
+        'Re-paste every few days when the session expires',
+      ],
+      footnote: 'We didn\'t implement that path because the UX (re-pasting browser cookies regularly) is a big regression from BYOK. For guaranteed real-cloud results, save an ibm_quantum key — IBM Quantum\'s Open Plan is free and uses a stable API-token auth scheme that doesn\'t have this dual-queue quirk.',
+    },
   },
   ibm_quantum: {
     blurb: 'IBM Quantum — Free Open Plan with access to real 127+ qubit superconducting QPUs (Eagle, Heron r2).',
@@ -283,6 +303,28 @@ onMounted(() => {
           <div v-if="currentHelp.pricingNote" class="text-caption text-medium-emphasis mt-2">
             <v-icon icon="mdi-cash-multiple" size="x-small" /> {{ currentHelp.pricingNote }}
           </div>
+
+          <!-- Optional caution callout (per-provider, e.g. Origin's
+               dual-queue scheduler quirk + the cookie-auth alternative
+               we deliberately didn't ship). -->
+          <div v-if="currentHelp.caution" class="caution-box mt-3 pa-2">
+            <div class="d-flex align-center mb-1">
+              <v-icon
+                icon="mdi-alert-outline"
+                size="small"
+                color="warning"
+                class="mr-2"
+              />
+              <span class="text-subtitle-2">{{ currentHelp.caution.title }}</span>
+            </div>
+            <div class="text-body-2 mb-1">{{ currentHelp.caution.intro }}</div>
+            <ol v-if="currentHelp.caution.steps" class="caution-steps text-body-2">
+              <li v-for="(s, i) in currentHelp.caution.steps" :key="i">{{ s }}</li>
+            </ol>
+            <div v-if="currentHelp.caution.footnote" class="text-caption text-medium-emphasis mt-1">
+              {{ currentHelp.caution.footnote }}
+            </div>
+          </div>
         </div>
 
         <v-text-field
@@ -357,6 +399,19 @@ onMounted(() => {
 }
 .help-steps li {
   margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+.caution-box {
+  background: rgba(255, 152, 0, 0.06);
+  border-left: 3px solid rgb(var(--v-theme-warning));
+  border-radius: 4px;
+}
+.caution-steps {
+  margin: 0.25rem 0;
+  padding-left: 1.4rem;
+}
+.caution-steps li {
+  margin-bottom: 0.15rem;
   line-height: 1.4;
 }
 </style>
