@@ -16,6 +16,7 @@ import BenchmarkSolverPage from '@/views/BenchmarkSolverPage.vue'
 import BenchmarkInstancePage from '@/views/BenchmarkInstancePage.vue'
 import BenchmarkFindingsPage from '@/views/BenchmarkFindingsPage.vue'
 import Quantum101Page from '@/views/Quantum101Page.vue'
+import AdminPage from '@/views/AdminPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -48,7 +49,10 @@ const routes: RouteRecordRaw[] = [
   // Phase 10B — interactive QAOA explainer. Public (no auth needed):
   // the demo is self-contained and the goal is education, not solving.
   { path: '/learn/quantum', component: Quantum101Page },
-  // Phase 7 (/admin) bolts on here.
+  // Phase 7 — Admin read-only views. Operator visibility into users,
+  // jobs, and BYOK provider distribution. requiresAdmin pushes
+  // non-admins back to /.
+  { path: '/admin', component: AdminPage, meta: { requiresAuth: true, requiresAdmin: true } },
 ]
 
 const router = createRouter({

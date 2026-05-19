@@ -25,6 +25,7 @@ from app.config import (
     SESSION_LIFETIME,
 )
 from app.models import init_db
+from app.routes.admin import admin_bp
 from app.routes.auth import auth_bp
 from app.routes.benchmarks import benchmarks_bp
 from app.routes.health import health_bp
@@ -63,5 +64,6 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(templates_bp, url_prefix="/api/templates")
     app.register_blueprint(solve_from_template_bp, url_prefix="/api")
     app.register_blueprint(benchmarks_bp, url_prefix="/api/benchmarks")
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
 
     return app

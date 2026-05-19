@@ -73,6 +73,15 @@ onMounted(() => {
     >
       Benchmarks
     </v-btn>
+    <v-btn
+      v-if="auth.user?.role === 'admin'"
+      variant="text"
+      prepend-icon="mdi-shield-account"
+      class="mr-2"
+      @click="router.push('/admin')"
+    >
+      Admin
+    </v-btn>
     <span class="text-body-2 mr-4" v-if="auth.user">
       Signed in as <strong>{{ auth.user.display_name }}</strong>
       <v-chip
