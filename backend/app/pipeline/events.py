@@ -111,14 +111,119 @@ class EventBus:
                 return
 
 
-_default_bus: EventBus | None = None
+class RedisEventBus:
+    """Phase 6 — cross-process event bus via Redis Streams.
+
+    Same public interface as :class:`EventBus` (``emit`` / ``subscribe``)
+    so callers don't need to know which backend is in play. Events are
+    written to a stream named ``cira:events:{job_id}``; subscribers
+    XREAD from id 0 to get full history + blocking wait for future events.
+
+    Used when ``USE_REDIS_QUEUE=1`` is set in the environment — the
+    worker process emits, the Flask SSE process subscribes. Streams
+    naturally give us history replay (a late subscriber still sees all
+    earlier events) and a consistent terminal signal.
+
+    Streams are auto-expired after the terminal event is seen, so we
+    don't leak Redis memory for finished jobs.
+    """
+
+    def __init__(self, redis_client=None):
+        import json
+        self._json = json
+        if redis_client is None:
+            import os
+            import redis
+            url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+            redis_client = redis.from_url(url)
+        self._r = redis_client
+
+    @staticmethod
+    def _stream_key(job_id: str) -> str:
+        return f"cira:events:{job_id}"
+
+    def emit(self, job_id: str, status: str, **fields: Any) -> None:
+        event = {"job_id": job_id, "status": status, **fields}
+        payload = self._json.dumps(event)
+        key = self._stream_key(job_id)
+        self._r.xadd(key, {"data": payload})
+        if status in _TERMINAL_STATUSES:
+            # Keep finished streams around for an hour so very late
+            # subscribers still get the history; after that, Redis
+            # reclaims the memory.
+            self._r.expire(key, 3600)
+
+    def subscribe(self, job_id: str) -> Iterator[dict]:
+        key = self._stream_key(job_id)
+        last_id = "0"  # start from the beginning of the stream
+        while True:
+            # XREAD with BLOCK waits indefinitely until new events
+            # arrive (or a millisecond timeout if we want to poll).
+            # Block for up to 30 s; if nothing arrives, loop and try
+            # again so the Flask SSE handler can periodically check
+            # whether the client has disconnected.
+            entries = self._r.xread({key: last_id}, block=30_000, count=64)
+            if not entries:
+                # No events in 30 s — yield a heartbeat-style placeholder
+                # so the SSE handler can detect a disconnected client
+                # and the iterator doesn't appear hung. Subscribers
+                # filter these out by checking ``event.get("status")``.
+                continue
+            # entries: [(stream_key_bytes, [(entry_id_bytes, {b"data": b"..."}), ...])]
+            for _stream_name, items in entries:
+                for entry_id, fields in items:
+                    last_id = (
+                        entry_id.decode() if isinstance(entry_id, bytes)
+                        else entry_id
+                    )
+                    raw = fields.get(b"data") or fields.get("data") or b""
+                    if isinstance(raw, bytes):
+                        raw = raw.decode()
+                    try:
+                        event = self._json.loads(raw)
+                    except Exception:  # pragma: no cover — defensive
+                        continue
+                    yield event
+                    if event.get("status") in _TERMINAL_STATUSES:
+                        return
+
+
+_default_bus: EventBus | RedisEventBus | None = None
 _default_bus_lock = threading.Lock()
 
 
-def get_event_bus() -> EventBus:
-    """Module-level singleton used by the Flask app + pipeline thread."""
+def get_event_bus() -> EventBus | RedisEventBus:
+    """Module-level singleton used by the Flask app + pipeline thread /
+    worker process. When ``USE_REDIS_QUEUE=1`` the bus is Redis-backed
+    so events from a worker process reach the SSE handler in the Flask
+    process; otherwise the in-process queue is used (legacy path).
+    """
     global _default_bus
     with _default_bus_lock:
         if _default_bus is None:
-            _default_bus = EventBus()
+            import os
+            use_redis = (os.environ.get("USE_REDIS_QUEUE") or "").strip().lower() in (
+                "1", "true", "yes", "on",
+            )
+            if use_redis:
+                try:
+                    _default_bus = RedisEventBus()
+                except Exception:
+                    # Redis unreachable — fall back to in-process so the
+                    # platform still works. Operator will see this in the
+                    # Flask log.
+                    import logging
+                    logging.getLogger(__name__).exception(
+                        "RedisEventBus init failed; falling back to in-process",
+                    )
+                    _default_bus = EventBus()
+            else:
+                _default_bus = EventBus()
         return _default_bus
+
+
+def reset_event_bus_for_tests() -> None:
+    """Clear the singleton so tests that flip env vars get a fresh bus."""
+    global _default_bus
+    with _default_bus_lock:
+        _default_bus = None

@@ -42,6 +42,20 @@ dev = [
     "pytest-asyncio>=0.23,<2.0",
     "pytest-httpx>=0.30,<1.0",
     "ruff>=0.5,<1.0",
+    # Phase 6 — fakeredis lets the RQ-backed launcher path be tested
+    # without a running Redis server. Real production uses real Redis.
+    "fakeredis>=2.20,<3.0",
+]
+
+# Phase 6 — async job queue via Redis-RQ. Opt-in: set USE_REDIS_QUEUE=1
+# and configure REDIS_URL. When the env flag is unset the launcher
+# falls back to the in-process daemon-thread path (no Redis required).
+#
+# Install:  pip install ".[queue]"
+# Then run:  python -m rq.cli worker --url $REDIS_URL cira-quantum-solves
+queue = [
+    "rq>=1.16,<2.0",
+    "redis>=5.0,<7.0",
 ]
 # Phase 9A — quantum tier (OriginQC pyqpanda QAOA on local CPU
 # simulator). Optional because pyqpanda is large and most contributors

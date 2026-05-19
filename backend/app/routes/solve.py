@@ -106,33 +106,28 @@ def _launch_pipeline_in_background(
     api_key: str,
     solvers: list[str],
 ) -> None:
-    """Spawn a daemon thread that runs the async pipeline. Tests
-    monkeypatch this with a synchronous stub."""
-    bus = get_event_bus()
-    orchestrator = Orchestrator()
+    """Hand the pipeline off to the configured ``JobLauncher`` (Phase 6).
 
-    def target() -> None:
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(
-                orchestrator.run(
-                    job_id=job_id, user_id=user_id,
-                    problem_statement=problem_statement,
-                    provider_name=provider_name, api_key=api_key,
-                    event_bus=bus,
-                    solvers=solvers,
-                )
-            )
-        except Exception:
-            # The orchestrator already catches everything internally; if
-            # we're here it's an event-loop or logging-level failure.
-            # Don't crash the thread silently — log it so an operator can
-            # find it in the journal.
-            logger.exception("pipeline thread for job %s crashed", job_id)
-        finally:
-            loop.close()
+    Default launcher is :class:`ThreadedJobLauncher` (daemon thread in
+    the Flask process, same as Phases 4-10). When ``USE_REDIS_QUEUE=1``
+    is set in the env, :class:`RQJobLauncher` enqueues to Redis and a
+    separate ``rq worker`` process picks up the job. Either way the
+    route returns immediately.
 
-    threading.Thread(target=target, daemon=True).start()
+    Tests monkeypatch this with a synchronous stub — exact same
+    surface area as before the launcher abstraction was introduced.
+    """
+    from app.pipeline.launcher import get_launcher
+    launcher = get_launcher(
+        orchestrator_factory=Orchestrator,
+        event_bus=get_event_bus(),
+    )
+    launcher.launch(
+        job_id=job_id, user_id=user_id,
+        problem_statement=problem_statement,
+        provider_name=provider_name, api_key=api_key,
+        solvers=solvers,
+    )
 
 
 # ---- GET /api/solvers --------------------------------------------------------
