@@ -21,7 +21,11 @@ is preserved alongside as `PROJECT_TEMPLATE.md` for audit trail.)
 | 9B | ✅ shipped | Quantum tier (Origin Quantum cloud BYOK) — `qaoa_originqc` registered when `QPANDA_API_KEY_FILE` env var points at a credential file; hybrid local-train + cloud-execute; real-QPU backends gated behind `ENABLE_ORIGIN_REAL_HARDWARE=1`. Auto-caps at n=7 qubits on real-QPU backends per the empirical transpilation wall (see `BENCHMARK_REPORT_002.md` Phase 9B follow-up section). |
 | 9B+ | ✅ shipped | Non-blocking cloud-job capture flow — pending-jobs panel auto-polls and materializes results when Wukong returns, no long-running Python process required |
 | 9C | ✅ shipped | Quantum-inspired classical tiers — Parallel Tempering (custom Hukushima-Nemoto) + Simulated Bifurcation (open algorithm behind Fujitsu's SQBM+). See [BENCHMARK_REPORT_002.md](../BENCHMARK_REPORT_002.md) for findings. |
-| 6 | ⏳ next | Async job queue + GPU contention |
+| 9D | ✅ shipped | Origin Quantum BYOK upgrade — moved from server-level env-file gate to per-user encrypted `originqc` API keys in the `api_keys` table; bounded cloud-job polling with retry-on-transient ("Submit pilot task error"); in-app "Test Key" liveness check that submits a 1-qubit Hadamard to `full_amplitude` and reports auth + round-trip in seconds. |
+| 10 | ✅ shipped | Educational explainer surfaces — Phase 10A: 4-panel QAOA explainer (polynomial, gate-level circuit, measurement histogram colored by classical energy, top-K filter table) expand-on-row inside the multi-solver comparison panel. 10B: standalone `/learn/quantum` page with interactive (γ, β) sliders against a pre-baked K₃ MaxCut grid. 10C: classical "how it works" panels (SA temperature schedule, PT replica grid, SB bifurcation, CP-SAT branch-and-bound). |
+| 11 | ✅ shipped | IBM Quantum tier + unified async cloud — `qaoa_ibmq` solver via `qiskit-ibm-runtime` SamplerV2; BYOK provider `ibm_quantum` with the Test Key button; both `qaoa_originqc` and `qaoa_ibmq` use the new async submission path so the orchestrator never blocks on cloud queues. The pending-jobs poller now materializes both benchmark-archive AND live-solve targets; queued rows fill in via SSE when the cloud completes. Refresh button + 30 s auto-poll on the comparison panel while queued rows exist. |
+| 6 | ⏳ next | Async job queue (Redis-RQ) + GPU contention |
+| 7 | ⏳ next | Admin views — read-only user / job / key visibility for operator role |
 
 The Flask web layer is live: `python run.py` brings up the auth shell
 on port 5009; `npm run dev` in `../frontend/` brings up the Vue login
@@ -104,12 +108,19 @@ python -m app.benchmarking.cite <record_id>            # BibTeX
 python -m app.benchmarking.cite <record_id> --string   # short citation
 ```
 
-Registered solvers: `exact_cqm`, `cpu_sa_neal`, `gpu_sa` (CUDA-conditional),
-`cpsat` (OR-Tools), `highs` (HiGHS MIP), `qaoa_sim` (pyqpanda QAOA on CPU
-statevector, optional `[quantum]` extra), `qaoa_originqc` (env-gated by
-`QPANDA_API_KEY_FILE`), `parallel_tempering` (custom Hukushima-Nemoto PT),
+Registered solvers (alphabetical, 10 total): `cpsat` (OR-Tools CP-SAT,
+CQM-native), `cpu_sa_neal` (`dwave-samplers` SA), `exact_cqm`
+(`dimod.ExactCQMSolver`), `gpu_sa` (CUDA-conditional), `highs` (HiGHS
+MIP, CQM-native), `parallel_tempering` (custom Hukushima-Nemoto PT),
+`qaoa_ibmq` (IBM Quantum Heron / Eagle via `qiskit-ibm-runtime`, optional
+`[ibm-quantum]` extra; BYOK `ibm_quantum` provider), `qaoa_originqc`
+(Origin Quantum Wukong via pyqpanda3, optional `[quantum]` extra; BYOK
+`originqc` provider), `qaoa_sim` (pyqpanda QAOA on CPU statevector),
 `simulated_bifurcation` (Goto et al. 2019 via the `simulated-bifurcation`
-PyPI package).
+PyPI package). Both real-QPU tiers (`qaoa_originqc`, `qaoa_ibmq`) use
+the Phase 11 async path: submission returns immediately with a queued
+row, and the pending-jobs poller materializes the result back into
+the parent solve job when the cloud completes.
 Registered suites: `knapsack/small`, `setcover/small`, `jss/small`,
 `maxcut/gset_subset`, `graph_coloring/small`. Run records carry an
 honest convergence flag — `converged_to_expected: null` when the instance

@@ -92,7 +92,7 @@ _DEFAULT_MAX_QUBITS_REAL_QPU = 7
 _DEFAULT_LAYER = 3
 _DEFAULT_SHOTS = 2048
 _DEFAULT_MAX_SUBMISSIONS = 5
-_DEFAULT_TOP_K = 10
+_DEFAULT_TOP_K = 32  # enough to cover all 2^5 outcomes on small problems
 
 
 def _real_hardware_enabled() -> bool:

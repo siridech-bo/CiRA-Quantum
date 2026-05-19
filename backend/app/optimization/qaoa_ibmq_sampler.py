@@ -79,7 +79,7 @@ _DEFAULT_LAYER = 1
 _DEFAULT_SHOTS = 200
 _DEFAULT_MAX_QUBITS = 20  # conservative — Open Plan jobs queue longer for bigger circuits
 _DEFAULT_MAX_SUBMISSIONS = 5
-_DEFAULT_TOP_K = 10
+_DEFAULT_TOP_K = 32  # cover all 2^5 outcomes on small problems
 _DEFAULT_OPT_LEVEL = 1  # 0=no transpile, 3=heavy. Level 1 is the sweet spot for QAOA.
 
 

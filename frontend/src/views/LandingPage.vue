@@ -32,7 +32,7 @@ const tiers = [
   { name: 'QUBO heuristic', count: 2, solvers: ['gpu_sa', 'cpu_sa_neal'], color: 'primary' },
   { name: 'Quantum-inspired', count: 2, solvers: ['parallel_tempering', 'simulated_bifurcation'], color: 'info' },
   { name: 'Quantum (simulator)', count: 1, solvers: ['qaoa_sim'], color: 'warning' },
-  { name: 'Quantum (real QPU)', count: 1, solvers: ['qaoa_originqc'], color: 'error' },
+  { name: 'Quantum (real QPU)', count: 2, solvers: ['qaoa_originqc', 'qaoa_ibmq'], color: 'error' },
 ]
 </script>
 
