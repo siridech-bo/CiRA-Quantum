@@ -30,6 +30,8 @@ from app.routes.auth import auth_bp
 from app.routes.benchmarks import benchmarks_bp
 from app.routes.health import health_bp
 from app.routes.keys import keys_bp
+from app.routes.qldpc import qldpc_bp
+from app.routes.qml import qml_bp
 from app.routes.solve import solve_bp
 from app.routes.templates import solve_from_template_bp, templates_bp
 
@@ -65,5 +67,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(solve_from_template_bp, url_prefix="/api")
     app.register_blueprint(benchmarks_bp, url_prefix="/api/benchmarks")
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
+    app.register_blueprint(qml_bp, url_prefix="/api/qml")
+    app.register_blueprint(qldpc_bp, url_prefix="/api/qldpc")
 
     return app

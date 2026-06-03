@@ -16,7 +16,17 @@ import BenchmarkSolverPage from '@/views/BenchmarkSolverPage.vue'
 import BenchmarkInstancePage from '@/views/BenchmarkInstancePage.vue'
 import BenchmarkFindingsPage from '@/views/BenchmarkFindingsPage.vue'
 import Quantum101Page from '@/views/Quantum101Page.vue'
+import PlaygroundPage from '@/views/PlaygroundPage.vue'
 import AdminPage from '@/views/AdminPage.vue'
+import QmlLandingPage from '@/views/QmlLandingPage.vue'
+import QmlDatasetDetailPage from '@/views/QmlDatasetDetailPage.vue'
+import QmlJobDetailPage from '@/views/QmlJobDetailPage.vue'
+import QmlLearnPage from '@/views/QmlLearnPage.vue'
+import QmlBenchmarkDashboardPage from '@/views/QmlBenchmarkDashboardPage.vue'
+import QmlBenchmarkRecordPage from '@/views/QmlBenchmarkRecordPage.vue'
+import QldpcLandingPage from '@/views/QldpcLandingPage.vue'
+import QldpcLearnPage from '@/views/QldpcLearnPage.vue'
+import QldpcCodeFamilyDetailPage from '@/views/QldpcCodeFamilyDetailPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -49,6 +59,35 @@ const routes: RouteRecordRaw[] = [
   // Phase 10B — interactive QAOA explainer. Public (no auth needed):
   // the demo is self-contained and the goal is education, not solving.
   { path: '/learn/quantum', component: Quantum101Page },
+  // Circuit Playground — self-hosted Quirk-E build under public/quirk/.
+  // Public so the sandbox is reachable from the Learn menu without forcing
+  // a login, like /learn/quantum and /qml/learn.
+  { path: '/learn/playground', component: PlaygroundPage },
+  // QML-1 — sister application's landing page. Public so the dataset
+  // gallery is browsable without auth, like the benchmark dashboard.
+  { path: '/qml', component: QmlLandingPage },
+  // QML-4 — primer page (Bloch sphere demo + VQC walkthrough). Public
+  // for the same reason as Quantum 101 on the optimization side.
+  { path: '/qml/learn', component: QmlLearnPage },
+  // QML-4 — dataset "study before training" surface. Public so a student
+  // can read the dataset + see the circuit + understand the baselines
+  // before deciding to log in and spend simulator time.
+  { path: '/qml/datasets/:id', component: QmlDatasetDetailPage },
+  // QML-2 — live training job detail (loss curve, confusion matrix).
+  // requiresAuth because the SSE stream is per-user.
+  { path: '/qml/jobs/:id', component: QmlJobDetailPage, meta: { requiresAuth: true } },
+  // QML-7 — public benchmark archive dashboard + per-record detail.
+  // Public so the scoreboard is browsable without auth, mirroring the
+  // optimization-side benchmark dashboard.
+  { path: '/qml/benchmarks', component: QmlBenchmarkDashboardPage },
+  { path: '/qml/benchmarks/:id', component: QmlBenchmarkRecordPage },
+  // qLDPC Sprint 0 — code-family gallery + primer + family detail.
+  // All public for the same reason QML's gallery + primer are public:
+  // the pitched research customers should be able to evaluate the
+  // module surface without an account.
+  { path: '/qldpc', component: QldpcLandingPage },
+  { path: '/qldpc/learn', component: QldpcLearnPage },
+  { path: '/qldpc/codes/:id', component: QldpcCodeFamilyDetailPage },
   // Phase 7 — Admin read-only views. Operator visibility into users,
   // jobs, and BYOK provider distribution. requiresAdmin pushes
   // non-admins back to /.

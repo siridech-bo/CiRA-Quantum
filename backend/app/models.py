@@ -124,6 +124,74 @@ def init_db() -> None:
         if "solvers_requested" not in existing_columns:
             cursor.execute("ALTER TABLE jobs ADD COLUMN solvers_requested TEXT")
 
+        # QML-6: per-provider state on QPU runs (e.g. Origin's
+        # sample_index — which test point we evaluated). IBM ignores it
+        # because it batches the whole test set. Idempotent ALTER so
+        # databases created before QML-6 don't fail to upgrade.
+        try:
+            qpu_columns = {row[1] for row in cursor.execute("PRAGMA table_info(qml_qpu_runs)")}
+            if qpu_columns and "submission_context" not in qpu_columns:
+                cursor.execute("ALTER TABLE qml_qpu_runs ADD COLUMN submission_context TEXT")
+        except Exception:
+            # Table doesn't exist yet on a fresh DB — the CREATE below
+            # will include the column.
+            pass
+
+        # QML-1: Quantum Machine Learning sister app. Distinct table so
+        # the optimization "jobs" table stays focused. Schema mirrors
+        # the optimization side where it overlaps (id, user_id, status,
+        # timestamps, error) and adds QML-specific columns (dataset,
+        # model, hyperparameters, training history, final metrics).
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS qml_jobs (
+                id              TEXT PRIMARY KEY,
+                user_id         INTEGER NOT NULL,
+                dataset_id      TEXT NOT NULL,
+                model           TEXT NOT NULL,
+                status          TEXT NOT NULL,
+                hyperparameters TEXT,
+                training_history TEXT,
+                metrics         TEXT,
+                error           TEXT,
+                created_at      TEXT NOT NULL,
+                completed_at    TEXT,
+                train_time_ms   INTEGER,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            """
+        )
+
+        # QML-5: real-QPU inference runs. Decoupled from qml_jobs so a
+        # single trained VQC can be evaluated on several backends (IBM
+        # ibmq_qasm_simulator + ibm_brisbane, say) for comparison. The
+        # ``provider`` column will accept "ibmq" today and "originqc"
+        # once QML-6 ships.
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS qml_qpu_runs (
+                id              TEXT PRIMARY KEY,
+                qml_job_id      TEXT NOT NULL,
+                user_id         INTEGER NOT NULL,
+                provider        TEXT NOT NULL,
+                backend_name    TEXT,
+                shots           INTEGER NOT NULL,
+                status          TEXT NOT NULL,
+                cloud_job_id    TEXT,
+                queue_position  INTEGER,
+                live_status     TEXT,
+                metrics         TEXT,
+                error           TEXT,
+                created_at      TEXT NOT NULL,
+                completed_at    TEXT,
+                wall_time_ms    INTEGER,
+                submission_context TEXT,
+                FOREIGN KEY (qml_job_id) REFERENCES qml_jobs(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            """
+        )
+
         conn.commit()
 
         cursor.execute("SELECT COUNT(*) FROM users")
@@ -451,5 +519,258 @@ def delete_api_key(user_id: int, provider: str) -> bool:
         )
         conn.commit()
         return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ---- QML job helpers (sister-app counterpart to the optimization jobs API) --
+
+
+def create_qml_job(
+    user_id: int,
+    dataset_id: str,
+    model: str,
+    *,
+    hyperparameters: str | None = None,
+) -> str:
+    """Insert a QML training job in ``queued`` state. Returns the new id.
+
+    ``hyperparameters`` is a JSON-encoded blob so the schema doesn't have
+    to grow a column every time a model adds a knob.
+    """
+    job_id = str(uuid.uuid4())
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO qml_jobs (
+                id, user_id, dataset_id, model, status,
+                hyperparameters, created_at
+            )
+            VALUES (?, ?, ?, ?, 'queued', ?, ?)
+            """,
+            (
+                job_id, user_id, dataset_id, model,
+                hyperparameters, datetime.utcnow().isoformat(),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return job_id
+
+
+def update_qml_job(job_id: str, **fields: Any) -> None:
+    if not fields:
+        return
+    conn = get_db_connection()
+    try:
+        keys = ", ".join(f"{k} = ?" for k in fields)
+        conn.execute(
+            f"UPDATE qml_jobs SET {keys} WHERE id = ?",
+            (*fields.values(), job_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_qml_job(
+    job_id: str,
+    *,
+    user_id: int | None = None,
+    is_admin: bool = False,
+) -> dict[str, Any] | None:
+    conn = get_db_connection()
+    try:
+        if is_admin:
+            row = conn.execute(
+                "SELECT * FROM qml_jobs WHERE id = ?", (job_id,)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT * FROM qml_jobs WHERE id = ? AND user_id = ?",
+                (job_id, user_id),
+            ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_qml_jobs(
+    user_id: int | None,
+    *,
+    is_admin: bool = False,
+    page: int = 1,
+    page_size: int = 20,
+) -> dict[str, Any]:
+    page = max(1, int(page))
+    page_size = max(1, min(int(page_size), 100))
+    offset = (page - 1) * page_size
+
+    conn = get_db_connection()
+    try:
+        if is_admin:
+            total = conn.execute("SELECT COUNT(*) FROM qml_jobs").fetchone()[0]
+            rows = conn.execute(
+                "SELECT * FROM qml_jobs ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (page_size, offset),
+            ).fetchall()
+        else:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM qml_jobs WHERE user_id = ?", (user_id,)
+            ).fetchone()[0]
+            rows = conn.execute(
+                "SELECT * FROM qml_jobs WHERE user_id = ? "
+                "ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (user_id, page_size, offset),
+            ).fetchall()
+        return {
+            "jobs": [dict(r) for r in rows],
+            "page": page,
+            "page_size": page_size,
+            "total": int(total),
+        }
+    finally:
+        conn.close()
+
+
+def delete_qml_job(
+    job_id: str, *, user_id: int | None = None, is_admin: bool = False
+) -> bool:
+    conn = get_db_connection()
+    try:
+        if is_admin:
+            cur = conn.execute("DELETE FROM qml_jobs WHERE id = ?", (job_id,))
+        else:
+            cur = conn.execute(
+                "DELETE FROM qml_jobs WHERE id = ? AND user_id = ?",
+                (job_id, user_id),
+            )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ---- QML real-QPU run helpers (QML-5+) -------------------------------------
+
+
+def create_qml_qpu_run(
+    qml_job_id: str,
+    user_id: int,
+    provider: str,
+    shots: int,
+    *,
+    backend_name: str | None = None,
+    submission_context: str | None = None,
+) -> str:
+    """Create a queued QPU-inference run linked to ``qml_job_id``.
+
+    Status starts as ``queued`` and transitions through ``submitted`` →
+    ``running`` → ``complete`` / ``error`` as the cloud job progresses.
+    The submitter populates ``cloud_job_id`` once the cloud accepts
+    the submission. ``submission_context`` is a JSON blob for any
+    per-provider state — e.g. Origin stores the test-point index it
+    evaluated, so the materializer can reconstruct the predicted label.
+    """
+    run_id = str(uuid.uuid4())
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO qml_qpu_runs (
+                id, qml_job_id, user_id, provider, backend_name,
+                shots, status, created_at, submission_context
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?)
+            """,
+            (
+                run_id, qml_job_id, user_id, provider, backend_name,
+                int(shots), datetime.utcnow().isoformat(),
+                submission_context,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return run_id
+
+
+def update_qml_qpu_run(run_id: str, **fields: Any) -> None:
+    if not fields:
+        return
+    conn = get_db_connection()
+    try:
+        keys = ", ".join(f"{k} = ?" for k in fields)
+        conn.execute(
+            f"UPDATE qml_qpu_runs SET {keys} WHERE id = ?",
+            (*fields.values(), run_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_qml_qpu_run(
+    run_id: str,
+    *,
+    user_id: int | None = None,
+    is_admin: bool = False,
+) -> dict[str, Any] | None:
+    conn = get_db_connection()
+    try:
+        if is_admin:
+            row = conn.execute(
+                "SELECT * FROM qml_qpu_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT * FROM qml_qpu_runs WHERE id = ? AND user_id = ?",
+                (run_id, user_id),
+            ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_qml_qpu_runs_for_job(qml_job_id: str) -> list[dict[str, Any]]:
+    """All QPU runs against a single parent VQC training job, newest first."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM qml_qpu_runs WHERE qml_job_id = ? "
+            "ORDER BY created_at DESC",
+            (qml_job_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_qml_qpu_run_by_cloud_job_id(cloud_job_id: str) -> dict[str, Any] | None:
+    """Lookup a run by its cloud-side job id (used by the poller)."""
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM qml_qpu_runs WHERE cloud_job_id = ?",
+            (cloud_job_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_unsettled_qml_qpu_runs() -> list[dict[str, Any]]:
+    """Runs the poller still needs to check on. Used by the periodic
+    materializer to drive non-terminal runs to completion."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM qml_qpu_runs "
+            "WHERE status IN ('queued', 'submitted', 'running') "
+            "ORDER BY created_at ASC"
+        ).fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()

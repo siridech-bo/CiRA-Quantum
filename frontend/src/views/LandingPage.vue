@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import CiraLogo from '@/components/CiraLogo.vue'
@@ -7,11 +6,7 @@ import CiraLogo from '@/components/CiraLogo.vue'
 const router = useRouter()
 const auth = useAuthStore()
 
-const ctaLabel = computed(() =>
-  auth.user ? 'Open the platform' : 'Sign in to start solving',
-)
-
-function goSolve() {
+function openOptimization() {
   if (auth.user) {
     router.push('/solve')
   } else {
@@ -19,20 +14,42 @@ function goSolve() {
   }
 }
 
-function goBenchmarks() {
-  router.push('/benchmarks')
+function openQml() {
+  // QML gallery is public — no login required to browse.
+  router.push('/qml')
 }
 
-// Lightweight tier showcase — built from the registered-solver list
-// the backend exposes. We don't make this dynamic on the landing page
-// (we want the page to render fast and without auth), so the tier
-// breakdown is hardcoded here and updated when new tiers ship.
-const tiers = [
-  { name: 'Classical SOTA', count: 3, solvers: ['exact_cqm', 'cpsat', 'highs'], color: 'success' },
-  { name: 'QUBO heuristic', count: 2, solvers: ['gpu_sa', 'cpu_sa_neal'], color: 'primary' },
-  { name: 'Quantum-inspired', count: 2, solvers: ['parallel_tempering', 'simulated_bifurcation'], color: 'info' },
-  { name: 'Quantum (simulator)', count: 1, solvers: ['qaoa_sim'], color: 'warning' },
-  { name: 'Quantum (real QPU)', count: 2, solvers: ['qaoa_originqc', 'qaoa_ibmq'], color: 'error' },
+function openQldpc() {
+  // qLDPC code-family gallery is public — same logic as QML.
+  router.push('/qldpc')
+}
+
+// Per-app tier showcases. Hardcoded so the landing page renders fast
+// and without auth; updated when new tiers ship.
+const optSolverTiers = [
+  { name: 'Classical SOTA',      count: 3, solvers: ['exact_cqm', 'cpsat', 'highs'],                color: 'success' },
+  { name: 'QUBO heuristic',      count: 2, solvers: ['gpu_sa', 'cpu_sa_neal'],                       color: 'primary' },
+  { name: 'Quantum-inspired',    count: 2, solvers: ['parallel_tempering', 'simulated_bifurcation'], color: 'info' },
+  { name: 'Quantum (simulator)', count: 1, solvers: ['qaoa_sim'],                                    color: 'warning' },
+  { name: 'Quantum (real QPU)',  count: 2, solvers: ['qaoa_originqc', 'qaoa_ibmq'],                  color: 'error' },
+]
+
+const qmlModelTiers = [
+  { name: 'Variational quantum',  count: 1, items: ['vqc (statevector)'],                                color: 'accent'  },
+  { name: 'Classical baselines',  count: 4, items: ['logreg', 'svm_rbf', 'random_forest', 'mlp'],         color: 'primary' },
+  { name: 'Datasets',             count: 6, items: ['moons', 'circles', 'iris', 'wine', 'mnist_0v1', 'breast_cancer'], color: 'info' },
+  { name: 'Quantum (real QPU)',   count: 2, items: ['vqc_ibmq', 'vqc_originqc'],                          color: 'error'   },
+]
+
+// qLDPC Sprint 0 — four code families across two regimes. Sprint 3
+// adds the threshold-benchmark tier; Sprint 4 adds the QPU-execution
+// tier. "soon" rendering in the template keys off count === 0.
+const qldpcCodeTiers = [
+  { name: 'Topological codes',    count: 2, items: ['surface', 'toric'],                                color: 'info'    },
+  { name: 'CSS (classical)',      count: 1, items: ['bicycle'],                                         color: 'success' },
+  { name: 'CSS (product)',        count: 1, items: ['hypergraph_product'],                              color: 'accent'  },
+  { name: 'Threshold benchmarks', count: 0, items: ['stim Monte Carlo (Sprint 3)'],                     color: 'warning' },
+  { name: 'Hardware execution',   count: 0, items: ['qiskit-qec on IBMQ (Sprint 4)'],                   color: 'error'   },
 ]
 </script>
 
@@ -41,105 +58,353 @@ const tiers = [
     <v-container class="d-flex align-center pa-0">
       <CiraLogo :size="36" />
       <v-spacer />
-      <v-btn variant="text" @click="router.push('/learn/quantum')">Quantum 101</v-btn>
-      <v-btn variant="text" @click="goBenchmarks">Benchmarks</v-btn>
-      <v-btn variant="text" @click="router.push('/templates')">Examples</v-btn>
-      <v-btn v-if="!auth.user" variant="outlined" class="ml-2" @click="router.push('/login')">Log in</v-btn>
-      <v-btn v-else variant="outlined" class="ml-2" @click="goSolve">Open app</v-btn>
+      <v-menu>
+        <template #activator="{ props: act }">
+          <v-btn variant="text" v-bind="act">
+            Optimization
+            <v-icon icon="mdi-menu-down" end />
+          </v-btn>
+        </template>
+        <v-list density="compact">
+          <v-list-item @click="openOptimization">
+            <v-list-item-title>Open app</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="router.push('/templates')">
+            <v-list-item-title>Examples</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="router.push('/benchmarks')">
+            <v-list-item-title>Benchmarks</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="router.push('/learn/quantum')">
+            <v-list-item-title>Quantum 101</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="router.push('/learn/playground')">
+            <v-list-item-title>Playground</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+      <v-menu>
+        <template #activator="{ props: act }">
+          <v-btn variant="text" v-bind="act">
+            QML
+            <v-icon icon="mdi-menu-down" end />
+          </v-btn>
+        </template>
+        <v-list density="compact">
+          <v-list-item @click="openQml">
+            <v-list-item-title>Dataset gallery</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="router.push('/qml/learn')">
+            <v-list-item-title>Primer</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="router.push('/qml/benchmarks')">
+            <v-list-item-title>Benchmarks</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+      <v-menu>
+        <template #activator="{ props: act }">
+          <v-btn variant="text" v-bind="act">
+            qLDPC
+            <v-icon icon="mdi-menu-down" end />
+          </v-btn>
+        </template>
+        <v-list density="compact">
+          <v-list-item @click="openQldpc">
+            <v-list-item-title>Code-family gallery</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="router.push('/qldpc/learn')">
+            <v-list-item-title>Primer</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+      <v-btn
+        v-if="!auth.user"
+        variant="outlined"
+        class="ml-2"
+        @click="router.push('/login')"
+      >Log in</v-btn>
+      <v-btn
+        v-else
+        variant="outlined"
+        class="ml-2"
+        @click="openOptimization"
+      >Open Optimization</v-btn>
     </v-container>
   </v-app-bar>
 
   <v-main>
-    <!-- Hero -->
-    <v-container class="hero pt-12 pb-12">
+    <!-- Hero — app-agnostic now. The two-app showcase below IS the
+         primary action; the hero just frames what the platform is. -->
+    <v-container class="hero pt-12 pb-8">
       <v-row align="center" justify="center">
         <v-col cols="12" md="9" lg="8" class="text-center">
           <div class="logo-large mb-6">
             <CiraLogo :size="90" :with-wordmark="true" />
           </div>
           <div class="text-h3 font-weight-bold mb-3">
-            An academic home for quantum experimentation
+            Quantum applications in one academic platform.
           </div>
-          <div class="text-h6 text-medium-emphasis mb-6">
-            Independent applications under one platform.
+          <div class="text-h6 text-medium-emphasis mb-2" style="max-width: 760px; margin: 0 auto">
+            <strong>Optimization</strong> for solving combinatorial problems with
+            quantum + classical solvers side-by-side.
+            <strong>QML</strong> for training variational classifiers
+            with classical baselines on every dataset.
+            <strong>qLDPC</strong> for designing, routing, and benchmarking
+            quantum error-correction codes end-to-end.
+          </div>
+          <div class="text-body-2 text-medium-emphasis mt-3">
             Real hardware, real baselines, reproducible by design.
           </div>
-          <div class="d-flex justify-center ga-3 flex-wrap">
-            <v-btn
-              color="primary"
-              size="x-large"
-              variant="flat"
-              prepend-icon="mdi-rocket-launch"
-              @click="goSolve"
-            >
-              {{ ctaLabel }}
-            </v-btn>
-            <v-btn
-              size="x-large"
-              variant="outlined"
-              prepend-icon="mdi-chart-bar"
-              @click="goBenchmarks"
-            >
-              View Benchmarks
-            </v-btn>
-          </div>
         </v-col>
       </v-row>
     </v-container>
 
-    <!-- Three feature cards: Solve / Learn / Benchmark -->
-    <v-container class="pt-8 pb-8">
-      <div class="text-h5 mb-1 text-center">Three coordinated surfaces</div>
-      <div class="text-body-2 text-medium-emphasis mb-6 text-center">
-        Each one stands alone; together they're how the platform delivers
-        the v2 "academic platform" promise.
-      </div>
+    <!-- ============================================================
+         The application showcase — the centerpiece of the page.
+         Each card mirrors the others so they read as siblings, not as
+         "main app + side projects."
+         ============================================================ -->
+    <v-container class="pt-4 pb-8" id="apps">
       <v-row>
+        <!-- ====== Optimization ====== -->
         <v-col cols="12" md="4">
-          <v-card class="pa-5 h-100" hover @click="goSolve">
-            <v-icon icon="mdi-rocket-launch" size="x-large" color="primary" class="mb-3" />
-            <div class="text-h6 mb-2">Solve</div>
-            <div class="text-body-2 text-medium-emphasis">
-              Paste a problem in plain English. An LLM formulates it as a CQM;
-              the platform runs it through the solvers you pick and shows
-              you the trained results, side by side.
+          <v-card
+            class="pa-6 h-100 app-card"
+            variant="outlined"
+            border="primary"
+          >
+            <div class="d-flex align-center mb-3">
+              <v-icon icon="mdi-rocket-launch" color="primary" size="36" />
+              <div class="ml-3 flex-grow-1">
+                <div class="text-overline text-medium-emphasis">application</div>
+                <div class="text-h5">CiRA Quantum — Optimization</div>
+              </div>
+              <v-chip size="small" color="success" variant="flat">live</v-chip>
+            </div>
+            <div class="text-body-1 text-medium-emphasis mb-4">
+              Paste a combinatorial problem in plain English. An LLM
+              formulates it as a Constrained Quadratic Model; the platform
+              runs every registered solver tier on it — exact, heuristic,
+              quantum-inspired, simulator, real QPU — and shows you the
+              results side-by-side.
+            </div>
+
+            <div class="text-overline text-medium-emphasis mb-1">what's inside</div>
+            <v-list density="compact" class="pa-0 mb-3">
+              <v-list-item class="px-0" prepend-icon="mdi-format-list-bulleted">
+                <v-list-item-title class="text-body-2">
+                  10 solvers across 5 tiers (classical → real QPU)
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-school">
+                <v-list-item-title class="text-body-2">
+                  Curated example library with documented optima
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-chart-box">
+                <v-list-item-title class="text-body-2">
+                  Public benchmark archive — every run cited by BibTeX
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-atom">
+                <v-list-item-title class="text-body-2">
+                  Real Origin Wukong + IBM Quantum submissions via BYOK
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
+
+            <div class="d-flex ga-2 flex-wrap">
+              <v-btn
+                color="primary"
+                variant="flat"
+                prepend-icon="mdi-rocket-launch"
+                @click="openOptimization"
+              >
+                {{ auth.user ? 'Open' : 'Sign in to solve' }}
+              </v-btn>
+              <v-btn
+                variant="outlined"
+                prepend-icon="mdi-chart-bar"
+                @click="router.push('/benchmarks')"
+              >
+                Benchmarks
+              </v-btn>
+              <v-btn
+                variant="text"
+                prepend-icon="mdi-school"
+                @click="router.push('/templates')"
+              >
+                Examples
+              </v-btn>
             </div>
           </v-card>
         </v-col>
+
+        <!-- ====== QML ====== -->
         <v-col cols="12" md="4">
-          <v-card class="pa-5 h-100" hover @click="router.push('/templates')">
-            <v-icon icon="mdi-school" size="x-large" color="accent" class="mb-3" />
-            <div class="text-h6 mb-2">Learn</div>
-            <div class="text-body-2 text-medium-emphasis">
-              Curated example problems with documented optima. Click any of
-              them, watch the pipeline run, and compare your solver's answer
-              to the textbook value. Modules for structured curriculum use.
+          <v-card
+            class="pa-6 h-100 app-card"
+            variant="outlined"
+            border="accent"
+          >
+            <div class="d-flex align-center mb-3">
+              <v-icon icon="mdi-brain" color="accent" size="36" />
+              <div class="ml-3 flex-grow-1">
+                <div class="text-overline text-medium-emphasis">application</div>
+                <div class="text-h5">CiRA Quantum — QML</div>
+              </div>
+              <v-chip size="small" color="accent" variant="flat">live</v-chip>
+            </div>
+            <div class="text-body-1 text-medium-emphasis mb-4">
+              Train a Variational Quantum Classifier on a curated dataset.
+              The same train/test split is also handed to four classical
+              baselines (LogReg, SVM-RBF, Random Forest, MLP), so every
+              result is an honest head-to-head between quantum and classical.
+            </div>
+
+            <div class="text-overline text-medium-emphasis mb-1">what's inside</div>
+            <v-list density="compact" class="pa-0 mb-3">
+              <v-list-item class="px-0" prepend-icon="mdi-database">
+                <v-list-item-title class="text-body-2">
+                  6 datasets (Moons, Circles, Iris, Wine, MNIST 0v1, WDBC)
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-atom-variant">
+                <v-list-item-title class="text-body-2">
+                  PennyLane statevector simulator, exact gradients
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-vector-curve">
+                <v-list-item-title class="text-body-2">
+                  Live decision boundary + loss curve during training
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-school">
+                <v-list-item-title class="text-body-2">
+                  Interactive primer (Bloch sphere → measurement) — 5 min read
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
+
+            <div class="d-flex ga-2 flex-wrap">
+              <v-btn
+                color="accent"
+                variant="flat"
+                prepend-icon="mdi-brain"
+                @click="openQml"
+              >
+                Open QML
+              </v-btn>
+              <v-btn
+                variant="outlined"
+                prepend-icon="mdi-school"
+                @click="router.push('/qml/learn')"
+              >
+                Primer
+              </v-btn>
+              <v-btn
+                variant="text"
+                prepend-icon="mdi-database"
+                @click="router.push('/qml/datasets/moons')"
+              >
+                Try Two Moons
+              </v-btn>
             </div>
           </v-card>
         </v-col>
+
+        <!-- ====== qLDPC ====== -->
         <v-col cols="12" md="4">
-          <v-card class="pa-5 h-100" hover @click="goBenchmarks">
-            <v-icon icon="mdi-chart-box" size="x-large" color="info" class="mb-3" />
-            <div class="text-h6 mb-2">Benchmark</div>
-            <div class="text-body-2 text-medium-emphasis">
-              Public, append-only RunRecord archive citable by BibTeX entry.
-              Compare every registered solver across every registered
-              instance — including real Origin Quantum Wukong results.
+          <v-card
+            class="pa-6 h-100 app-card"
+            variant="outlined"
+            border="info"
+          >
+            <div class="d-flex align-center mb-3">
+              <v-icon icon="mdi-grid" color="info" size="36" />
+              <div class="ml-3 flex-grow-1">
+                <div class="text-overline text-medium-emphasis">application</div>
+                <div class="text-h5">CiRA Quantum — qLDPC</div>
+              </div>
+              <v-chip size="small" color="info" variant="flat">new</v-chip>
+            </div>
+            <div class="text-body-1 text-medium-emphasis mb-4">
+              Inspect, route, and execute quantum low-density parity-check
+              codes end-to-end — from algebraic generation of the
+              parity-check matrices, through Tanner-graph layout on a
+              physical chip, to syndrome-extraction circuits running on
+              real IBMQ hardware.
+            </div>
+
+            <div class="text-overline text-medium-emphasis mb-1">what's inside</div>
+            <v-list density="compact" class="pa-0 mb-3">
+              <v-list-item class="px-0" prepend-icon="mdi-grid">
+                <v-list-item-title class="text-body-2">
+                  4 code families (Bicycle, Surface, Hypergraph product, Toric)
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-graph-outline">
+                <v-list-item-title class="text-body-2">
+                  Tanner-graph layout + routing analysis (Sprint 2)
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-chart-bell-curve">
+                <v-list-item-title class="text-body-2">
+                  stim Monte Carlo threshold benchmarks (Sprint 3)
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item class="px-0" prepend-icon="mdi-atom">
+                <v-list-item-title class="text-body-2">
+                  qiskit-qec syndrome circuits on IBMQ hardware (Sprint 4)
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
+
+            <div class="d-flex ga-2 flex-wrap">
+              <v-btn
+                color="info"
+                variant="flat"
+                prepend-icon="mdi-grid"
+                @click="openQldpc"
+              >
+                Open qLDPC
+              </v-btn>
+              <v-btn
+                variant="outlined"
+                prepend-icon="mdi-school"
+                @click="router.push('/qldpc/learn')"
+              >
+                Primer
+              </v-btn>
+              <v-btn
+                variant="text"
+                prepend-icon="mdi-grid"
+                @click="router.push('/qldpc/codes/surface')"
+              >
+                See Surface code
+              </v-btn>
             </div>
           </v-card>
         </v-col>
       </v-row>
     </v-container>
 
-    <!-- Solver tier showcase -->
+    <!-- ============================================================
+         Per-app deep-dive #1 — Optimization solver tiers.
+         ============================================================ -->
     <v-container class="pt-8 pb-8">
-      <div class="text-h5 mb-1 text-center">Five solver-tier categories, populated end-to-end</div>
-      <div class="text-body-2 text-medium-emphasis mb-6 text-center">
-        Most platforms cover one or two of these. We cover all five — and the dashboard tells you honestly which tier wins on which problem class.
+      <div class="d-flex align-center mb-2">
+        <v-icon icon="mdi-rocket-launch" color="primary" class="mr-2" />
+        <div class="text-h6">Optimization · five solver-tier categories</div>
+      </div>
+      <div class="text-body-2 text-medium-emphasis mb-4">
+        Most platforms cover one or two. We cover all five — and the
+        dashboard tells you honestly which tier wins on which problem class.
       </div>
       <v-row dense>
         <v-col
-          v-for="t in tiers"
+          v-for="t in optSolverTiers"
           :key="t.name"
           cols="12"
           sm="6"
@@ -147,13 +412,11 @@ const tiers = [
           lg="auto"
           class="flex-grow-1"
         >
-          <v-card
-            class="pa-4 h-100"
-            variant="tonal"
-            :color="t.color"
-          >
+          <v-card class="pa-4 h-100" variant="tonal" :color="t.color">
             <div class="d-flex align-center mb-2">
-              <span class="text-subtitle-2 font-weight-bold flex-grow-1">{{ t.name }}</span>
+              <span class="text-subtitle-2 font-weight-bold flex-grow-1">
+                {{ t.name }}
+              </span>
               <v-chip size="x-small" variant="flat">{{ t.count }}</v-chip>
             </div>
             <div class="text-caption">
@@ -166,40 +429,133 @@ const tiers = [
       </v-row>
     </v-container>
 
-    <!-- Sister apps strip -->
+    <!-- ============================================================
+         Per-app deep-dive #2 — QML model/dataset matrix.
+         ============================================================ -->
     <v-container class="pt-8 pb-8">
-      <div class="text-h5 mb-1 text-center">Other CiRA platforms</div>
-      <div class="text-body-2 text-medium-emphasis mb-6 text-center">
-        Independent applications under the same academic umbrella.
+      <div class="d-flex align-center mb-2">
+        <v-icon icon="mdi-brain" color="accent" class="mr-2" />
+        <div class="text-h6">QML · the comparison matrix</div>
       </div>
-      <v-row>
-        <v-col cols="12" md="6">
-          <v-card class="pa-5 h-100" variant="outlined" border="primary">
+      <div class="text-body-2 text-medium-emphasis mb-4">
+        One training run produces five trained models on the same split:
+        the VQC under study plus four classical baselines. Real QPU model
+        tiers arrive in QML-5 / 6.
+      </div>
+      <v-row dense>
+        <v-col
+          v-for="t in qmlModelTiers"
+          :key="t.name"
+          cols="12"
+          sm="6"
+          md="3"
+          class="flex-grow-1"
+        >
+          <v-card class="pa-4 h-100" variant="tonal" :color="t.color">
             <div class="d-flex align-center mb-2">
-              <CiraLogo :size="32" :with-wordmark="false" />
-              <span class="text-h6 ml-3">CiRA Quantum — Optimization</span>
-              <v-spacer />
-              <v-chip size="small" color="success">live</v-chip>
+              <span class="text-subtitle-2 font-weight-bold flex-grow-1">
+                {{ t.name }}
+              </span>
+              <v-chip size="x-small" variant="flat">
+                {{ t.count > 0 ? t.count : 'soon' }}
+              </v-chip>
             </div>
-            <div class="text-body-2 text-medium-emphasis">
-              This app. Formulation, solving, benchmarking across 9 solver
-              tiers — classical, quantum-inspired, quantum simulator, and
-              real superconducting QPU.
+            <div class="text-caption">
+              <code v-for="(s, i) in t.items" :key="s" class="solver-tag">
+                {{ s }}<span v-if="i < t.items.length - 1">, </span>
+              </code>
             </div>
           </v-card>
         </v-col>
-        <v-col cols="12" md="6">
-          <v-card class="pa-5 h-100" variant="outlined" border="dashed">
+      </v-row>
+    </v-container>
+
+    <!-- ============================================================
+         Per-app deep-dive #3 — qLDPC code-family categories.
+         ============================================================ -->
+    <v-container class="pt-8 pb-8">
+      <div class="d-flex align-center mb-2">
+        <v-icon icon="mdi-grid" color="info" class="mr-2" />
+        <div class="text-h6">qLDPC · five module tiers</div>
+      </div>
+      <div class="text-body-2 text-medium-emphasis mb-4">
+        Sprint 0 ships the first three tiers (the code-family
+        gallery + canonical metadata). Sprint 3 lights up threshold
+        benchmarks; Sprint 4 lights up real-QPU syndrome execution.
+        "soon" tiers indicate what's already roadmapped.
+      </div>
+      <v-row dense>
+        <v-col
+          v-for="t in qldpcCodeTiers"
+          :key="t.name"
+          cols="12"
+          sm="6"
+          md="4"
+          lg="auto"
+          class="flex-grow-1"
+        >
+          <v-card class="pa-4 h-100" variant="tonal" :color="t.color">
             <div class="d-flex align-center mb-2">
-              <v-icon icon="mdi-brain" size="32" color="grey" />
-              <span class="text-h6 ml-3 text-medium-emphasis">CiRA Quantum — QML</span>
-              <v-spacer />
-              <v-chip size="small" variant="tonal">coming soon</v-chip>
+              <span class="text-subtitle-2 font-weight-bold flex-grow-1">
+                {{ t.name }}
+              </span>
+              <v-chip size="x-small" variant="flat">
+                {{ t.count > 0 ? t.count : 'soon' }}
+              </v-chip>
             </div>
-            <div class="text-body-2 text-medium-emphasis">
-              Quantum Machine Learning experiments — variational classifiers,
-              quantum kernels, hybrid encoders. Sister application under
-              development.
+            <div class="text-caption">
+              <code v-for="(s, i) in t.items" :key="s" class="solver-tag">
+                {{ s }}<span v-if="i < t.items.length - 1">, </span>
+              </code>
+            </div>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-container>
+
+    <!-- ============================================================
+         What all apps share (the platform layer).
+         ============================================================ -->
+    <v-container class="pt-8 pb-12">
+      <div class="text-h6 text-center mb-2">What all apps share</div>
+      <div class="text-body-2 text-medium-emphasis mb-6 text-center">
+        One account, one BYOK keyring, one auth surface. Each app is
+        a first-class citizen — but you don't sign up three times.
+      </div>
+      <v-row>
+        <v-col cols="12" sm="6" md="3">
+          <v-card class="pa-4 h-100 text-center" variant="tonal">
+            <v-icon icon="mdi-account-circle" size="36" color="primary" class="mb-2" />
+            <div class="text-subtitle-2 mb-1">One account</div>
+            <div class="text-caption text-medium-emphasis">
+              Same login for both apps; history stays separate per app.
+            </div>
+          </v-card>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-card class="pa-4 h-100 text-center" variant="tonal">
+            <v-icon icon="mdi-key" size="36" color="accent" class="mb-2" />
+            <div class="text-subtitle-2 mb-1">Shared BYOK</div>
+            <div class="text-caption text-medium-emphasis">
+              Your IBM Quantum / Origin keys work in both apps.
+            </div>
+          </v-card>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-card class="pa-4 h-100 text-center" variant="tonal">
+            <v-icon icon="mdi-flask-outline" size="36" color="info" class="mb-2" />
+            <div class="text-subtitle-2 mb-1">Reproducible</div>
+            <div class="text-caption text-medium-emphasis">
+              Every run pins seeds, library versions, and split indices.
+            </div>
+          </v-card>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-card class="pa-4 h-100 text-center" variant="tonal">
+            <v-icon icon="mdi-school" size="36" color="success" class="mb-2" />
+            <div class="text-subtitle-2 mb-1">Educational</div>
+            <div class="text-caption text-medium-emphasis">
+              Every gate, every parameter, every baseline visible.
             </div>
           </v-card>
         </v-col>
@@ -207,12 +563,12 @@ const tiers = [
     </v-container>
 
     <!-- Footer -->
-    <v-divider class="mt-8" />
+    <v-divider />
     <v-container class="py-6">
       <div class="d-flex align-center flex-wrap ga-3">
         <CiraLogo :size="24" :with-wordmark="false" />
         <div class="text-body-2 text-medium-emphasis flex-grow-1">
-          CiRA Quantum — built at KMITL.  An academic platform; not a commercial service.
+          CiRA Quantum — built at KMITL. An academic platform; not a commercial service.
         </div>
         <v-btn
           variant="text"
@@ -230,7 +586,7 @@ const tiers = [
 
 <style scoped>
 .hero {
-  min-height: 60vh;
+  min-height: 42vh;
   display: flex;
   align-items: center;
 }
@@ -241,5 +597,12 @@ const tiers = [
 .solver-tag {
   font-family: 'Cascadia Code', 'Consolas', monospace;
   font-size: 0.78rem;
+}
+.app-card {
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+.app-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 </style>

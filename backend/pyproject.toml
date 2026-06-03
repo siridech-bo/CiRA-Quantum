@@ -82,6 +82,38 @@ ibm-quantum = [
     "scipy>=1.11,<2.0",
 ]
 
+# QML — Quantum Machine Learning sister app (QML-1 onward).
+# PennyLane is the primary training backend (chosen for its tutorial
+# ecosystem and autograd-style API). scikit-learn drives the classical
+# baselines (QML-3) and supplies the canonical datasets. matplotlib is
+# used by the educational explainer (QML-4) to render decision
+# boundaries.
+#
+# Install:  pip install ".[qml]"
+qml = [
+    "pennylane>=0.35,<1.0",
+    "scikit-learn>=1.4,<2.0",
+    "matplotlib>=3.8,<4.0",
+]
+
+# qLDPC — Quantum Low-Density Parity-Check codes sister app
+# (Sprint 0 onward). Sprint 1 adds the math stack: qLDPCOrg's
+# `qldpc` package for code family construction + distance, sympy
+# for the bivariate-bicycle polynomial DSL, and networkx for
+# Tanner graph export (also reused by Sprint 2 layout viz).
+# Sprint 3 will add stim / sinter; Sprint 4 will add qiskit-qec.
+#
+# GAP is optional in the upstream lib — our default constructors
+# and `get_distance(bound=True)` work without it on Windows. We
+# do NOT pin GAP here.
+#
+# Install:  pip install ".[qldpc]"
+qldpc = [
+    "qldpc>=0.2.9,<0.3",
+    "sympy>=1.12,<2",
+    "networkx>=3.0,<4",
+]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

@@ -118,3 +118,77 @@ def test_admin_overview_structure(isolated_app):
     assert isinstance(payload["jobs"]["by_status"], dict)
     assert isinstance(payload["jobs"]["top_providers"], list)
     assert "pending_cloud_jobs" in payload
+    # QML-8 — sister-app summary block.
+    assert "qml" in payload
+    q = payload["qml"]
+    assert {"total", "by_status", "by_dataset", "last_24h",
+            "qpu_runs", "archived_records"}.issubset(q.keys())
+    assert isinstance(q["qpu_runs"], dict)
+    assert {"total", "by_status", "by_provider"}.issubset(q["qpu_runs"].keys())
+
+
+# ---- QML-8: admin QML endpoints ------------------------------------------
+
+
+def test_admin_qml_jobs_requires_admin(isolated_app):
+    app, _, _admin, _regular, _job_id = isolated_app
+    client = app.test_client()
+    assert client.get("/api/admin/qml/jobs").status_code == 401
+    _login_as(client, "regular_bob")
+    assert client.get("/api/admin/qml/jobs").status_code == 403
+
+
+def test_admin_qml_jobs_lists_with_username(isolated_app):
+    app, models, _admin, regular, _job_id = isolated_app
+    # Seed 3 QML jobs against the regular user.
+    qml_ids = [
+        models.create_qml_job(regular["id"], dataset, "vqc")
+        for dataset in ("moons", "moons", "iris")
+    ]
+    models.update_qml_job(qml_ids[0], status="complete")
+
+    client = app.test_client()
+    _login_as(client, "admin_alice")
+    r = client.get("/api/admin/qml/jobs")
+    assert r.status_code == 200
+    payload = r.get_json()
+    assert payload["total"] == 3
+    usernames = {j["username"] for j in payload["jobs"]}
+    assert "regular_bob" in usernames
+    for j in payload["jobs"]:
+        for f in ("id", "user_id", "username", "dataset_id", "model",
+                  "status", "created_at"):
+            assert f in j, f"missing {f}"
+
+    # Filtered.
+    r2 = client.get("/api/admin/qml/jobs?status=complete")
+    assert r2.status_code == 200
+    payload2 = r2.get_json()
+    assert all(j["status"] == "complete" for j in payload2["jobs"])
+    assert payload2["status_filter"] == "complete"
+
+
+def test_admin_qml_qpu_runs_lists_with_filters(isolated_app):
+    app, models, _admin, regular, _job_id = isolated_app
+    # Seed a parent QML job + two QPU runs (one IBM, one Origin).
+    parent = models.create_qml_job(regular["id"], "moons", "vqc")
+    ibm_run = models.create_qml_qpu_run(parent, regular["id"], "ibmq", 1024)
+    origin_run = models.create_qml_qpu_run(parent, regular["id"], "originqc", 2048)
+
+    client = app.test_client()
+    _login_as(client, "admin_alice")
+    r = client.get("/api/admin/qml/qpu-runs")
+    assert r.status_code == 200
+    payload = r.get_json()
+    assert payload["total"] == 2
+    ids = {q["id"] for q in payload["qpu_runs"]}
+    assert {ibm_run, origin_run}.issubset(ids)
+    # Provider field on every row.
+    providers = {q["provider"] for q in payload["qpu_runs"]}
+    assert providers == {"ibmq", "originqc"}
+    # Filter by provider.
+    r2 = client.get("/api/admin/qml/qpu-runs?provider=ibmq")
+    p2 = r2.get_json()
+    assert p2["total"] == 1
+    assert p2["qpu_runs"][0]["provider"] == "ibmq"
+    assert p2["provider_filter"] == "ibmq"
