@@ -187,7 +187,10 @@ def _strip_weights(metrics: dict) -> dict:
     if not metrics:
         return {}
     out = dict(metrics)
-    for k in ("weights", "scatter_points", "decision_grid"):
+    # ``su2_unitaries`` is the per-gate complex matrix block from the
+    # SU(2) ansatz — same "model state, not citation-worthy" rationale
+    # as ``weights``, just a richer shape.
+    for k in ("weights", "scatter_points", "decision_grid", "su2_unitaries"):
         out.pop(k, None)
     return out
 

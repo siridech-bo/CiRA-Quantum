@@ -106,19 +106,20 @@ def interpret_solution(
         else:
             numerics.append((name, float(value), desc))
 
-    # Render binaries
+    # Render binaries. When the registry has a domain description, that
+    # description is already a complete English statement ("Item 0 is
+    # assigned to bin 1") and the raw variable token (x_item0_bin1) is
+    # pure noise — drop it. Fall back to the variable name only when no
+    # description exists, so the user still sees *something* meaningful.
     if binaries_on:
-        lines.append("Selected (binary = 1):")
+        lines.append("Selected:")
         for name, desc in binaries_on:
-            tail = f" — {desc}" if desc else ""
-            lines.append(f"  • {name}{tail}")
-    if binaries_off and not numerics:
-        # Suppress the "not selected" block when it would dominate the
-        # output (e.g. all-zero solution). Only show it for context when
-        # there's also a numeric section.
-        pass
+            lines.append(f"  • {desc or name}")
 
-    # Render integer / real assignments
+    # Render integer / real assignments. Numeric values still need the
+    # variable name as the formal symbol — "makespan = 7" reads better
+    # than "Time at which the last job finishes = 7" — so keep the name
+    # and append the description as a trailing clarification when present.
     if numerics:
         if binaries_on:
             lines.append("")

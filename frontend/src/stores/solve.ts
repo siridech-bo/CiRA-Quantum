@@ -33,6 +33,7 @@ export type JobStatus =
   | 'formulating'
   | 'compiling'
   | 'validating'
+  | 'awaiting_approval'
   | 'solving'
   | 'complete'
   | 'error'
@@ -55,6 +56,27 @@ export interface Job {
   template_id?: string | null
   expected_optimum?: number | null
   solvers_requested?: string[] | null
+  preflight?: {
+    cqm_variables: number
+    cqm_constraints: number
+    lowered_qubits: number | null
+    lowering_error?: string
+    tier_verdicts: Record<string, { cap: number; fits: boolean }>
+    /** Only populated when a real Origin backend (Wukong/Hanyuan)
+     * was selected; ``null`` for simulator submissions. */
+    qpu_footprint?: {
+      backend: string
+      compute_seconds_low: number
+      compute_seconds_high: number
+      assumptions: {
+        shots: number
+        qaoa_layers: number
+        estimated_gates: number
+        num_qubits: number
+      }
+      note: string
+    } | null
+  } | null
   solver_results?: {
     solvers: Record<string, SolverResult>
     primary: string | null
@@ -69,7 +91,7 @@ export interface Job {
 }
 
 export interface SolverResult {
-  status: 'pending' | 'running' | 'queued' | 'complete' | 'error'
+  status: 'pending' | 'running' | 'queued' | 'complete' | 'error' | 'skipped'
   energy?: number
   raw_energy?: number
   feasible?: boolean
@@ -110,6 +132,11 @@ export interface QaoaExtras {
   backend_name: string | null
   is_real_hardware: boolean
   job_id: string | null
+  /** Shot count from the submitted job. Only populated at cloud-submit
+   * time (partial pre-execution qaoa_extras); missing on completed
+   * samplesets since the shot count is implicit in the probability
+   * distribution. */
+  shots?: number | null
 }
 
 export interface SolverInfo {
@@ -131,6 +158,11 @@ export interface StoredKey {
 }
 
 const TERMINAL_STATUSES: JobStatus[] = ['complete', 'error']
+// awaiting_approval pauses the SSE stream AND the per-status emit
+// loop — the orchestrator returns cleanly after writing this status,
+// so the bus channel is closed. From the bus's perspective it's a
+// terminal event. The user can still resume via approveJob().
+const PAUSED_STATUSES: JobStatus[] = ['awaiting_approval']
 
 function hasQueuedRows(job: Job | null): boolean {
   if (!job?.solver_results?.solvers) return false
@@ -147,11 +179,18 @@ export const useSolveStore = defineStore('solve', () => {
   const keys = ref<StoredKey[]>([])
   const solvers = ref<SolverInfo[]>([])
   const error = ref<string | null>(null)
+  // Problem statement staged by the "Try this example" flow. ProblemInput
+  // consumes this on mount and clears it, so the textarea pre-fills with
+  // the template statement and the user can review/edit before submitting.
+  const draftStatement = ref<string>('')
   let eventSource: EventSource | null = null
 
   const isRunning = computed(() => {
     const s = currentJob.value?.status
-    return s !== undefined && !TERMINAL_STATUSES.includes(s)
+    if (s === undefined) return false
+    if (TERMINAL_STATUSES.includes(s)) return false
+    if (PAUSED_STATUSES.includes(s)) return false
+    return true
   })
 
   function closeStream() {
@@ -197,6 +236,12 @@ export const useSolveStore = defineStore('solve', () => {
               closeStream()
             }
           })
+        } else if (PAUSED_STATUSES.includes(data.status)) {
+          // Approval gate — backend closed the bus and the orchestrator
+          // thread exited cleanly. Reload the full job so the preflight
+          // field populates, then close this stream. The approval panel
+          // will reopen one when the user clicks Approve.
+          void loadJob(jobId).then(() => closeStream())
         }
       } catch (e) {
         // Malformed SSE chunk — ignore (the next event will arrive cleanly).
@@ -216,11 +261,30 @@ export const useSolveStore = defineStore('solve', () => {
     api_key?: string
     use_stored_key?: boolean
     solvers?: string[]
+    require_approval?: boolean
+    /** Per-solve knobs the user picked (currently only the Origin
+     * backend selector). Whitelisted at the /api/solve boundary; a
+     * bad key/value gets a 400 back. */
+    solver_params_overrides?: Record<string, Record<string, string | number>>
   }): Promise<Job> {
     error.value = null
     const r = await api.post<{ success: boolean; job: Job }>('/api/solve', payload)
     currentJob.value = r.data.job
     streamStatus(r.data.job.id)
+    return r.data.job
+  }
+
+  /** Resume a paused (`awaiting_approval`) job at stage 4. The
+   * backend launches a fresh pipeline thread; we reopen the SSE
+   * stream so the user sees the same live progress they would have
+   * seen without the gate. */
+  async function approveJob(jobId: string): Promise<Job> {
+    error.value = null
+    const r = await api.post<{ success: boolean; job: Job }>(
+      `/api/jobs/${jobId}/approve`,
+    )
+    currentJob.value = r.data.job
+    streamStatus(jobId)
     return r.data.job
   }
 
@@ -349,10 +413,12 @@ export const useSolveStore = defineStore('solve', () => {
     keys,
     solvers,
     error,
+    draftStatement,
     // computed
     isRunning,
     // actions
     submitProblem,
+    approveJob,
     subscribeToJob,
     loadJob,
     loadHistory,

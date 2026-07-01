@@ -75,8 +75,29 @@ class JobLauncher(ABC):
         provider_name: str,
         api_key: str,
         solvers: list[str],
+        require_approval: bool = False,
+        solver_params_overrides: dict | None = None,
     ) -> None:
-        """Kick off the pipeline. Should return in milliseconds."""
+        """Kick off the pipeline. Should return in milliseconds.
+
+        ``require_approval`` pauses the pipeline after stage 3 so the
+        user can review the LLM-emitted CQM before any solver burns
+        time. A subsequent ``POST /api/jobs/<id>/approve`` calls
+        :meth:`resume_after_approval` to continue from stage 4.
+        """
+
+    def resume_after_approval(
+        self,
+        *,
+        job_id: str,
+        user_id: int,
+    ) -> None:
+        """Resume a paused job at stage 4. Default raises so the only
+        launcher that supports the approval gate today (Threaded) opts
+        in explicitly; RQ adds support in a follow-up."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support the approval gate",
+        )
 
     def name(self) -> str:
         return type(self).__name__
@@ -103,6 +124,8 @@ class ThreadedJobLauncher(JobLauncher):
         provider_name: str,
         api_key: str,
         solvers: list[str],
+        require_approval: bool = False,
+        solver_params_overrides: dict | None = None,
     ) -> None:
         orchestrator = self._orch_factory()
         bus = self._event_bus
@@ -116,10 +139,97 @@ class ThreadedJobLauncher(JobLauncher):
                         problem_statement=problem_statement,
                         provider_name=provider_name, api_key=api_key,
                         event_bus=bus, solvers=solvers,
+                        require_approval=require_approval,
+                        solver_params_overrides=solver_params_overrides,
                     )
                 )
-            except Exception:
+            except Exception as exc:
+                # The orchestrator's own try/except already converts
+                # in-pipeline failures into a terminal "error" event
+                # plus a DB status update. Reaching here means the
+                # exception escaped that safety net (e.g. raised
+                # before the orchestrator's try block, or
+                # ``event_bus.emit`` itself failed). Without a
+                # terminal emit the job stays at ``status='queued'``
+                # forever and any SSE subscriber blocks waiting for an
+                # event that will never come — exactly the zombie-job
+                # pattern that wedged the dev server on 2026-06-30.
+                # Best-effort: log, write status='error' to the DB,
+                # and emit a terminal event so the bus channel closes.
                 logger.exception("pipeline thread for job %s crashed", job_id)
+                msg = f"pipeline crashed: {type(exc).__name__}: {exc}"
+                try:
+                    from datetime import datetime
+
+                    from app.models import update_job
+                    update_job(
+                        job_id,
+                        status="error",
+                        error=msg,
+                        completed_at=datetime.utcnow().isoformat(),
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "failed to mark job %s as error after crash", job_id,
+                    )
+                try:
+                    bus.emit(job_id, "error", error=msg)
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "failed to emit terminal error for job %s", job_id,
+                    )
+            finally:
+                loop.close()
+
+        threading.Thread(target=target, daemon=True).start()
+
+    def resume_after_approval(
+        self,
+        *,
+        job_id: str,
+        user_id: int,
+    ) -> None:
+        """Spawn a daemon thread that calls
+        :meth:`Orchestrator.resume_after_approval`. Same safety net
+        as :meth:`launch` — if the resume thread crashes outside the
+        orchestrator's own try/except, emit a terminal error event so
+        SSE subscribers don't block waiting for status that will never
+        come."""
+        orchestrator = self._orch_factory()
+        bus = self._event_bus
+
+        def target() -> None:
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(
+                    orchestrator.resume_after_approval(
+                        job_id=job_id, user_id=user_id, event_bus=bus,
+                    )
+                )
+            except Exception as exc:
+                logger.exception("resume thread for job %s crashed", job_id)
+                msg = f"resume crashed: {type(exc).__name__}: {exc}"
+                try:
+                    from datetime import datetime
+
+                    from app.models import update_job
+                    update_job(
+                        job_id,
+                        status="error",
+                        error=msg,
+                        completed_at=datetime.utcnow().isoformat(),
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "failed to mark job %s as error after resume crash",
+                        job_id,
+                    )
+                try:
+                    bus.emit(job_id, "error", error=msg)
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "failed to emit terminal error for job %s", job_id,
+                    )
             finally:
                 loop.close()
 
@@ -159,10 +269,22 @@ class RQJobLauncher(JobLauncher):
         provider_name: str,
         api_key: str,
         solvers: list[str],
+        require_approval: bool = False,
+        solver_params_overrides: dict | None = None,
     ) -> None:
         # The worker imports this same module path and runs the
         # function with the kwargs. Strings + ints + lists serialize
         # cleanly via pickle (RQ's default).
+        # NB: ``require_approval=True`` is not yet wired through the RQ
+        # worker_entry — the cross-process resume flow is a follow-up.
+        # In the meantime, refuse the combo with a clear error so the
+        # caller doesn't silently lose the gate.
+        if require_approval:
+            raise NotImplementedError(
+                "RQ-backed launcher does not yet support require_approval; "
+                "use the threaded launcher (unset USE_REDIS_QUEUE) or wait "
+                "for the cross-process resume flow.",
+            )
         from app.pipeline.worker_entry import run_pipeline_job
         self._queue.enqueue(
             run_pipeline_job,

@@ -173,6 +173,51 @@ def test_redis_event_bus_roundtrip():
     assert received[-1]["job_id"] == "test-bus-job"
 
 
+def test_threaded_launcher_emits_terminal_on_crash(monkeypatch):
+    """When the orchestrator escapes its own try/except (i.e. raises
+    before its first ``event_bus.emit`` line), the launcher's safety
+    net must (a) log the crash and (b) emit a terminal 'error' event
+    so SSE subscribers don't block forever waiting for a status that
+    will never come.
+
+    Regression for the 2026-06-30 dev-server hang where 5 jobs sat at
+    ``status='queued'`` after their pipeline threads crashed silently,
+    leaking Werkzeug worker threads via the blocked SSE subscribers."""
+    from app.pipeline.launcher import ThreadedJobLauncher
+
+    class _CrashingOrchestrator:
+        async def run(self, **kwargs) -> None:
+            raise RuntimeError("simulated crash before first emit")
+
+    # The DB-update branch tries to import app.models and call
+    # update_job(). In this isolated test we don't have a DB schema,
+    # so monkeypatch update_job to a no-op — the launcher's safety
+    # net swallows its own failure cleanly, but stubbing it keeps the
+    # test focused on the bus-emit guarantee.
+    from app import models as models_module
+    monkeypatch.setattr(models_module, "update_job", lambda *a, **k: None)
+
+    bus = EventBus()
+    launcher = ThreadedJobLauncher(
+        orchestrator_factory=_CrashingOrchestrator,
+        event_bus=bus,
+    )
+
+    launcher.launch(
+        job_id="crash-job",
+        user_id=1,
+        problem_statement="x",
+        provider_name="stub",
+        api_key="",
+        solvers=["cpu_sa_neal"],
+    )
+
+    received = list(bus.subscribe("crash-job"))
+    assert received, "no terminal event was emitted after crash"
+    assert received[-1]["status"] == "error"
+    assert "simulated crash" in received[-1]["error"]
+
+
 def test_redis_event_bus_history_replay():
     """A subscriber that joins AFTER events were emitted still gets the
     whole history (Streams XREAD from id 0)."""

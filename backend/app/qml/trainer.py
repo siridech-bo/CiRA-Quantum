@@ -31,20 +31,33 @@ from app.qml.baselines import train_baselines
 from app.qml.vqc import VQCConfig, train_vqc
 
 
+_ALLOWED_ANSATZ = ("basic_ry", "su2_brick")
+_ALLOWED_MOMENTUM = ("sgd", "adam")
+
+
 def _build_circuit_info_dict(cfg: VQCConfig) -> dict[str, Any]:
     """Build the same shape as :class:`vqc.CircuitInfo` but as a JSON-
     serialisable dict, so the route can emit it on the SSE stream
     *before* training starts — students see the circuit immediately.
     """
+    if cfg.ansatz == "su2_brick":
+        entangler = "SU(2) brick-wall (Riemannian, ring CNOT)"
+        # Three real DOF per SU(2) gate (a 2×2 unitary has 8 reals, of
+        # which 5 are absorbed by U†U=I + global-phase invariance) + bias.
+        n_params = 3 * cfg.n_layers * cfg.n_qubits + 1
+    else:
+        entangler = "BasicEntanglerLayers (RY rotations + ring CNOT)"
+        # One RY angle per (layer, qubit) + bias.
+        n_params = cfg.n_layers * cfg.n_qubits + 1
     return {
         "backend_name": "PennyLane default.qubit",
         "backend_kind": "statevector",
         "is_real_hardware": False,
         "n_qubits": cfg.n_qubits,
         "n_layers": cfg.n_layers,
-        "n_trainable_params": cfg.n_layers * cfg.n_qubits + 1,
+        "n_trainable_params": n_params,
         "encoding": "AngleEmbedding (RX rotations, one per input feature)",
-        "entangler": "BasicEntanglerLayers (RY rotations + ring CNOT)",
+        "entangler": entangler,
         "measurement": "PauliZ expectation on qubit 0",
         "shots": None,
     }
@@ -65,6 +78,15 @@ def _coerce_config(payload: dict[str, Any], dataset_n_features: int) -> VQCConfi
     batch_size = max(1, min(int(payload.get("batch_size") or 16), 64))
     learning_rate = float(payload.get("learning_rate") or 0.05)
     seed = int(payload.get("seed") or 42)
+    # Ansatz selection. Unknown values fall back to the default so a
+    # typo in the payload doesn't fail-loud — the alternative would
+    # surface a 4xx from a deep code path, and a silent fallback to the
+    # default is the right call for the educational/tier-3 audience.
+    ansatz_raw = str(payload.get("ansatz") or "basic_ry")
+    ansatz = ansatz_raw if ansatz_raw in _ALLOWED_ANSATZ else "basic_ry"
+    # Optimizer for the SU(2) path. Ignored when ansatz=basic_ry.
+    momentum_raw = str(payload.get("momentum") or "sgd")
+    momentum = momentum_raw if momentum_raw in _ALLOWED_MOMENTUM else "sgd"
     return VQCConfig(
         n_qubits=n_qubits,
         n_layers=n_layers,
@@ -72,6 +94,8 @@ def _coerce_config(payload: dict[str, Any], dataset_n_features: int) -> VQCConfi
         batch_size=batch_size,
         learning_rate=learning_rate,
         seed=seed,
+        ansatz=ansatz,
+        momentum=momentum,
     )
 
 
@@ -116,6 +140,12 @@ def run_training_job(
                 "batch_size": cfg.batch_size,
                 "learning_rate": cfg.learning_rate,
                 "seed": cfg.seed,
+                # Persisted into the qml_jobs row, then carried into
+                # compute_repro_hash by build_record_from_job — so two
+                # otherwise-identical jobs with different ansätze get
+                # distinct repro_hash values. Same logic for ``momentum``.
+                "ansatz": cfg.ansatz,
+                "momentum": cfg.momentum,
                 "pca_applied": split.pca_applied,
                 "n_samples_train": int(split.X_train.shape[0]),
                 "n_samples_test": int(split.X_test.shape[0]),
@@ -253,6 +283,7 @@ def run_training_job(
             "weights": result.weights,
             "bias": result.bias,
             "n_qubits": result.n_qubits,
+            "ansatz": cfg.ansatz,
             "pca_applied": split.pca_applied,
             "classes": split.classes,
             "feature_names": split.feature_names,
@@ -262,6 +293,10 @@ def run_training_job(
             "baselines": baselines_serialized,
             "decision_grid": result.final_decision_grid,
             "scatter_points": scatter_points,
+            # SU(2)-ansatz only. ``None`` for basic_ry; populated with
+            # shape (n_layers, n_qubits, 2, 2, 2) for su2_brick — the
+            # trailing axis is [real, imag] per complex matrix entry.
+            "su2_unitaries": result.su2_unitaries,
         }
         update_qml_job(
             job_id,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSolveStore } from '@/stores/solve'
 
 const solve = useSolveStore()
@@ -107,6 +107,17 @@ const PROVIDER_HELP: Record<string, ProviderHelp> = {
 // /api/keys/<provider>/test for other providers, append here.
 const TESTABLE_PROVIDERS = new Set(['originqc', 'ibm_quantum'])
 
+// Provider → public dashboard URL for account balance / usage / quota.
+// Neither pyqpanda3 nor qiskit-ibm-runtime exposes usage numbers via
+// their public SDKs in a way the platform can display inline
+// (verified 2026-07-01), so we link out to the provider's own
+// dashboard. Opens in a new tab so the user's solve session isn't
+// interrupted. Keys not in this map get no button.
+const BALANCE_URLS: Record<string, string> = {
+  originqc: 'https://qcloud.originqc.com.cn/en/computerServies',
+  ibm_quantum: 'https://quantum.ibm.com/account',
+}
+
 const addProvider = ref<'claude' | 'openai' | 'originqc' | 'ibm_quantum'>('claude')
 
 const currentHelp = computed<ProviderHelp | undefined>(
@@ -131,8 +142,45 @@ const testResult = ref<Record<string, {
   at: number
 }>>({})
 
+// Live elapsed-time hint while a test is in flight. The Origin /
+// IBM testers are documented as "~5-10 s typical" but pyqpanda3 has
+// been observed to block until the 10 s server-side cap fires; without
+// a visible elapsed timer the user sees a frozen spinner and reports
+// "backend hang" (2026-06-30 UX feedback). The ticker only runs while
+// at least one test is in flight so it costs nothing the rest of the
+// time.
+const testStartedAt = ref<Record<string, number>>({})
+const nowTick = ref(Date.now())
+let tickHandle: number | null = null
+
+function testElapsedSec(provider: string): number {
+  const start = testStartedAt.value[provider]
+  if (!start) return 0
+  return Math.floor((nowTick.value - start) / 1000)
+}
+
+watch(testing, (s) => {
+  if (s.size > 0 && tickHandle === null) {
+    tickHandle = window.setInterval(() => {
+      nowTick.value = Date.now()
+    }, 250)
+  } else if (s.size === 0 && tickHandle !== null) {
+    window.clearInterval(tickHandle)
+    tickHandle = null
+  }
+}, { deep: true })
+
+onBeforeUnmount(() => {
+  if (tickHandle !== null) {
+    window.clearInterval(tickHandle)
+    tickHandle = null
+  }
+})
+
 async function runTest(provider: string) {
-  testing.value.add(provider)
+  testing.value = new Set([...testing.value, provider])
+  testStartedAt.value = { ...testStartedAt.value, [provider]: Date.now() }
+  nowTick.value = Date.now()
   try {
     const r = await solve.testKey(provider)
     testResult.value = {
@@ -140,7 +188,11 @@ async function runTest(provider: string) {
       [provider]: { ...r, at: Date.now() },
     }
   } finally {
-    testing.value.delete(provider)
+    const next = new Set(testing.value)
+    next.delete(provider)
+    testing.value = next
+    const { [provider]: _drop, ...rest } = testStartedAt.value
+    testStartedAt.value = rest
   }
 }
 
@@ -223,6 +275,16 @@ onMounted(() => {
               </span>
             </v-list-item-subtitle>
             <template #append>
+              <span
+                v-if="testing.has(k.provider)"
+                class="text-caption text-medium-emphasis mr-2"
+                aria-live="polite"
+              >
+                Testing… {{ testElapsedSec(k.provider) }}s
+                <span v-if="testElapsedSec(k.provider) >= 8" class="text-warning">
+                  — cloud may be slow
+                </span>
+              </span>
               <v-btn
                 v-if="TESTABLE_PROVIDERS.has(k.provider)"
                 size="small"
@@ -234,6 +296,21 @@ onMounted(() => {
                 @click="runTest(k.provider)"
               >
                 Test
+              </v-btn>
+              <v-btn
+                v-if="BALANCE_URLS[k.provider]"
+                size="small"
+                variant="text"
+                prepend-icon="mdi-wallet-outline"
+                append-icon="mdi-open-in-new"
+                :href="BALANCE_URLS[k.provider]"
+                target="_blank"
+                rel="noopener"
+                :aria-label="`Open ${k.provider} balance dashboard in a new tab`"
+                :title="`Neither pyqpanda3 nor qiskit-ibm-runtime expose usage numbers via the public SDK — this opens ${k.provider}'s own dashboard where the credit / minutes info lives.`"
+                class="mr-1"
+              >
+                Balance
               </v-btn>
               <v-btn
                 icon="mdi-delete-outline"

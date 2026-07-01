@@ -30,7 +30,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -45,6 +45,23 @@ class VQCConfig:
     batch_size: int = 16
     learning_rate: float = 0.05
     seed: int = 42
+    # Ansatz selection. ``basic_ry`` is the original educational path
+    # (BasicEntanglerLayers: scalar RY per qubit + ring CNOTs, trained
+    # with Adam). ``su2_brick`` is the research-tier alternate where
+    # each per-qubit block is a full SU(2) gate and updates use the
+    # Riemannian (Stiefel-manifold) projection + polar retraction from
+    # Guo & Yang 2025, arXiv:2501.07387v2. The educational lesson runs
+    # on ``basic_ry``; ``su2_brick`` exists for research comparisons.
+    ansatz: Literal["basic_ry", "su2_brick"] = "basic_ry"
+    # Optimizer choice for the ``su2_brick`` path only. ``sgd`` is the
+    # vanilla Riemannian gradient descent in Guo & Yang's setup; ``adam``
+    # adds a per-gate first-moment buffer + scalar second moment with
+    # retraction-compatible vector transport (Becigneul & Ganea 2018).
+    # Ignored for ``basic_ry`` (which uses PennyLane's AdamOptimizer
+    # internally). Default ``sgd`` preserves the existing head-to-head
+    # numbers; flip to ``adam`` for an apples-to-apples comparison
+    # against basic_ry's Adam path.
+    momentum: Literal["sgd", "adam"] = "sgd"
 
 
 @dataclass
@@ -90,6 +107,13 @@ class TrainResult:
     # Final-epoch decision-boundary snapshot for 2-qubit jobs. ``None``
     # for higher-dim, where there is no 2D space to plot the boundary in.
     final_decision_grid: dict | None = None
+    # ``su2_brick`` ansatz only. Shape (n_layers, n_qubits, 2, 2, 2) —
+    # the trailing axis is [real, imag] for each complex entry. ``None``
+    # for the default ``basic_ry`` path, where ``weights`` carries the
+    # scalar RY angles instead. Kept separate so the existing ``weights``
+    # contract (n_layers × n_qubits scalars) isn't broken for callers
+    # that consume it directly.
+    su2_unitaries: list | None = None
 
 
 # Type alias for the per-epoch callback. The trainer fires this after
@@ -202,6 +226,17 @@ def train_vqc(
     the route layer can emit an SSE event. Setting it to ``None`` (the
     test path) runs the trainer silently.
     """
+    if config.ansatz == "su2_brick":
+        return _train_su2_brick(
+            X_train, y_train, X_test, y_test,
+            config=config,
+            on_epoch=on_epoch,
+            notes=notes,
+            decision_grid_every=decision_grid_every,
+            decision_grid_resolution=decision_grid_resolution,
+            on_decision_grid=on_decision_grid,
+        )
+
     import pennylane as qml
     from pennylane import numpy as pnp
 
@@ -319,4 +354,247 @@ def train_vqc(
         circuit_info=circuit_info,
         notes=list(notes or []),
         final_decision_grid=final_grid,
+    )
+
+
+def _serialize_unitaries(U: np.ndarray) -> list:
+    """Flatten complex (n_layers, n_qubits, 2, 2) into JSON-safe nested
+    lists of [real, imag] pairs. Shape on the wire is
+    (n_layers, n_qubits, 2, 2, 2) with the trailing axis = [re, im].
+    """
+    out: list = []
+    n_layers, n_qubits, _, _ = U.shape
+    for layer in range(n_layers):
+        layer_block: list = []
+        for q in range(n_qubits):
+            mat: list = []
+            for i in range(2):
+                row: list = []
+                for j in range(2):
+                    z = U[layer, q, i, j]
+                    row.append([float(z.real), float(z.imag)])
+                mat.append(row)
+            layer_block.append(mat)
+        out.append(layer_block)
+    return out
+
+
+def _train_su2_brick(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    *,
+    config: VQCConfig,
+    on_epoch: ProgressFn | None,
+    notes: list[str] | None,
+    decision_grid_every: int,
+    decision_grid_resolution: int,
+    on_decision_grid,
+) -> TrainResult:
+    """SU(2) brick-wall VQC trained with Riemannian gradient descent.
+
+    Per-qubit blocks are full ``QubitUnitary`` 2×2 gates (3 real DOF
+    each, parameterized as the matrix itself). After every minibatch
+    step the Euclidean gradient dL/dU is projected onto the tangent
+    space of U(2) at the current iterate and the update is mapped
+    back to the manifold via a polar retraction. The bias scalar is
+    updated with vanilla SGD because it lives in Euclidean space.
+
+    Following Guo & Yang 2025 (arXiv:2501.07387v2), eq. (4). The
+    pure-numpy primitives live in ``app.qml.ansatz_su2`` and have their
+    own unit tests; this function wires them into the PennyLane
+    AngleEmbedding → entangler → PauliZ readout pipeline that the rest
+    of the QML module is built around.
+
+    NOT a drop-in replacement for the default ``basic_ry`` path — the
+    weights serialization shape differs (see ``TrainResult.su2_unitaries``)
+    and there's no Adam momentum on the bias. Use this for research
+    comparisons, not for the introductory lesson.
+    """
+    import pennylane as qml
+    from pennylane import numpy as pnp
+
+    from app.qml.ansatz_su2 import (
+        init_near_identity,
+        retract_polar,
+        riemannian_adam_step,
+        riemannian_grad,
+    )
+
+    n_qubits = config.n_qubits
+    n_layers = config.n_layers
+    lr = config.learning_rate
+    rng = np.random.default_rng(config.seed)
+
+    dev = qml.device("default.qubit", wires=n_qubits)
+
+    @qml.qnode(dev, interface="autograd")
+    def circuit(x, unitaries):
+        qml.AngleEmbedding(x, wires=range(n_qubits), rotation="X")
+        for layer in range(n_layers):
+            for q in range(n_qubits):
+                qml.QubitUnitary(unitaries[layer, q], wires=[q])
+            # Ring-CNOT entangler (matches BasicEntanglerLayers' topology
+            # so the two ansätze are comparable depth-for-depth).
+            for q in range(n_qubits):
+                qml.CNOT(wires=[q, (q + 1) % n_qubits])
+        return qml.expval(qml.PauliZ(0))
+
+    # Initialize near identity. See init_near_identity for the rationale —
+    # Haar-random init triggers barren-plateau-flavored gradient signal.
+    U_state = np.empty((n_layers, n_qubits, 2, 2), dtype=np.complex128)
+    for layer in range(n_layers):
+        for q in range(n_qubits):
+            U_state[layer, q] = init_near_identity(rng, scale=0.1)
+    bias_val = 0.0
+
+    # Adam state — only used when config.momentum == "adam". One first-
+    # moment buffer per gate, scalar second moment per gate, single step
+    # counter. Initializing m to zeros is the standard Adam convention
+    # and is also a no-op tangent vector (so the t=1 transport is free).
+    use_adam = config.momentum == "adam"
+    adam_m = np.zeros_like(U_state) if use_adam else None
+    adam_v = np.zeros((n_layers, n_qubits)) if use_adam else None
+    adam_t = 0
+
+    def loss_fn(unitaries, bias, X_batch, y_batch):
+        eps = 1e-9
+        total = 0.0
+        for x, y in zip(X_batch, y_batch):
+            raw = circuit(x, unitaries)
+            prob = 1.0 / (1.0 + pnp.exp(-(raw + bias)))
+            prob = pnp.clip(prob, eps, 1 - eps)
+            total = total + (-(y * pnp.log(prob) + (1 - y) * pnp.log(1 - prob)))
+        return total / len(X_batch)
+
+    grad_fn = qml.grad(loss_fn, argnums=[0, 1])
+
+    history: list[dict[str, float]] = []
+    start = time.perf_counter()
+    n = X_train.shape[0]
+
+    for epoch in range(config.n_epochs):
+        perm = rng.permutation(n)
+        for start_i in range(0, n, config.batch_size):
+            batch_idx = perm[start_i:start_i + config.batch_size]
+            X_b = X_train[batch_idx]
+            y_b = y_train[batch_idx].astype(np.float64)
+
+            # PennyLane needs fresh pnp-wrapped inputs each step so the
+            # autograd tape is rebuilt — re-wrapping after the manifold
+            # update is the cleanest way to do that.
+            U_pnp = pnp.array(U_state, requires_grad=True)
+            b_pnp = pnp.array(bias_val, requires_grad=True)
+            g_U, g_b = grad_fn(U_pnp, b_pnp, X_b, y_b)
+
+            # Riemannian update on each per-qubit gate.
+            #
+            # PennyLane's autograd returns the "Wirtinger-conjugate"
+            # gradient G for real-valued loss over complex U: i.e. the
+            # tangent of f along an arbitrary dU is ``Re tr(G^T · dU)``.
+            # The Euclidean steepest-ascent direction in the Frobenius
+            # real inner product ``<A,B>_R = Re tr(A† · B)`` is therefore
+            # ``G.conj()``. Skipping this conjugation does *gradient
+            # ascent* on the loss — caught by the smoke test before the
+            # formal suite was written.
+            if use_adam:
+                adam_t += 1
+                for layer in range(n_layers):
+                    for q in range(n_qubits):
+                        U = U_state[layer, q]
+                        G = np.asarray(g_U[layer, q]).conj()
+                        U_new, m_new, v_new = riemannian_adam_step(
+                            U, G,
+                            m=adam_m[layer, q],
+                            v=float(adam_v[layer, q]),
+                            t=adam_t,
+                            lr=lr,
+                        )
+                        U_state[layer, q] = U_new
+                        adam_m[layer, q] = m_new
+                        adam_v[layer, q] = v_new
+            else:
+                for layer in range(n_layers):
+                    for q in range(n_qubits):
+                        U = U_state[layer, q]
+                        G = np.asarray(g_U[layer, q]).conj()
+                        T = riemannian_grad(U, G)
+                        U_state[layer, q] = retract_polar(U, lr * T)
+            # Euclidean SGD on the scalar bias. Adam on the bias is
+            # left as future work — empirically the bias converges
+            # fast and isn't the bottleneck on the losses we see.
+            bias_val = bias_val - lr * float(g_b)
+
+        # Whole-set eval so the curve matches what basic_ry plots.
+        train_probs = _model_predict_proba(circuit, X_train, U_state, bias_val)
+        test_probs = _model_predict_proba(circuit, X_test, U_state, bias_val)
+        epoch_metrics = {
+            "epoch": epoch + 1,
+            "loss": _binary_cross_entropy(train_probs, y_train),
+            "train_accuracy": _accuracy(train_probs, y_train),
+            "test_accuracy": _accuracy(test_probs, y_test),
+        }
+        history.append(epoch_metrics)
+        if on_epoch is not None:
+            on_epoch(epoch, epoch_metrics)
+
+        if (
+            n_qubits == 2
+            and decision_grid_every > 0
+            and on_decision_grid is not None
+            and X_train.shape[1] == 2
+            and ((epoch + 1) % decision_grid_every == 0
+                 or (epoch + 1) == config.n_epochs)
+        ):
+            grid = compute_decision_grid(
+                circuit, U_state, bias_val,
+                X_train, resolution=decision_grid_resolution,
+            )
+            on_decision_grid(epoch, grid)
+
+    final_train_probs = _model_predict_proba(circuit, X_train, U_state, bias_val)
+    final_test_probs = _model_predict_proba(circuit, X_test, U_state, bias_val)
+    train_time_ms = int((time.perf_counter() - start) * 1000)
+
+    circuit_info = CircuitInfo(
+        backend_name="PennyLane default.qubit",
+        backend_kind="statevector",
+        is_real_hardware=False,
+        n_qubits=n_qubits,
+        n_layers=n_layers,
+        # Three real DOF per SU(2) gate (the matrix has 8 reals but
+        # 5 are eaten by unitarity + global phase), plus the bias scalar.
+        n_trainable_params=3 * n_layers * n_qubits + 1,
+        encoding="AngleEmbedding (RX rotations, one per input feature)",
+        entangler="SU(2) brick-wall (Riemannian, ring CNOT)",
+        measurement="PauliZ expectation on qubit 0",
+        shots=None,
+    )
+
+    final_grid: dict | None = None
+    if n_qubits == 2 and X_train.shape[1] == 2:
+        final_grid = compute_decision_grid(
+            circuit, U_state, bias_val,
+            X_train, resolution=decision_grid_resolution,
+        )
+
+    return TrainResult(
+        final_train_accuracy=_accuracy(final_train_probs, y_train),
+        final_test_accuracy=_accuracy(final_test_probs, y_test),
+        final_loss=_binary_cross_entropy(final_train_probs, y_train),
+        history=history,
+        # `weights` is the basic_ry contract — kept empty here so any
+        # caller iterating the field sees an unambiguous "no scalar
+        # angles" rather than mismatched shape.
+        weights=[],
+        bias=float(bias_val),
+        confusion_matrix=_confusion(final_test_probs, y_test),
+        pca_applied=False,
+        n_qubits=n_qubits,
+        train_time_ms=train_time_ms,
+        circuit_info=circuit_info,
+        notes=list(notes or []),
+        final_decision_grid=final_grid,
+        su2_unitaries=_serialize_unitaries(U_state),
     )

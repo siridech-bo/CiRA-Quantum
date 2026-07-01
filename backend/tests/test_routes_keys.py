@@ -142,6 +142,44 @@ def test_put_key_rejects_empty_value(alice_session):
     assert r.status_code == 400
 
 
+# ---- /test endpoint wall-clock timeout ----
+
+def test_test_key_times_out_on_hanging_tester(
+    alice_session, monkeypatch: pytest.MonkeyPatch,
+):
+    """A tester that blocks forever (e.g., ``pyqpanda3.QCloudJob.result()``
+    waiting on a stuck Origin cloud) must NOT pin the Flask request thread.
+    Regression for the 2026-06-30 dev-server hang where pressing
+    "Test" on the OriginQC key wedged the whole server. The route wraps
+    the tester in a ThreadPoolExecutor with a wall-clock cap; on timeout
+    it returns 504 ``TIMEOUT`` and the request thread is freed."""
+    import time as _time
+
+    from app.routes import keys as keys_module
+
+    alice_session.put("/api/keys/originqc", json={"key": "dummy-key"})
+
+    def hanging_tester(_api_key: str) -> dict:
+        # Block longer than the test will wait. The real OriginQC tester
+        # blocks indefinitely inside pyqpanda3; sleeping 5 s is enough
+        # to trip the 0.5 s test cap below.
+        _time.sleep(5.0)
+        return {"ok": True}
+
+    monkeypatch.setitem(keys_module._PROVIDER_TESTERS, "originqc", hanging_tester)
+    monkeypatch.setattr(keys_module, "_TEST_KEY_WALLCLOCK_TIMEOUT_S", 0.5)
+
+    t0 = _time.perf_counter()
+    r = alice_session.post("/api/keys/originqc/test")
+    elapsed = _time.perf_counter() - t0
+
+    assert r.status_code == 504
+    assert r.json["ok"] is False
+    assert r.json["code"] == "TIMEOUT"
+    # The request must return promptly after the cap, not wait the full 5 s.
+    assert elapsed < 3.0, f"request blocked {elapsed:.1f}s, cap is 0.5s"
+
+
 def test_put_key_round_trip_decrypts_correctly():
     """The stored ciphertext must decrypt back to the original plaintext
     under the platform's KEY_ENCRYPTION_SECRET — that's the BYOK contract."""

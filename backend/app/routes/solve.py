@@ -105,6 +105,8 @@ def _launch_pipeline_in_background(
     provider_name: str,
     api_key: str,
     solvers: list[str],
+    require_approval: bool = False,
+    solver_params_overrides: dict | None = None,
 ) -> None:
     """Hand the pipeline off to the configured ``JobLauncher`` (Phase 6).
 
@@ -113,6 +115,9 @@ def _launch_pipeline_in_background(
     is set in the env, :class:`RQJobLauncher` enqueues to Redis and a
     separate ``rq worker`` process picks up the job. Either way the
     route returns immediately.
+
+    ``require_approval`` pauses the pipeline at the approval gate; see
+    ``Orchestrator.run`` for the user-flow contract.
 
     Tests monkeypatch this with a synchronous stub — exact same
     surface area as before the launcher abstraction was introduced.
@@ -127,6 +132,8 @@ def _launch_pipeline_in_background(
         problem_statement=problem_statement,
         provider_name=provider_name, api_key=api_key,
         solvers=solvers,
+        require_approval=require_approval,
+        solver_params_overrides=solver_params_overrides,
     )
 
 
@@ -198,6 +205,89 @@ def _validate_solvers(payload: dict) -> tuple[list[str], tuple]:
     return requested, ()
 
 
+# Whitelist of ``solver_params_overrides`` a client is allowed to pass.
+# The pipeline treats these as trust-me values that flow straight into
+# sampler constructors, so we gate them tightly. Currently only the
+# Origin backend selector is exposed; extend when a new per-solve knob
+# is genuinely user-facing.
+_ALLOWED_OVERRIDES: dict[str, dict[str, set]] = {
+    "qaoa_originqc": {
+        # Origin backend names. Must match one of the values the sampler
+        # actually accepts — the ``full_amplitude`` cloud simulator plus
+        # the real superconducting chips gated by
+        # ENABLE_ORIGIN_REAL_HARDWARE on the server. Adding a new
+        # backend here without adding it to the sampler's
+        # ``_REAL_HARDWARE_BACKENDS`` set will silently disable the
+        # feature flag (the sampler treats unknown backends as
+        # simulators), so the two lists must stay in sync.
+        # ``WK_C180_2`` is the second Wukong 180 chip Origin exposes;
+        # added 2026-07-01 after the original chip went into maintenance.
+        "backend_name": {
+            "full_amplitude", "WK_C180", "WK_C180_2", "HanYuan_01",
+        },
+    },
+}
+
+
+def _validate_solver_overrides(
+    payload: dict,
+) -> tuple[dict, tuple]:
+    """Parse ``payload['solver_params_overrides']`` (optional) and
+    validate against ``_ALLOWED_OVERRIDES``. Rejects unknown solver
+    names, unknown params, or values not in the per-param allow-set.
+
+    Returns ``(overrides, ())`` on success or ``({}, (error_dict, status))``
+    on failure. Empty dict is fine — the pipeline treats it as "no
+    overrides", same as absent.
+    """
+    raw = payload.get("solver_params_overrides")
+    if raw is None:
+        return {}, ()
+    if not isinstance(raw, dict):
+        return {}, ({
+            "error": "solver_params_overrides must be a dict",
+            "code": "BAD_OVERRIDES",
+        }, 400)
+    cleaned: dict[str, dict] = {}
+    for solver_name, params in raw.items():
+        if solver_name not in _ALLOWED_OVERRIDES:
+            return {}, ({
+                "error": (
+                    f"overrides for solver {solver_name!r} are not "
+                    "supported"
+                ),
+                "code": "OVERRIDE_SOLVER_DISALLOWED",
+            }, 400)
+        if not isinstance(params, dict):
+            return {}, ({
+                "error": f"overrides for {solver_name!r} must be a dict",
+                "code": "BAD_OVERRIDES",
+            }, 400)
+        allowed_params = _ALLOWED_OVERRIDES[solver_name]
+        clean_params: dict = {}
+        for k, v in params.items():
+            if k not in allowed_params:
+                return {}, ({
+                    "error": (
+                        f"override {solver_name}.{k} is not on the "
+                        "allow-list"
+                    ),
+                    "code": "OVERRIDE_PARAM_DISALLOWED",
+                }, 400)
+            if v not in allowed_params[k]:
+                return {}, ({
+                    "error": (
+                        f"override {solver_name}.{k}={v!r} is not one "
+                        f"of the allowed values"
+                    ),
+                    "code": "OVERRIDE_VALUE_DISALLOWED",
+                }, 400)
+            clean_params[k] = v
+        if clean_params:
+            cleaned[solver_name] = clean_params
+    return cleaned, ()
+
+
 # ---- POST /api/solve ---------------------------------------------------------
 
 
@@ -232,20 +322,83 @@ def solve():
         body, status = err
         return jsonify(body), status
 
+    require_approval = bool(payload.get("require_approval", False))
+
+    overrides, err = _validate_solver_overrides(payload)
+    if err:
+        body, status = err
+        return jsonify(body), status
+
     job_id = create_job(
         user["id"], statement, provider,
         solvers_requested=json.dumps(solvers),
     )
+    # Persist overrides on job creation so the row reflects the intent
+    # even before the pipeline thread starts (visible in job detail /
+    # history immediately). Skipped when empty to avoid noise.
+    if overrides:
+        from app.models import update_job as _update
+        _update(job_id, solver_params_overrides=json.dumps(overrides))
+
     _launch_pipeline_in_background(
         job_id=job_id, user_id=user["id"],
         problem_statement=statement,
         provider_name=provider, api_key=api_key or "",
         solvers=solvers,
+        require_approval=require_approval,
+        solver_params_overrides=overrides,
     )
 
     # The Phase-5 frontend's solve store reads .job.id then opens SSE.
     job = get_job(job_id, user_id=user["id"])
     return jsonify({"success": True, "job": _public_job(job)})
+
+
+# ---- POST /api/jobs/<id>/approve --------------------------------------------
+
+
+@solve_bp.route("/jobs/<job_id>/approve", methods=["POST"])
+@login_required
+def approve_job(job_id: str):
+    """Resume a paused (``awaiting_approval``) job at stage 4.
+
+    The user has reviewed the LLM-emitted CQM + preflight summary and
+    is committing to a solve. This endpoint launches a fresh background
+    thread that calls :meth:`Orchestrator.resume_after_approval`. The
+    bus reopens, the frontend re-subscribes to the SSE stream, and
+    progress continues exactly as if the approval gate hadn't been there.
+    """
+    user = get_current_user()
+    job = get_job(job_id, user_id=user["id"])
+    if job is None:
+        return jsonify({"error": "job not found", "code": "NOT_FOUND"}), 404
+    if job.get("status") != "awaiting_approval":
+        return jsonify({
+            "error": (
+                f"job is in status {job.get('status')!r}; "
+                "only awaiting_approval jobs can be approved"
+            ),
+            "code": "WRONG_STATUS",
+        }), 409
+
+    from app.pipeline.launcher import get_launcher
+    launcher = get_launcher(
+        orchestrator_factory=Orchestrator,
+        event_bus=get_event_bus(),
+    )
+    try:
+        launcher.resume_after_approval(
+            job_id=job_id, user_id=user["id"],
+        )
+    except NotImplementedError as e:
+        return jsonify({
+            "error": str(e),
+            "code": "LAUNCHER_UNSUPPORTED",
+        }), 501
+
+    # Refresh + return so the frontend sees the new status transition.
+    updated = get_job(job_id, user_id=user["id"])
+    return jsonify({"success": True, "job": _public_job(updated)})
 
 
 # ---- GET /api/jobs[/...] -----------------------------------------------------
@@ -259,7 +412,8 @@ def _public_job(job: dict[str, Any] | None) -> dict[str, Any] | None:
     out = dict(job)
     for column in (
         "cqm_json", "variable_registry", "validation_report", "solution",
-        "solver_results", "solvers_requested",
+        "solver_results", "solvers_requested", "preflight",
+        "solver_params_overrides",
     ):
         if out.get(column):
             try:
@@ -323,7 +477,16 @@ def job_stream(job_id: str):
         # SSE wire format: ``event: <type>\ndata: <json>\n\n``. The type
         # is always ``status``; the data dict carries the status string +
         # any extra fields (num_variables, solve_time_ms, error, …).
+        # Heartbeats from EventBus get translated to SSE comment lines
+        # — browsers ignore comment-only chunks, so the frontend status
+        # listener doesn't see them, but Werkzeug still attempts a write
+        # which lets it notice a disconnected client and free the
+        # request thread.
+        from app.pipeline.events import HEARTBEAT_MARKER
         for event in bus.subscribe(job_id):
+            if event.get(HEARTBEAT_MARKER):
+                yield ": heartbeat\n\n"
+                continue
             yield "event: status\n"
             yield f"data: {json.dumps(event)}\n\n"
 

@@ -21,6 +21,50 @@ const selectedSolvers = ref<string[]>([])
 const submitError = ref<string | null>(null)
 const submitting = ref(false)
 
+// Origin backend selector — only meaningful when qaoa_originqc is in
+// the picked solver set. ``full_amplitude`` is the free cloud simulator
+// and matches the sampler's default; the two real superconducting
+// options both require paid Origin credits AND the server-side
+// ENABLE_ORIGIN_REAL_HARDWARE flag (checked by the sampler; a missing
+// flag surfaces as a clean error row in the comparison table).
+const ORIGIN_BACKENDS = [
+  {
+    value: 'full_amplitude',
+    title: 'Simulator (full_amplitude) — free, ~2 s',
+    real: false,
+  },
+  {
+    value: 'WK_C180_2',
+    title: 'Wukong 180-2 (WK_C180_2) — paid, queued',
+    real: true,
+  },
+  {
+    value: 'WK_C180',
+    title: 'Wukong 180 (WK_C180) — paid, queued',
+    real: true,
+  },
+  {
+    value: 'HanYuan_01',
+    title: 'Hanyuan QPU (HanYuan_01) — paid, queued',
+    real: true,
+  },
+] as const
+const originBackend = ref<
+  'full_amplitude' | 'WK_C180' | 'WK_C180_2' | 'HanYuan_01'
+>('full_amplitude')
+const shouldShowOriginBackend = computed(
+  () => selectedSolvers.value.includes('qaoa_originqc'),
+)
+const originBackendIsReal = computed(
+  () => ORIGIN_BACKENDS.find((b) => b.value === originBackend.value)?.real === true,
+)
+// Pause the pipeline after stage 3 (LLM formulation + validation) so
+// the user can review the CQM + lowered-qubit estimate before any
+// solver burns time. Default on for the demo flow — the platform has
+// shipped jobs where the LLM's choice of encoding silently inflated
+// the qubit count and skipped every QAOA tier.
+const requireApproval = ref(true)
+
 const charCount = computed(() => statement.value.length)
 const overLength = computed(() => charCount.value > MAX_LEN)
 
@@ -64,12 +108,24 @@ async function submit() {
   submitError.value = null
   submitting.value = true
   try {
+    // Only send the override when it deviates from the sampler's own
+    // default; the empty case would work identically on the backend
+    // but keeps the payload cleaner.
+    const overrides: Record<string, Record<string, string | number>> = {}
+    if (
+      selectedSolvers.value.includes('qaoa_originqc')
+      && originBackend.value !== 'full_amplitude'
+    ) {
+      overrides.qaoa_originqc = { backend_name: originBackend.value }
+    }
     await solve.submitProblem({
       problem_statement: statement.value,
       provider: provider.value,
       use_stored_key: useStoredKey.value,
       ...(useStoredKey.value ? {} : { api_key: apiKey.value }),
       solvers: selectedSolvers.value,
+      require_approval: requireApproval.value,
+      ...(Object.keys(overrides).length ? { solver_params_overrides: overrides } : {}),
     })
   } catch (e: any) {
     submitError.value = e?.response?.data?.error || e?.message || 'Submit failed'
@@ -79,6 +135,13 @@ async function submit() {
 }
 
 onMounted(async () => {
+  // If the user just clicked "Try this example" in the template gallery,
+  // the modal stashed the template's problem statement here. Consume it
+  // and clear, so reopening /solve later doesn't keep pre-filling.
+  if (solve.draftStatement) {
+    statement.value = solve.draftStatement
+    solve.draftStatement = ''
+  }
   // Best-effort: surface stored keys so the "use stored" checkbox starts
   // in the right position.
   try {
@@ -160,6 +223,61 @@ onMounted(async () => {
     <div class="mt-4">
       <SolverPicker v-model="selectedSolvers" />
     </div>
+
+    <div v-if="shouldShowOriginBackend" class="mt-3">
+      <v-select
+        v-model="originBackend"
+        :items="ORIGIN_BACKENDS"
+        item-title="title"
+        item-value="value"
+        label="Origin backend for qaoa_originqc"
+        density="comfortable"
+        prepend-inner-icon="mdi-atom-variant"
+        hide-details
+      />
+      <v-alert
+        v-if="originBackendIsReal"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        icon="mdi-currency-usd"
+        class="mt-2"
+      >
+        <div class="text-body-2">
+          <strong>Real QPU selected.</strong>
+          Origin bills <strong>compute time only</strong> (typically a
+          few seconds per solve) — queue wait is a latency concern, not
+          a cost concern. You'll see an exact compute-time range on
+          the approval screen. Verify your balance in
+          <a
+            href="https://qcloud.originqc.com.cn/en/computerServies"
+            target="_blank"
+            rel="noopener"
+            class="text-warning"
+          >Origin's dashboard</a>
+          before submitting. The server-side
+          <code>ENABLE_ORIGIN_REAL_HARDWARE</code> flag must also be
+          set — if it isn't, the qaoa_originqc row will surface an
+          error message telling you what to do.
+        </div>
+      </v-alert>
+    </div>
+
+    <v-checkbox
+      v-model="requireApproval"
+      density="comfortable"
+      hide-details
+      class="mt-2"
+    >
+      <template #label>
+        <span class="text-body-2">
+          Review the LLM's formulation before solving
+          <span class="text-caption text-medium-emphasis">
+            (recommended — catches QAOA-incompatible encodings before solvers run)
+          </span>
+        </span>
+      </template>
+    </v-checkbox>
 
     <v-alert v-if="submitError" type="error" variant="tonal" class="mt-3">
       {{ submitError }}

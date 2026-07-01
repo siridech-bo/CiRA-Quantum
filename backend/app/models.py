@@ -124,6 +124,21 @@ def init_db() -> None:
         if "solvers_requested" not in existing_columns:
             cursor.execute("ALTER TABLE jobs ADD COLUMN solvers_requested TEXT")
 
+        # 2026-06-30 approval gate — preflight summary the orchestrator
+        # writes after compile + validate so the approval UI can show
+        # lowered qubit count + per-QAOA-tier verdict before the user
+        # commits to a solve.
+        if "preflight" not in existing_columns:
+            cursor.execute("ALTER TABLE jobs ADD COLUMN preflight TEXT")
+
+        # 2026-07-01 per-solve overrides — currently used for the Origin
+        # backend selector (Simulator / Wukong / Hanyuan). Persisted so
+        # the approval-gate resume path picks up the same choice the
+        # user made pre-pause. JSON-encoded dict shaped like
+        # ``{solver_name: {param: value}}``.
+        if "solver_params_overrides" not in existing_columns:
+            cursor.execute("ALTER TABLE jobs ADD COLUMN solver_params_overrides TEXT")
+
         # QML-6: per-provider state on QPU runs (e.g. Origin's
         # sample_index — which test point we evaluated). IBM ignores it
         # because it batches the whole test set. Idempotent ALTER so

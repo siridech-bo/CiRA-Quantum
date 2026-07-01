@@ -27,7 +27,22 @@ import threading
 from collections.abc import Iterator
 from typing import Any
 
-_TERMINAL_STATUSES = frozenset({"complete", "error"})
+_TERMINAL_STATUSES = frozenset({"complete", "error", "awaiting_approval"})
+
+# How long ``subscribe()`` blocks on a single ``queue.get()`` before
+# yielding a heartbeat. Heartbeats let the SSE handler write to the
+# response stream periodically, which is how Werkzeug detects a
+# disconnected client and reclaims the request thread. Without this,
+# a stuck producer (e.g., an orchestrator crashed without emitting
+# terminal) would pin Flask threads forever — exactly the hang we hit
+# on 2026-06-30. 15 s is short enough that dead clients are noticed
+# quickly and long enough that healthy clients don't see noisy traffic.
+_HEARTBEAT_INTERVAL_S: float = 15.0
+
+# Sentinel marker for heartbeat events. The SSE handler turns these
+# into ``: heartbeat\n\n`` comment lines (which browsers ignore) so the
+# frontend's status handler never sees them.
+HEARTBEAT_MARKER = "_heartbeat"
 
 
 class _JobChannel:
@@ -58,6 +73,17 @@ class EventBus:
                 ch = _JobChannel()
                 self._channels[job_id] = ch
             return ch
+
+    def reset_channel(self, job_id: str) -> None:
+        """Wipe any existing channel state for ``job_id`` so future
+        :meth:`emit` calls land on a fresh history. Used by the approval
+        gate when resuming a paused job — the prior session emitted a
+        terminal ``awaiting_approval`` event that closed the channel,
+        and the resume's stages need a clean bus session so their
+        events aren't silently dropped by ``if ch.closed: return`` in
+        emit()."""
+        with self._channels_lock:
+            self._channels.pop(job_id, None)
 
     def emit(self, job_id: str, status: str, **fields: Any) -> None:
         """Push an event into ``job_id``'s queue. Replayed by any later
@@ -97,9 +123,24 @@ class EventBus:
             return
 
         # Drain anything new that landed after the snapshot, then keep
-        # blocking until the terminal event arrives.
+        # blocking until the terminal event arrives. Use a heartbeat
+        # timeout so a stuck producer (or a forever-queued job whose
+        # orchestrator thread silently died) can't pin this consumer's
+        # thread indefinitely — the heartbeat yields let the SSE
+        # handler write to the response stream periodically, which is
+        # how Werkzeug detects disconnected clients.
+        import queue as _queue_mod
+
         while True:
-            event = ch.queue.get()
+            try:
+                event = ch.queue.get(timeout=_HEARTBEAT_INTERVAL_S)
+            except _queue_mod.Empty:
+                # No event in the heartbeat window — emit a sentinel
+                # the SSE handler turns into a comment line. Browsers
+                # ignore comment-only SSE chunks; the frontend's status
+                # listener never sees them.
+                yield {HEARTBEAT_MARKER: True}
+                continue
             if event is None:
                 # Sentinel posted by emit() after terminal status — return.
                 return
@@ -142,6 +183,19 @@ class RedisEventBus:
     def _stream_key(job_id: str) -> str:
         return f"cira:events:{job_id}"
 
+    def reset_channel(self, job_id: str) -> None:
+        """Delete the underlying Redis Stream for ``job_id`` so the
+        next ``emit`` starts a fresh stream. Same semantics as
+        :meth:`EventBus.reset_channel` — used by the approval gate's
+        resume path so post-approval events don't replay alongside
+        the pre-approval history."""
+        try:
+            self._r.delete(self._stream_key(job_id))
+        except Exception:  # noqa: BLE001
+            # Redis unreachable / transient — the worst case is the
+            # next SSE subscriber sees stale history; not worth raising.
+            pass
+
     def emit(self, job_id: str, status: str, **fields: Any) -> None:
         event = {"job_id": job_id, "status": status, **fields}
         payload = self._json.dumps(event)
@@ -164,10 +218,14 @@ class RedisEventBus:
             # whether the client has disconnected.
             entries = self._r.xread({key: last_id}, block=30_000, count=64)
             if not entries:
-                # No events in 30 s — yield a heartbeat-style placeholder
-                # so the SSE handler can detect a disconnected client
-                # and the iterator doesn't appear hung. Subscribers
-                # filter these out by checking ``event.get("status")``.
+                # No events in 30 s — yield a heartbeat sentinel so the
+                # SSE handler can write a comment line to the response
+                # stream, which is how Werkzeug detects a disconnected
+                # client. (Fixed 2026-06-30 — this branch previously
+                # only ``continue``d, which kept the connection alive
+                # in Redis but never yielded to the Flask SSE handler,
+                # so dead clients still leaked threads.)
+                yield {HEARTBEAT_MARKER: True}
                 continue
             # entries: [(stream_key_bytes, [(entry_id_bytes, {b"data": b"..."}), ...])]
             for _stream_name, items in entries:

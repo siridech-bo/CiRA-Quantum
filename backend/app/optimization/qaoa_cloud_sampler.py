@@ -74,7 +74,12 @@ import numpy as np
 
 # Backends that count as "real superconducting hardware" — accessing
 # these requires the ENABLE_ORIGIN_REAL_HARDWARE feature flag.
-_REAL_HARDWARE_BACKENDS = frozenset({"WK_C180", "HanYuan_01"})
+#
+# ``WK_C180_2`` was added 2026-07-01 after the original ``WK_C180`` +
+# ``HanYuan_01`` both went into maintenance; the SDK enumeration
+# (``QCloudService.backends()``) returned it alongside the older ones,
+# and Origin's dashboard shows it as the second Wukong 180 chip.
+_REAL_HARDWARE_BACKENDS = frozenset({"WK_C180", "WK_C180_2", "HanYuan_01"})
 _DEFAULT_CLOUD_URL = "http://pyqanda-admin.qpanda.cn"
 _DEFAULT_BACKEND = "full_amplitude"  # cheap cloud simulator
 

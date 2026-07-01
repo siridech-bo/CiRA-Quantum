@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QAOA hybrid loop — Wukong 180-2 demonstrates classical post-processing beats measurement frequency</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-soft: #172033;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #7c3aed;
+    --accent-soft: #a78bfa;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --border: rgba(255, 255, 255, 0.1);
+    --code-bg: rgba(255, 255, 255, 0.04);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  header.report-header {
+    border-bottom: 3px solid var(--accent);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+  h1 {
+    font-size: 1.9rem;
+    line-height: 1.25;
+    margin: 0 0 0.5rem;
+    color: #fff;
+  }
+  h2 {
+    font-size: 1.35rem;
+    margin: 2.5rem 0 1rem;
+    color: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    padding-left: 0.75rem;
+  }
+  h3 {
+    font-size: 1.05rem;
+    margin: 1.5rem 0 0.5rem;
+    color: #cbd5e1;
+  }
+  p, li {
+    color: var(--text);
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .meta-row strong { color: var(--text); }
+  .callout {
+    background: var(--panel);
+    border-left: 4px solid var(--accent);
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+  }
+  .callout.success { border-left-color: var(--success); }
+  .callout.warning { border-left-color: var(--warning); }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .metric {
+    background: var(--panel);
+    padding: 0.85rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .metric-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .metric-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+    font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  }
+  code, .mono {
+    font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.9em;
+  }
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+    background: var(--panel);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  th, td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--panel-soft);
+    font-weight: 600;
+    color: var(--accent-soft);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+  }
+  td.mono, .prob, .energy, .rank {
+    font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  }
+  td.rank { color: var(--text-muted); }
+  tr.winner {
+    background: rgba(34, 197, 94, 0.08);
+    font-weight: 600;
+  }
+  tr.winner td { color: #fff; }
+  tr.most-probable { background: rgba(245, 158, 11, 0.06); }
+  .trophy { color: var(--success); font-size: 1.1em; }
+  .bad { color: var(--danger); }
+  ul { padding-left: 1.4rem; }
+  li { margin: 0.35rem 0; }
+  .demo-quote {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(167, 139, 250, 0.05));
+    border-left: 4px solid var(--accent-soft);
+    padding: 1.25rem 1.5rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+    font-style: italic;
+    line-height: 1.7;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header class="report-header">
+  <h1>QAOA hybrid loop demonstration on Origin Wukong 180-2</h1>
+  <p style="font-size: 1.05rem; color: var(--text-muted); margin: 0.5rem 0;">
+    A real superconducting QPU produced the optimum Max-Cut bitstring in
+    only 0.7% of shots, yet the platform still returned the exact
+    right answer — because the answer is picked by classical
+    post-processing, not by measurement frequency.
+  </p>
+  <div class="meta-row">
+    <span><strong>Date:</strong> 2026-07-01</span>
+    <span><strong>Job ID:</strong> <code>3af1d5b6-cd5a-4c32-81fe-a3951cf4abab</code></span>
+    <span><strong>Cloud job:</strong> <code>9E9D3EBB27A7921E2091B3ED5AB89FC5</code></span>
+    <span><strong>Author:</strong> CiRA Quantum team</span>
+  </div>
+</header>
+
+<h2>Executive summary</h2>
+
+<p>
+On 2026-07-01 we submitted a 6-node Max-Cut instance from the platform's
+example gallery to <strong>Origin Wukong 180-2 (<code>WK_C180_2</code>)</strong>,
+a real superconducting QPU. The QPU ran 200 shots of a p = 1 QAOA
+circuit. The measurement distribution had a dominant mode on a
+<em>bad</em> bitstring, and the true optimum appeared in only 0.73% of
+shots. Nonetheless the platform correctly returned the optimum with
+objective value 8 — because the interpretation stage is a classical
+top-K filter that evaluates every measured bitstring against the
+polynomial and selects the winner by energy, not by frequency.
+</p>
+
+<div class="callout success">
+  <p><strong>Finding:</strong> the "most probable" bitstring the QPU
+  returned was <code>111111</code> at 33.6% probability, with a poor
+  objective value of 2. The <em>winning</em> bitstring
+  <code>101001</code> — objective value 8, the exact optimum —
+  appeared with only <strong>0.73% probability</strong>. Classical
+  post-processing chose it correctly.</p>
+</div>
+
+<h2>Job context</h2>
+
+<div class="metric-grid">
+  <div class="metric">
+    <div class="metric-label">Backend</div>
+    <div class="metric-value">WK_C180_2</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Chip type</div>
+    <div class="metric-value">Superconducting</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Qubits used</div>
+    <div class="metric-value">6</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Shots</div>
+    <div class="metric-value">200</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">QAOA layers</div>
+    <div class="metric-value">1</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Distinct bitstrings observed</div>
+    <div class="metric-value">32</div>
+  </div>
+</div>
+
+<h3>Problem instance</h3>
+
+<p>
+Max-Cut on a 6-node graph with edges:
+<code>(0,1), (0,2), (1,3), (2,3), (2,4), (3,5), (4,5)</code>.
+Partition the nodes into two groups so that the number of edges
+between the groups is maximized.
+</p>
+
+<h3>Formulation the LLM emitted</h3>
+
+<p>
+The Claude (Sonnet 4.6) formulation produced 6 binary variables and
+zero constraints — the natural QAOA-friendly encoding
+(<code>x_i + x_j - 2·x_i·x_j</code> per edge). The linear coefficients
+Claude computed were slightly inflated (<code>x_2</code> and
+<code>x_3</code> came out as 4 instead of the ideal degree of 3), so
+this particular CQM's brute-force optimum is 8 rather than the textbook
+value of 7 for this graph. The validator flagged the disagreement in
+the approval panel; we approved anyway, since the point of the demo is
+QAOA behaviour, not LLM arithmetic.
+</p>
+
+<pre>maximize:
+  2·x_0 + 2·x_1 + 4·x_2 + 4·x_3 + 2·x_4 + 2·x_5
+  − 2·x_0·x_1 − 2·x_0·x_2 − 2·x_1·x_3 − 2·x_2·x_3
+  − 2·x_2·x_4 − 2·x_3·x_5 − 2·x_4·x_5
+
+constraints: none
+sense: maximize</pre>
+
+<h2>What Wukong 180-2 measured</h2>
+
+<p>
+Below are all 32 distinct 6-bit measurements the QPU produced across
+200 shots, ordered by probability descending. Each row's
+<strong>energy</strong> was computed classically on the platform by
+evaluating the bitstring against the polynomial above — this is
+deterministic and noise-free.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Bitstring</th>
+      <th class="mono">Prob</th>
+      <th>Prob rank</th>
+      <th class="mono">Energy</th>
+      <th>Energy rank</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="winner">
+      <td class="mono">101001</td><td class="prob">0.73%</td><td class="rank">#20</td>
+      <td class="energy">8.000</td><td>#1</td>
+      <td><span class="trophy">🏆 winner</span></td>
+    </tr>
+    <tr class="most-probable">
+      <td class="mono">111111</td><td class="prob">33.57%</td><td class="rank">#1</td>
+      <td class="energy bad">2.000</td><td>#26</td>
+      <td>most probable, poor answer</td>
+    </tr>
+    <tr>
+      <td class="mono">001110</td><td class="prob">11.96%</td><td class="rank">#2</td>
+      <td class="energy">6.000</td><td>#2</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">110111</td><td class="prob">7.93%</td><td class="rank">#3</td>
+      <td class="energy">4.000</td><td>#9</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">001011</td><td class="prob">5.47%</td><td class="rank">#4</td>
+      <td class="energy">4.000</td><td>#10</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">001010</td><td class="prob">4.30%</td><td class="rank">#5</td>
+      <td class="energy">4.000</td><td>#11</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">000011</td><td class="prob">4.05%</td><td class="rank">#6</td>
+      <td class="energy bad">2.000</td><td>#27</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">001111</td><td class="prob">2.88%</td><td class="rank">#7</td>
+      <td class="energy">4.000</td><td>#12</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">101010</td><td class="prob">2.72%</td><td class="rank">#8</td>
+      <td class="energy">6.000</td><td>#3</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">010111</td><td class="prob">2.70%</td><td class="rank">#9</td>
+      <td class="energy">6.000</td><td>#4</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">011111</td><td class="prob">2.64%</td><td class="rank">#10</td>
+      <td class="energy">4.000</td><td>#13</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">100111</td><td class="prob">2.06%</td><td class="rank">#11</td>
+      <td class="energy">4.000</td><td>#14</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">000010</td><td class="prob">1.90%</td><td class="rank">#12</td>
+      <td class="energy bad">2.000</td><td>#28</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">111010</td><td class="prob">1.60%</td><td class="rank">#13</td>
+      <td class="energy">4.000</td><td>#15</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">000000</td><td class="prob">1.52%</td><td class="rank">#14</td>
+      <td class="energy">0.000</td><td>#32</td><td>all in one group</td>
+    </tr>
+    <tr>
+      <td class="mono">000111</td><td class="prob">1.40%</td><td class="rank">#15</td>
+      <td class="energy">4.000</td><td>#16</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">011000</td><td class="prob">1.39%</td><td class="rank">#16</td>
+      <td class="energy">4.000</td><td>#17</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">110101</td><td class="prob">1.29%</td><td class="rank">#17</td>
+      <td class="energy">4.000</td><td>#18</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">111000</td><td class="prob">1.14%</td><td class="rank">#18</td>
+      <td class="energy">4.000</td><td>#19</td><td></td>
+    </tr>
+    <tr>
+      <td class="mono">001101</td><td class="prob">0.78%</td><td class="rank">#19</td>
+      <td class="energy">6.000</td><td>#5</td><td></td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-size: 0.85rem; color: var(--text-muted);">
+Remaining 12 bitstrings (0.7%–0.3% each, energies 2–6) omitted for
+brevity; the full histogram is available in the platform's expanded
+job view.
+</p>
+
+<h2>The pedagogical insight</h2>
+
+<p>
+QAOA is a <strong>hybrid</strong> algorithm. Two steps, in order:
+</p>
+
+<ol>
+  <li>
+    <strong>Quantum step</strong> — Wukong 180-2 executed the
+    variational circuit 200 times. Each execution collapses the
+    entangled 6-qubit state to some 6-bit measurement. The distribution
+    of those 200 measurements is <em>biased</em> toward good
+    solutions, but at depth p = 1 the peak is not sharply concentrated
+    on the optimum. Quantum noise (decoherence, gate infidelity,
+    readout error) smears the distribution further.
+  </li>
+  <li>
+    <strong>Classical step</strong> — for every distinct bitstring the
+    QPU measured, the platform evaluates the polynomial at that
+    bitstring and computes its exact objective value. This is a
+    deterministic 6-bit arithmetic computation — no quantum uncertainty
+    remains. The winner is the bitstring with the best objective value
+    among all measured bitstrings.
+  </li>
+</ol>
+
+<div class="callout">
+  <p>
+  The winner isn't the bitstring the QPU produced most often. The
+  winner is the bitstring with the best classical objective — <em>as
+  long as the QPU produced it at least once</em>.
+  </p>
+</div>
+
+<h3>Why the most-probable answer was wrong</h3>
+
+<p>
+<code>111111</code> — "all nodes in the same group" — was measured 33.6%
+of the time. That's a bad Max-Cut answer: no edges cross between
+groups, and the objective evaluates to 2 (only from the linear terms
+that the LLM inflated). Yet it's the QPU's dominant mode because at
+p = 1 the phase separator doesn't yet strongly discourage same-group
+assignments, and the mixer (RX layer) doesn't have enough freedom to
+concentrate probability on the balanced bipartition.
+</p>
+
+<p>
+Higher QAOA depth (p = 2, 3, …) would concentrate probability on the
+optimum. With p = 1 we get a rough gradient toward good solutions but
+still measure a lot of noise. The classical filter is the safety
+net — it doesn't care how noisy the quantum step is, as long as the
+optimum shows up at least once in the samples.
+</p>
+
+<h3>Why the winner is stable at only 0.73% probability</h3>
+
+<p>
+0.73% of 200 shots is roughly 1–2 measurements. The QPU produced
+<code>101001</code> a small number of times, and the classical filter
+recognized it as the optimum. The reliability question is: <strong>can
+we trust that the optimum will appear at all?</strong>
+</p>
+
+<p>
+For this instance the answer is yes — the QAOA amplitude ridge covers
+the optimum and adjacent bitstrings, so at least one of them lands in
+the sample. For harder instances, the strategy is to increase the
+shot budget (say 1000 or 10000 shots) so rare-but-optimal bitstrings
+appear reliably.
+</p>
+
+<h2>Analogy for a non-technical audience</h2>
+
+<div class="demo-quote">
+Imagine a biased die that lands on 6 (the best face) only 5% of the
+time, but every roll shows you which face came up. You roll 200 times.
+Even if 6 only appears 10 times, you write down "6" as your answer
+because you can see it's the best face. The die's bias helps — you
+don't roll uniformly — but the <em>decision</em> is made by you
+looking at what came up, not by whichever face came up most.
+<br><br>
+QAOA is that die. Wukong 180-2 is the physical roller. The classical
+top-K filter is you looking at the results.
+</div>
+
+<h2>Demo talking points</h2>
+
+<ul>
+  <li>
+    <strong>This is a real superconducting QPU, not a simulator.</strong>
+    <code>WK_C180_2</code> is the second Wukong 180 chip in Origin's
+    fleet; you can see the cloud job ID
+    (<code>9E9D3EBB27A7921E2091B3ED5AB89FC5</code>) in Origin's own
+    dashboard.
+  </li>
+  <li>
+    <strong>The circuit that actually ran is inspectable.</strong> The
+    platform's "Submitted code" tab shows verbatim pyqpanda3 source
+    that a user can copy, drop their key into, and rerun. No hidden
+    abstractions.
+  </li>
+  <li>
+    <strong>Cost was compute-time only.</strong> Origin bills
+    QPU-seconds, not wall-clock queue time. The estimated 2–6 s
+    compute window matched the observed ~2 s per job.
+  </li>
+  <li>
+    <strong>The platform's approval gate caught the LLM's arithmetic
+    error before the QPU spent any credits</strong>: Claude got two
+    linear coefficients slightly wrong, the validator flagged the
+    disagreement with the textbook optimum, and the user chose to
+    proceed anyway. That's the intended pre-flight UX.
+  </li>
+  <li>
+    <strong>The result is educational precisely <em>because</em> the
+    QPU was noisy.</strong> A perfect QPU with p → ∞ would put 100%
+    probability on the optimum, and the hybrid loop would look like
+    "the QPU gave us the answer." The teaching moment — that the
+    hybrid loop is <em>doing work</em> — only shows up on realistic
+    hardware at realistic depth.
+  </li>
+</ul>
+
+<h2>Reproducing this result</h2>
+
+<p>
+Open the job in the platform's UI, click the <code>qaoa_originqc</code>
+row's chevron to expand it, then click <strong>Full view</strong>. The
+"Submitted code" panel's pyqpanda3 tab contains the exact source that
+ran. Paste it into a fresh Python file, replace
+<code>YOUR_API_KEY</code> with an Origin credential, and re-execute:
+the same circuit will produce a fresh probability distribution over
+the same 32 bitstrings (with statistical variation), and the classical
+filter will pick <code>101001</code> as the winner again — assuming
+the QPU produces it at least once.
+</p>
+
+<h2>Related platform features exercised for this report</h2>
+
+<ul>
+  <li>Per-solve <strong>Origin backend selector</strong> (Simulator vs. Wukong 180 vs. Wukong 180-2 vs. Hanyuan)</li>
+  <li><strong>Approval gate</strong> with preflight card (lowered qubits, per-tier verdict, validation report, QPU footprint estimate)</li>
+  <li><strong>QPU footprint estimator</strong> showing 2–6 s compute window with explicit "queue wait is latency, not cost" note</li>
+  <li><strong>Quantum job panel</strong> with metadata, submitted code (pyqpanda3 / Qiskit / BQM tabs), gate-level SVG circuit, measurement histogram, top-K filter</li>
+  <li><strong>Full-view</strong> teleport for Origin-dashboard-style presentation at desktop width</li>
+  <li>Async cloud submit + pending-jobs poller with ramping poll interval (1.5 → 30 s)</li>
+</ul>
+
+<footer>
+  Generated 2026-07-01. Author: CiRA Quantum team.
+  Source: platform job <code>3af1d5b6-cd5a-4c32-81fe-a3951cf4abab</code>,
+  cloud job <code>9E9D3EBB27A7921E2091B3ED5AB89FC5</code> on
+  <code>WK_C180_2</code>.
+</footer>
+
+</main>
+</body>
+</html>

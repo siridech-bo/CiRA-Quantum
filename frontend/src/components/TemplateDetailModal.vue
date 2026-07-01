@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTemplatesStore, type TemplateDetail } from '@/stores/templates'
+import type { TemplateDetail } from '@/stores/templates'
 import { useSolveStore } from '@/stores/solve'
 
 const props = defineProps<{
@@ -10,21 +10,10 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
 
-const templates = useTemplatesStore()
 const solve = useSolveStore()
 const router = useRouter()
 
-const provider = ref<'claude' | 'openai' | 'local'>('claude')
-const useStoredKey = ref(true)
-const inlineKey = ref('')
-const submitting = ref(false)
-const error = ref<string | null>(null)
 const justCopied = ref(false)
-
-const hasStoredKey = computed(() => {
-  if (provider.value === 'local') return true
-  return solve.keys.some((k) => k.provider === provider.value)
-})
 
 function close() {
   emit('update:modelValue', false)
@@ -40,26 +29,16 @@ function copyProblem() {
     })
 }
 
-async function tryThis() {
+// Stage the template's problem statement in the solve store, then send
+// the user to /solve where ProblemInput consumes it on mount. We don't
+// auto-submit — the user picks a provider, key, and solvers in the main
+// form and clicks Solve when they're ready. That avoids the silent
+// "button disabled because no stored key" trap the modal used to have.
+function tryThis() {
   if (!props.template) return
-  error.value = null
-  submitting.value = true
-  try {
-    const job = await templates.solveFromTemplate(props.template.id, {
-      provider: provider.value,
-      use_stored_key: useStoredKey.value,
-      ...(useStoredKey.value ? {} : { api_key: inlineKey.value }),
-    })
-    // Subscribe the solve store to live status, and navigate to the
-    // job-detail page so the user sees the timeline.
-    await solve.subscribeToJob(job.id)
-    close()
-    router.push(`/jobs/${job.id}`)
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || e?.message || 'submit failed'
-  } finally {
-    submitting.value = false
-  }
+  solve.draftStatement = props.template.problem_statement
+  close()
+  router.push('/solve')
 }
 </script>
 
@@ -161,54 +140,6 @@ async function tryThis() {
             </v-chip>
           </div>
         </v-card>
-
-        <v-divider class="my-3" />
-
-        <div class="text-subtitle-2 mb-2">Run this example</div>
-        <v-row no-gutters class="ga-3">
-          <v-col cols="12" sm="6">
-            <v-select
-              v-model="provider"
-              :items="[
-                { value: 'claude', title: 'Claude (Sonnet 4.6)' },
-                { value: 'openai', title: 'OpenAI (GPT-5-mini)' },
-                { value: 'local',  title: 'Local LLM (Ollama)' },
-              ]"
-              item-title="title"
-              item-value="value"
-              label="Provider"
-              density="comfortable"
-            />
-          </v-col>
-          <v-col cols="12" sm="6" class="d-flex align-center px-sm-3">
-            <template v-if="provider !== 'local'">
-              <v-checkbox
-                v-model="useStoredKey"
-                :disabled="!hasStoredKey"
-                hide-details
-                density="comfortable"
-                :label="
-                  hasStoredKey
-                    ? `Use stored ${provider} key`
-                    : `No stored ${provider} key`
-                "
-              />
-            </template>
-            <v-chip v-else color="info" variant="tonal">Free (local)</v-chip>
-          </v-col>
-        </v-row>
-        <v-text-field
-          v-if="provider !== 'local' && !useStoredKey"
-          v-model="inlineKey"
-          :label="`${provider} API key (one-shot)`"
-          type="password"
-          autocomplete="off"
-          density="comfortable"
-          class="mt-2"
-        />
-        <v-alert v-if="error" type="error" variant="tonal" class="mt-3">
-          {{ error }}
-        </v-alert>
       </v-card-text>
 
       <v-card-actions class="pa-5 pt-0">
@@ -219,11 +150,6 @@ async function tryThis() {
         <v-btn @click="close">Close</v-btn>
         <v-btn
           color="primary"
-          :loading="submitting"
-          :disabled="
-            (provider !== 'local' && useStoredKey && !hasStoredKey) ||
-            (provider !== 'local' && !useStoredKey && !inlineKey)
-          "
           @click="tryThis"
           prepend-icon="mdi-rocket-launch"
         >

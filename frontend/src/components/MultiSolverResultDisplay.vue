@@ -31,11 +31,25 @@ const solve = useSolveStore()
 
 const expanded = ref<Set<string>>(new Set())
 
+// Row-level click only OPENS. Once open, a stray click from anywhere
+// on the row (Vuetify internals, a poll-driven re-render, a click in
+// the code-preview tabs whose event happens to bubble further than
+// expected) can't sneak the panel closed. To close, the user clicks
+// the chevron in the leftmost cell — that hits ``toggleExpand`` which
+// flips the state either way. This matches how the browser's own
+// details/summary widget behaves: click anywhere to reveal, click the
+// disclosure control to hide.
+function expandRow(name: string) {
+  if (expanded.value.has(name)) return
+  const next = new Set(expanded.value)
+  next.add(name)
+  expanded.value = next
+}
 function toggleExpand(name: string) {
-  if (expanded.value.has(name)) expanded.value.delete(name)
-  else expanded.value.add(name)
-  // trigger reactivity
-  expanded.value = new Set(expanded.value)
+  const next = new Set(expanded.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  expanded.value = next
 }
 
 function getExtras(name: string): QaoaExtras | undefined {
@@ -72,10 +86,15 @@ const rows = computed(() => {
       backend_name: r.backend_name ?? null,
     }
   })
-  // Sort: completed-feasible by energy asc, then completed-only by energy asc,
-  // then errors at the bottom. Keeps the winner visually at the top.
+  // Sort: completed-feasible by energy asc, then completed-but-infeasible,
+  // then skipped (capacity-refused), then errors at the bottom. Keeps the
+  // winner visually at the top and pushes non-winning outcomes down in
+  // increasing order of "how informative is this row's energy" — error
+  // rows have nothing to compare, skipped rows are deliberate refusals,
+  // infeasible-complete rows still carry a number worth seeing.
   const rank = (r: typeof out[number]): number => {
-    if (r.status === 'error') return 3
+    if (r.status === 'error') return 4
+    if (r.status === 'skipped') return 3
     if (!r.feasible) return 2
     return 1
   }
@@ -139,16 +158,34 @@ const errorCount = computed(
 const queuedCount = computed(
   () => rows.value.filter((r) => r.status === 'queued').length,
 )
+const skippedCount = computed(
+  () => rows.value.filter((r) => r.status === 'skipped').length,
+)
+// QAOA tiers refuse instances whose lowered BQM exceeds their qubit
+// cap. We surface that as a soft "skipped" status (not a red error)
+// and show a banner explaining the qubit count and the affected tiers
+// so the user understands why the row is gray instead of green.
+const skippedRows = computed(() =>
+  rows.value.filter((r) => r.status === 'skipped'),
+)
 
-// Phase 11 — auto-poll the pending-jobs endpoint every 30 s while
-// any row is queued. Hitting that endpoint triggers materialization
-// server-side as a side effect, so the queued row will fill in
-// without the user having to manually refresh. Stops the loop as
-// soon as no queued rows remain.
-const POLL_INTERVAL_MS = 30_000
+// Phase 11 — auto-poll the pending-jobs endpoint while any row is
+// queued. Hitting that endpoint triggers materialization server-side
+// as a side effect, so the queued row will fill in without the user
+// having to manually refresh. Stops the loop as soon as no queued
+// rows remain.
+//
+// Origin's full_amplitude simulator finishes in 1-2 s; IBM's real-QPU
+// queue can hold a job for minutes to hours. The old flat 30 s poll
+// was tuned for IBM and left Origin users staring at a "queued" chip
+// for 30 s after Origin had already finished (2026-07-01 demo). Ramp:
+// fast at first (catch quick simulator jobs), then back off (spare
+// the SDK from useless polls while a long IBM queue drains).
+const POLL_RAMP_MS = [1500, 2500, 4000, 7000, 12000, 20000, 30000]
 const lastPolledAt = ref<number | null>(null)
 const isRefreshing = ref(false)
 let pollTimer: number | null = null
+let pollTick = 0
 
 async function manualRefresh() {
   if (isRefreshing.value) return
@@ -161,23 +198,38 @@ async function manualRefresh() {
   }
 }
 
-function startPollingIfNeeded() {
+function nextPollDelayMs(): number {
+  const idx = Math.min(pollTick, POLL_RAMP_MS.length - 1)
+  return POLL_RAMP_MS[idx]
+}
+
+function scheduleNextPoll() {
   if (pollTimer !== null) return
   if (queuedCount.value === 0) return
-  pollTimer = window.setInterval(() => {
-    if (queuedCount.value === 0) {
-      stopPolling()
-      return
-    }
-    void manualRefresh()
-  }, POLL_INTERVAL_MS)
+  const delay = nextPollDelayMs()
+  pollTimer = window.setTimeout(async () => {
+    pollTimer = null
+    if (queuedCount.value === 0) return
+    await manualRefresh()
+    pollTick += 1
+    scheduleNextPoll()
+  }, delay)
+}
+
+function startPollingIfNeeded() {
+  if (queuedCount.value === 0) return
+  pollTick = 0
+  scheduleNextPoll()
 }
 
 function stopPolling() {
   if (pollTimer !== null) {
-    window.clearInterval(pollTimer)
+    // scheduleNextPoll uses setTimeout, not setInterval, so we need the
+    // matching clearTimeout to avoid the delayed callback still firing.
+    window.clearTimeout(pollTimer)
     pollTimer = null
   }
+  pollTick = 0
 }
 
 onMounted(() => {
@@ -210,7 +262,7 @@ function fmtAgo(ms: number | null): string {
         <div class="text-h6">Solver comparison</div>
         <div class="text-caption text-medium-emphasis">
           {{ rows.length }} solver{{ rows.length === 1 ? '' : 's' }} ·
-          {{ completedCount }} completed<span v-if="errorCount > 0">, {{ errorCount }} errored</span><span v-if="queuedCount > 0">, {{ queuedCount }} queued</span>
+          {{ completedCount }} completed<span v-if="skippedCount > 0">, {{ skippedCount }} skipped</span><span v-if="errorCount > 0">, {{ errorCount }} errored</span><span v-if="queuedCount > 0">, {{ queuedCount }} queued</span>
         </div>
       </div>
       <v-btn
@@ -221,7 +273,7 @@ function fmtAgo(ms: number | null): string {
         :loading="isRefreshing"
         prepend-icon="mdi-refresh"
         class="mr-2"
-        :title="`Last checked ${fmtAgo(lastPolledAt)}. Auto-polls every 30 s.`"
+        :title="`Last checked ${fmtAgo(lastPolledAt)}. Auto-polls on a 1.5→30 s ramp while queued.`"
         @click="manualRefresh"
       >
         Refresh
@@ -236,6 +288,24 @@ function fmtAgo(ms: number | null): string {
         Best energy {{ fmtEnergy(bestEnergy) }}
       </v-chip>
     </div>
+
+    <v-alert
+      v-if="skippedRows.length > 0"
+      type="info"
+      variant="tonal"
+      density="compact"
+      class="mb-3"
+      icon="mdi-debug-step-over"
+    >
+      <div class="text-body-2">
+        <strong>{{ skippedRows.length }} solver{{ skippedRows.length === 1 ? '' : 's' }} skipped — instance too large for the tier.</strong>
+        QAOA tiers refuse a CQM whose lowered BQM exceeds their qubit cap
+        ({{ skippedRows.map((r) => r.name).join(', ') }}).
+        This isn't an error — the rows are deliberately left out of the
+        comparison. To exercise QAOA, pick a smaller instance or raise
+        the relevant cap.
+      </div>
+    </v-alert>
 
     <v-table density="compact" class="comparison-table">
       <thead>
@@ -255,17 +325,19 @@ function fmtAgo(ms: number | null): string {
           :class="{
             'row-best': r.is_primary,
             'row-error': r.status === 'error',
+            'row-skipped': r.status === 'skipped',
             'row-clickable': r.has_explainer,
           }"
-          @click="r.has_explainer && toggleExpand(r.name)"
+          @click="r.has_explainer && expandRow(r.name)"
         >
-          <td class="expand-cell">
+          <td class="expand-cell" @click.stop="r.has_explainer && toggleExpand(r.name)">
             <v-icon
               v-if="r.has_explainer"
               :icon="expanded.has(r.name) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
               size="small"
               color="primary"
-              :title="expanded.has(r.name) ? 'Hide explainer' : 'How did this solver get its answer?'"
+              :title="expanded.has(r.name) ? 'Collapse' : 'Expand to see the circuit + code'"
+              style="cursor: pointer"
             />
           </td>
           <td>
@@ -345,8 +417,23 @@ function fmtAgo(ms: number | null): string {
               </template>
               <span>
                 Submitted to {{ r.backend_name || 'cloud QPU' }}.
-                Polling every 30 s — this row will fill in when the cloud finishes.
+                We poll every 1-30 s (ramping up while we wait); this
+                row fills in as soon as the cloud finishes.
               </span>
+            </v-tooltip>
+            <v-tooltip v-else-if="r.status === 'skipped'" location="top">
+              <template #activator="{ props: tipProps }">
+                <v-chip
+                  v-bind="tipProps"
+                  size="x-small"
+                  color="grey"
+                  variant="tonal"
+                  prepend-icon="mdi-debug-step-over"
+                >
+                  skipped
+                </v-chip>
+              </template>
+              <span>{{ r.error || 'Skipped: instance too large for this tier' }}</span>
             </v-tooltip>
             <v-tooltip v-else location="top">
               <template #activator="{ props: tipProps }">
@@ -366,14 +453,17 @@ function fmtAgo(ms: number | null): string {
         <tr
           v-if="r.has_explainer && expanded.has(r.name)"
           class="explainer-row"
+          @click.stop
         >
-          <td :colspan="7" class="pa-0">
+          <td :colspan="7" class="pa-0" @click.stop>
             <QaoaExplainerPanel
               v-if="r.explainer_kind === 'qaoa'"
               :job="job"
               :extras="getExtras(r.name)!"
               :tier-color="r.tier_color"
               :sense="isMaximize ? 'maximize' : 'minimize'"
+              :solver-status="r.status"
+              :solver-name="r.name"
             />
             <ClassicalExplainerPanel
               v-else-if="r.explainer_kind === 'classical'"
@@ -389,7 +479,7 @@ function fmtAgo(ms: number | null): string {
 
     <div v-if="completedCount > 0" class="text-caption text-medium-emphasis mt-2">
       Best feasible energy drives the interpreted solution shown below.
-      Hover the error chips for details.
+      Hover the status chips for details.
     </div>
   </v-card>
 </template>
@@ -416,7 +506,8 @@ function fmtAgo(ms: number | null): string {
 .row-best {
   background: rgba(76, 175, 80, 0.06);
 }
-.row-error :deep(td) {
+.row-error :deep(td),
+.row-skipped :deep(td) {
   opacity: 0.7;
 }
 .row-clickable {

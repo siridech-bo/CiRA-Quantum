@@ -230,6 +230,71 @@ def test_get_nonexistent_job_returns_404(client):
     assert r.status_code == 404
 
 
+def test_solve_accepts_whitelisted_origin_backend_override(client):
+    """Per-solve backend selector — the route lets the user pick
+    Simulator / Wukong / Hanyuan per submission, whitelisted at the
+    HTTP boundary so a malicious client can't shove arbitrary kwargs
+    into the qaoa_originqc sampler constructor."""
+    _signup(client, "alice")
+    r = client.post("/api/solve", json={
+        "problem_statement": "pack a knapsack",
+        "provider": "claude",
+        "api_key": "x",
+        "solver_params_overrides": {
+            "qaoa_originqc": {"backend_name": "WK_C180"},
+        },
+    })
+    assert r.status_code == 200, r.json
+    # The override made it onto the job row so the resume path can
+    # rehydrate it after the approval gate.
+    job = r.json["job"]
+    assert job["solver_params_overrides"] == {
+        "qaoa_originqc": {"backend_name": "WK_C180"},
+    }
+
+
+def test_solve_rejects_unknown_override_solver(client):
+    """Only solvers in the whitelist can carry overrides. A random
+    solver name gets a clean 400 — no silent drop."""
+    _signup(client, "alice")
+    r = client.post("/api/solve", json={
+        "problem_statement": "x", "provider": "claude", "api_key": "x",
+        "solver_params_overrides": {
+            "cpsat": {"backend_name": "hack"},
+        },
+    })
+    assert r.status_code == 400
+    assert r.json["code"] == "OVERRIDE_SOLVER_DISALLOWED"
+
+
+def test_solve_rejects_unknown_override_param(client):
+    """The per-solver param name must also be whitelisted — no random
+    kwargs sneaking into sampler.__init__."""
+    _signup(client, "alice")
+    r = client.post("/api/solve", json={
+        "problem_statement": "x", "provider": "claude", "api_key": "x",
+        "solver_params_overrides": {
+            "qaoa_originqc": {"shots": 999_999},  # not on the allow-list
+        },
+    })
+    assert r.status_code == 400
+    assert r.json["code"] == "OVERRIDE_PARAM_DISALLOWED"
+
+
+def test_solve_rejects_unknown_override_value(client):
+    """Whitelisted param + wrong value → clean rejection. Blocks a
+    typo like ``full_amplitud`` from reaching pyqpanda3."""
+    _signup(client, "alice")
+    r = client.post("/api/solve", json={
+        "problem_statement": "x", "provider": "claude", "api_key": "x",
+        "solver_params_overrides": {
+            "qaoa_originqc": {"backend_name": "not_a_real_chip"},
+        },
+    })
+    assert r.status_code == 400
+    assert r.json["code"] == "OVERRIDE_VALUE_DISALLOWED"
+
+
 def test_jobs_stream_returns_sse_content_type(client):
     """The SSE route's content-type signals event-stream so the
     browser's EventSource picks it up, and the body actually carries the

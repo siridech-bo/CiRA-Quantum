@@ -91,3 +91,71 @@ def test_get_event_bus_returns_singleton():
     a = get_event_bus()
     b = get_event_bus()
     assert a is b
+
+
+def test_subscribe_yields_heartbeat_when_producer_is_silent(
+    bus, monkeypatch: pytest.MonkeyPatch,
+):
+    """A stuck or never-emitting producer must NOT pin the consumer's
+    thread indefinitely. Regression for the 2026-06-30 dev-server hang
+    where 5 zombie ``queued`` jobs leaked Werkzeug threads because
+    ``queue.get()`` blocked forever. After the fix, subscribe() emits a
+    heartbeat sentinel each ``_HEARTBEAT_INTERVAL_S`` so the SSE
+    handler can write to the response stream and detect dead clients."""
+    from app.pipeline import events as events_module
+
+    # Short interval so the test doesn't have to wait the default 15 s.
+    monkeypatch.setattr(events_module, "_HEARTBEAT_INTERVAL_S", 0.1)
+
+    seen: list[dict] = []
+    iterator = bus.subscribe("job-stuck")
+
+    def consume() -> None:
+        for event in iterator:
+            seen.append(event)
+            if len(seen) >= 3:
+                break
+
+    consumer = threading.Thread(target=consume, daemon=True)
+    consumer.start()
+    consumer.join(timeout=2.0)
+
+    # We expect at least 3 heartbeat sentinels — the producer never
+    # emitted, so every yield must be a heartbeat (no real events).
+    assert len(seen) >= 3
+    assert all(e.get(events_module.HEARTBEAT_MARKER) for e in seen), seen
+    # The sentinels carry no "status" field, so a misconfigured SSE
+    # consumer that forwards them would not corrupt the frontend's
+    # status state.
+    assert all("status" not in e for e in seen)
+
+
+def test_subscribe_recovers_to_real_event_after_heartbeats(
+    bus, monkeypatch: pytest.MonkeyPatch,
+):
+    """A producer that emits *after* a quiet period should still see its
+    event delivered. Heartbeats don't poison the channel."""
+    from app.pipeline import events as events_module
+    monkeypatch.setattr(events_module, "_HEARTBEAT_INTERVAL_S", 0.05)
+
+    seen: list[dict] = []
+
+    def consume() -> None:
+        for event in bus.subscribe("job-late"):
+            seen.append(event)
+            if event.get("status") in {"complete", "error"}:
+                break
+
+    consumer = threading.Thread(target=consume, daemon=True)
+    consumer.start()
+    time.sleep(0.25)  # let several heartbeats fire
+    bus.emit("job-late", "complete")
+    consumer.join(timeout=2.0)
+
+    statuses = [e.get("status") for e in seen if "status" in e]
+    assert statuses == ["complete"]
+    # Heartbeats and the real event coexisted in the iterator output.
+    heartbeat_count = sum(
+        1 for e in seen if e.get(events_module.HEARTBEAT_MARKER)
+    )
+    assert heartbeat_count >= 2, f"expected ≥2 heartbeats before complete, got {seen}"

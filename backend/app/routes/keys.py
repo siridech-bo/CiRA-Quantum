@@ -221,6 +221,23 @@ _PROVIDER_TESTERS = {
     "ibm_quantum": _test_ibm_quantum,
 }
 
+# Wall-clock cap on the test-key handler. The underlying calls
+# (``pyqpanda3.qcloud.QCloudJob.result()`` for Origin,
+# ``QiskitRuntimeService.backends()`` for IBM) are synchronous blocking
+# network operations with no native timeout knob. ``result()`` in
+# particular has been observed to hang indefinitely on certain Origin
+# cloud-side states (see the comment in orchestrator.py at the
+# ``_SOLVER_WALLCLOCK_TIMEOUT_S`` definition). Without this cap, a
+# single slow test ate one of Werkzeug's request threads forever,
+# eventually wedging the dev server.
+#
+# 10 s is intentionally tight: both testers' docs cite "~5-10 s typical"
+# wall time, so anything past 10 s is almost certainly a stuck cloud or
+# bad key rather than a slow-but-working response. The shorter cap
+# also keeps the frontend spinner from feeling like a freeze when
+# Origin's cloud is unreachable (2026-06-30 UX feedback).
+_TEST_KEY_WALLCLOCK_TIMEOUT_S: float = 10.0
+
 
 @keys_bp.route("/<provider>/test", methods=["POST"])
 @login_required
@@ -256,5 +273,60 @@ def test_key(provider: str):
             "code": "DECRYPT_FAILED",
         }), 500
 
-    result = tester(api_key)
+    # Wrap the tester in a wall-clock timeout. We can't kill the worker
+    # thread cooperatively (pyqpanda3 / qiskit-ibm-runtime are
+    # C-extension blocking calls), but a daemon thread lets the Flask
+    # request handler return promptly on timeout while the orphan keeps
+    # running in the background. Daemon=True means it doesn't block
+    # process shutdown.
+    #
+    # NB: a ``ThreadPoolExecutor`` looks like the cleaner choice here,
+    # but its ``__exit__`` calls ``shutdown(wait=True)`` which joins the
+    # worker — defeating the entire point of the timeout when the
+    # worker is genuinely hung. Hand-rolled daemon thread it is.
+    import queue as _queue
+    import threading
+
+    result_q: _queue.Queue = _queue.Queue(maxsize=1)
+    exc_q: _queue.Queue = _queue.Queue(maxsize=1)
+
+    def _worker() -> None:
+        try:
+            result_q.put(tester(api_key))
+        except Exception as exc:  # noqa: BLE001
+            exc_q.put(exc)
+
+    t0 = time.perf_counter()
+    worker = threading.Thread(
+        target=_worker,
+        daemon=True,
+        name=f"test-key-{provider}",
+    )
+    worker.start()
+    worker.join(timeout=_TEST_KEY_WALLCLOCK_TIMEOUT_S)
+
+    if worker.is_alive():
+        return jsonify({
+            "ok": False,
+            "error": (
+                f"{provider} test did not return within "
+                f"{_TEST_KEY_WALLCLOCK_TIMEOUT_S:.0f} s. The provider's "
+                "cloud may be slow or unreachable; try again in a moment."
+            ),
+            "code": "TIMEOUT",
+            "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+        }), 504
+
+    if not exc_q.empty():
+        # Tester crashed inside the worker. Surface as 500 — the
+        # individual testers normally return structured failure dicts
+        # rather than raising, so this is a programming-error path.
+        exc = exc_q.get_nowait()
+        return jsonify({
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "code": "TESTER_CRASHED",
+        }), 500
+
+    result = result_q.get_nowait()
     return jsonify(result), (200 if result["ok"] else 502)

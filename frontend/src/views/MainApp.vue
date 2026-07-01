@@ -7,6 +7,7 @@ import ProblemInput from '@/components/ProblemInput.vue'
 import SolveStatus from '@/components/SolveStatus.vue'
 import ResultDisplay from '@/components/ResultDisplay.vue'
 import MultiSolverResultDisplay from '@/components/MultiSolverResultDisplay.vue'
+import ApprovalPanel from '@/components/ApprovalPanel.vue'
 import JobHistory from '@/components/JobHistory.vue'
 import ApiKeyManager from '@/components/ApiKeyManager.vue'
 import TemplateMatchBadge from '@/components/TemplateMatchBadge.vue'
@@ -23,6 +24,9 @@ const hasResult = computed(
 )
 const hasErrorResult = computed(
   () => solve.currentJob && solve.currentJob.status === 'error',
+)
+const awaitingApproval = computed(
+  () => solve.currentJob && solve.currentJob.status === 'awaiting_approval',
 )
 
 // Show the "try an example" banner when a brand-new user lands with no
@@ -149,7 +153,13 @@ onMounted(() => {
               <ProblemInput />
             </v-col>
             <v-col cols="12" md="6">
-              <SolveStatus v-if="solve.currentJob && !hasResult" />
+              <ApprovalPanel
+                v-if="awaitingApproval"
+                :job="solve.currentJob!"
+              />
+              <SolveStatus
+                v-else-if="solve.currentJob && !hasResult"
+              />
               <template v-else-if="hasResult || hasErrorResult">
                 <TemplateMatchBadge
                   v-if="hasResult && solve.currentJob?.template_id"

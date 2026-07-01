@@ -59,6 +59,32 @@ _SOLVER_WALLCLOCK_TIMEOUT_S: dict[str, float] = {
 _DEFAULT_SOLVER_TIMEOUT_S: float = 30.0
 
 
+def _classify_solver_failure(exc: BaseException) -> tuple[str, str]:
+    """Decide whether a sampler exception is a hard error or a soft skip.
+
+    QAOA tiers raise ``ValueError`` with a specific shape when the
+    lowered BQM is bigger than the tier's qubit cap (local simulator
+    RAM ceiling, configured IBMQ cap, Origin backend budget). That
+    isn't a bug — the sampler is correctly refusing a workload that
+    wouldn't fit on its qubits. Classify those rows as ``skipped`` so
+    the comparison table doesn't render red error chips for every
+    medium-sized instance that hits an over-budget QAOA tier.
+
+    Returns ``(status, message)``. The skipped message is the
+    sampler's own human-readable string verbatim (no ``ValueError:``
+    prefix); the error message keeps the type prefix so operator
+    debugging stays informative.
+    """
+    msg = str(exc)
+    if isinstance(exc, ValueError) and "exceeds" in msg and (
+        "qubit cap" in msg
+        or "qubit budget" in msg
+        or "configured cap" in msg
+    ):
+        return "skipped", msg
+    return "error", f"{type(exc).__name__}: {exc}"
+
+
 # Per-solver parameters used by the multi-solver fan-out (Phase 5D).
 # Conservative defaults — the goal is interactive-latency comparison
 # across the whole registry, not the best possible per-solver score
@@ -129,6 +155,7 @@ class Orchestrator:
         *,
         job_id: str,
         event_bus: EventBus,
+        solver_params_overrides: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, dict[str, Any]]:
         """Run each registered solver on the same problem and return a
         per-solver summary dict. CQM-native solvers consume the CQM
@@ -139,7 +166,15 @@ class Orchestrator:
         ``user_id`` is needed so BYOK-bearing solvers (``qaoa_originqc``)
         can look up the user's stored credential at runtime instead of
         relying on a server-level env var.
+
+        ``solver_params_overrides`` is a per-request escape hatch — a
+        ``{solver_name: {param: value}}`` dict that gets merged on top of
+        ``_DEFAULT_PARAMS_BY_SOLVER[name]``. Used by the frontend's
+        "Origin backend" selector to route a single solve to Wukong /
+        Hanyuan instead of the default cloud simulator, without touching
+        the module-level defaults every other request depends on.
         """
+        overrides = solver_params_overrides or {}
         # Lazy imports keep this module free of CUDA / dwave hard deps.
         from app.benchmarking.records import _split_parameters
         from app.benchmarking.registry import bootstrap_default_solvers, get_solver
@@ -203,6 +238,11 @@ class Orchestrator:
                 or getattr(sampler_cls, "_CQM_NATIVE", False)
             )
             params = dict(_DEFAULT_PARAMS_BY_SOLVER.get(name, {}))
+            # Per-solve overrides (e.g. origin_backend=WK_C180 for a
+            # Wukong run). Merged on top of the defaults so the module
+            # constant stays canonical.
+            if overrides.get(name):
+                params.update(overrides[name])
 
             # BYOK injection. qaoa_originqc requires an Origin Quantum
             # API key stored under provider "qpanda" in the api_keys
@@ -286,9 +326,10 @@ class Orchestrator:
                             f"the orchestrator moves on."
                         )
             except Exception as e:
+                status_, error_msg = _classify_solver_failure(e)
                 results[name] = {
-                    "status": "error",
-                    "error": f"{type(e).__name__}: {e}",
+                    "status": status_,
+                    "error": error_msg,
                     "elapsed_ms": int((time.perf_counter() - t0) * 1000),
                     "tier_source": ident.source,
                     "version": ident.version,
@@ -366,6 +407,8 @@ class Orchestrator:
         api_key: str,
         event_bus: EventBus,
         solvers: list[str] | None = None,
+        require_approval: bool = False,
+        solver_params_overrides: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         """End-to-end pipeline. Updates the ``jobs`` row at each stage
         and emits SSE events; never raises — every failure path lands
@@ -376,6 +419,15 @@ class Orchestrator:
         When supplied, stage 4 runs each solver sequentially and stage 5
         interprets the winning result while preserving the per-solver
         comparison map in ``solver_results``.
+
+        ``require_approval=True`` pauses the pipeline after stage 3
+        (validation) with ``status='awaiting_approval'`` so the user can
+        review the LLM-emitted CQM + qubit estimate before any solver
+        burns time. A subsequent ``POST /api/jobs/<id>/approve`` calls
+        :meth:`resume_after_approval` to resume from stage 4. Without
+        this gate the LLM's choice of encoding can silently inflate the
+        qubit count and skip every QAOA tier (Max-Cut shipped to demo
+        customers 2026-06-30 with 6 expected vs. 69 actual qubits).
         """
         # Import models here, not at module load, so the orchestrator
         # module is import-safe without an initialized SQLite schema
@@ -429,81 +481,56 @@ class Orchestrator:
             report_payload = _serialize_validation_report(report)
             update_job(job_id, validation_report=json.dumps(report_payload))
 
+            # ---- Approval gate (optional) -----------------------------------
+            # When require_approval is set, pause here so the user can
+            # review the LLM-emitted CQM + validation report + lowered-
+            # qubit estimate before any solver runs. NB: this comes
+            # BEFORE the strict validation hard-abort on purpose. A
+            # failed validation is exactly the case where the user
+            # most wants to see what the LLM emitted (the validator
+            # caught something — show it). The approval panel renders
+            # the validation report as advisory; the user can still
+            # approve and run solvers on the bad CQM (useful for demos
+            # where seeing the solver output matters more than oracle
+            # agreement) or cancel and re-formulate.
+            #
+            # The pipeline thread exits cleanly; the bus closes via the
+            # awaiting_approval terminal event. A subsequent
+            # POST /api/jobs/<id>/approve calls resume_after_approval()
+            # which picks up at stage 4 unconditionally — the user
+            # already saw the validation report at the gate and made an
+            # informed decision.
+            if require_approval:
+                preflight = self._compute_preflight(
+                    cqm, solver_params_overrides=solver_params_overrides,
+                )
+                # Persist the overrides alongside the paused row so the
+                # resume path (POST /api/jobs/<id>/approve) picks them up
+                # from the DB — the resume thread runs in a fresh
+                # Orchestrator instance and doesn't share memory with
+                # this one.
+                pause_fields: dict[str, Any] = {
+                    "status": "awaiting_approval",
+                    "preflight": json.dumps(preflight),
+                }
+                if solver_params_overrides:
+                    pause_fields["solver_params_overrides"] = json.dumps(
+                        solver_params_overrides,
+                    )
+                update_job(job_id, **pause_fields)
+                event_bus.emit(job_id, "awaiting_approval", preflight=preflight)
+                return
+
             if not report.passed:
                 first_reason = next(iter(report.warnings), "validation failed")
                 raise PipelineError(f"validation: {first_reason}")
 
-            # ---- Stage 4: solve ---------------------------------------------
-            event_bus.emit(job_id, "solving")
-            update_job(job_id, status="solving")
-
-            if solvers:
-                solver_results = self._run_multi_solver(
-                    cqm, sense, solvers, user_id,
-                    job_id=job_id, event_bus=event_bus,
-                )
-                primary_name, primary = _pick_primary(solver_results, sense)
-                if primary is None or primary.get("status") != "complete":
-                    # Every solver errored — surface the first error message.
-                    first_err = next(
-                        (r.get("error") for r in solver_results.values()
-                         if r.get("error")),
-                        "all solvers failed",
-                    )
-                    raise PipelineError(f"solving: {first_err}")
-                cqm_sample = primary["_cqm_sample"]
-                elapsed_ms = int(primary["elapsed_ms"])
-                # Strip the private full-sample copies before we persist —
-                # only the winning sample is materialized into ``solution``;
-                # the per-solver map keeps a per-row summary, not full
-                # ndarrays.
-                public_solver_results = {
-                    name: {k: v for k, v in r.items() if k != "_cqm_sample"}
-                    for name, r in solver_results.items()
-                }
-            else:
-                # Legacy single-solver path (GPU SA via _build_sampler).
-                t0 = time.perf_counter()
-                bqm, invert = dimod.cqm_to_bqm(
-                    cqm, lagrange_multiplier=self.lagrange_multiplier
-                )
-                sampler = self._build_sampler()
-                sampleset = sampler.sample(
-                    bqm, num_reads=self.num_reads, num_sweeps=self.num_sweeps,
-                )
-                elapsed_ms = int((time.perf_counter() - t0) * 1000)
-                cqm_sample = invert(sampleset.first.sample)
-                public_solver_results = None
-                primary_name = "gpu_sa"
-
-            # ---- Stage 5: interpret + complete ------------------------------
-            interpreted = interpret_solution(cqm_sample, registry, cqm, sense=sense)
-            # JSON keys must be strings, even when the CQM uses int variable
-            # labels — keep the conversion explicit. dimod returns numpy
-            # scalars (int8 for binaries, int64 for integers) which the
-            # default JSON encoder rejects, so we coerce to Python natives.
-            solution_payload = {
-                str(k): (v.item() if hasattr(v, "item") else v)
-                for k, v in cqm_sample.items()
-            }
-            completion_fields: dict[str, Any] = {
-                "status": "complete",
-                "solution": json.dumps(solution_payload),
-                "interpreted_solution": interpreted,
-                "solve_time_ms": elapsed_ms,
-                "completed_at": datetime.utcnow().isoformat(),
-            }
-            if public_solver_results is not None:
-                completion_fields["solver_results"] = json.dumps({
-                    "solvers": public_solver_results,
-                    "primary": primary_name,
-                    "sense": sense,
-                })
-            update_job(job_id, **completion_fields)
-            event_bus.emit(
-                job_id, "complete",
-                solve_time_ms=elapsed_ms,
-                primary_solver=primary_name,
+            # ---- Stages 4 + 5: solve + interpret ----------------------------
+            await self._solve_and_interpret(
+                job_id=job_id, user_id=user_id,
+                cqm=cqm, registry=registry, sense=sense,
+                solvers=solvers, event_bus=event_bus,
+                solver_params_overrides=solver_params_overrides,
             )
 
         except PipelineError as e:
@@ -526,6 +553,310 @@ class Orchestrator:
                 completed_at=datetime.utcnow().isoformat(),
             )
             event_bus.emit(job_id, "error", error=msg)
+
+    async def resume_after_approval(
+        self,
+        *,
+        job_id: str,
+        user_id: int,
+        event_bus: EventBus,
+    ) -> None:
+        """Resume a paused (``awaiting_approval``) job at stage 4.
+
+        Rebuilds the CQM + registry + sense from the cqm_json already
+        saved on the row, then dispatches to :meth:`_solve_and_interpret`
+        — the same helper :meth:`run` uses, so the post-approval path
+        gets identical event/DB semantics to the legacy auto-solve path.
+
+        Errors land on ``status='error'`` with the same outer try/except
+        contract as :meth:`run`. Callers (the approve route) only need
+        to verify the job is in ``awaiting_approval`` before calling.
+        """
+        from app.models import get_job, update_job
+
+        try:
+            job = get_job(job_id, user_id=user_id)
+            if job is None:
+                raise PipelineError(f"job {job_id!r} not found")
+            if job.get("status") != "awaiting_approval":
+                raise PipelineError(
+                    f"job is in status {job.get('status')!r}, not awaiting_approval",
+                )
+            cqm_json_raw = job.get("cqm_json")
+            if not cqm_json_raw:
+                raise PipelineError("job has no cqm_json — cannot resume")
+            cqm, registry, sense = compile_cqm_json(json.loads(cqm_json_raw))
+            solvers_raw = job.get("solvers_requested") or "[]"
+            solvers = json.loads(solvers_raw) or None
+            # Rehydrate per-solve overrides (Origin backend selection,
+            # future shot-count tweaks, etc.) from the paused row so
+            # stage 4 sees the same params the user picked pre-approval.
+            overrides_raw = job.get("solver_params_overrides")
+            solver_params_overrides = (
+                json.loads(overrides_raw) if overrides_raw else None
+            )
+            # The previous bus session emitted a terminal
+            # ``awaiting_approval`` event; the channel is now closed and
+            # ``emit`` would silently drop our new events. Reset it so
+            # post-approval events flow to fresh subscribers.
+            event_bus.reset_channel(job_id)
+            await self._solve_and_interpret(
+                job_id=job_id, user_id=user_id,
+                cqm=cqm, registry=registry, sense=sense,
+                solvers=solvers, event_bus=event_bus,
+                solver_params_overrides=solver_params_overrides,
+            )
+        except PipelineError as e:
+            update_job(
+                job_id,
+                status="error",
+                error=str(e),
+                completed_at=datetime.utcnow().isoformat(),
+            )
+            event_bus.emit(job_id, "error", error=str(e))
+        except Exception as e:
+            msg = f"{type(e).__name__}: {e}"
+            update_job(
+                job_id,
+                status="error",
+                error=msg,
+                completed_at=datetime.utcnow().isoformat(),
+            )
+            event_bus.emit(job_id, "error", error=msg)
+
+    async def _solve_and_interpret(
+        self,
+        *,
+        job_id: str,
+        user_id: int,
+        cqm: dimod.ConstrainedQuadraticModel,
+        registry: dict[str, str],
+        sense: str,
+        solvers: list[str] | None,
+        event_bus: EventBus,
+        solver_params_overrides: dict[str, dict[str, Any]] | None = None,
+    ) -> None:
+        """Stages 4 + 5 — solve, pick winner, interpret, write completion.
+
+        Extracted so :meth:`run` (no-approval path) and
+        :meth:`resume_after_approval` (post-approval path) share the
+        same downstream logic. Raises ``PipelineError`` on a hard
+        failure; the caller's outer try/except converts that into the
+        terminal ``error`` event.
+        """
+        from app.models import update_job
+
+        event_bus.emit(job_id, "solving")
+        update_job(job_id, status="solving")
+
+        if solvers:
+            solver_results = self._run_multi_solver(
+                cqm, sense, solvers, user_id,
+                job_id=job_id, event_bus=event_bus,
+                solver_params_overrides=solver_params_overrides,
+            )
+            primary_name, primary = _pick_primary(solver_results, sense)
+            if primary is None or primary.get("status") != "complete":
+                first_err = next(
+                    (r.get("error") for r in solver_results.values()
+                     if r.get("error")),
+                    "all solvers failed",
+                )
+                raise PipelineError(f"solving: {first_err}")
+            cqm_sample = primary["_cqm_sample"]
+            elapsed_ms = int(primary["elapsed_ms"])
+            public_solver_results = {
+                name: {k: v for k, v in r.items() if k != "_cqm_sample"}
+                for name, r in solver_results.items()
+            }
+        else:
+            # Legacy single-solver path (GPU SA via _build_sampler).
+            t0 = time.perf_counter()
+            bqm, invert = dimod.cqm_to_bqm(
+                cqm, lagrange_multiplier=self.lagrange_multiplier
+            )
+            sampler = self._build_sampler()
+            sampleset = sampler.sample(
+                bqm, num_reads=self.num_reads, num_sweeps=self.num_sweeps,
+            )
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            cqm_sample = invert(sampleset.first.sample)
+            public_solver_results = None
+            primary_name = "gpu_sa"
+
+        interpreted = interpret_solution(cqm_sample, registry, cqm, sense=sense)
+        # JSON keys must be strings even when the CQM uses int variable
+        # labels; coerce numpy scalars to Python natives so the default
+        # JSON encoder doesn't reject them.
+        solution_payload = {
+            str(k): (v.item() if hasattr(v, "item") else v)
+            for k, v in cqm_sample.items()
+        }
+        completion_fields: dict[str, Any] = {
+            "status": "complete",
+            "solution": json.dumps(solution_payload),
+            "interpreted_solution": interpreted,
+            "solve_time_ms": elapsed_ms,
+            "completed_at": datetime.utcnow().isoformat(),
+        }
+        if public_solver_results is not None:
+            completion_fields["solver_results"] = json.dumps({
+                "solvers": public_solver_results,
+                "primary": primary_name,
+                "sense": sense,
+            })
+        update_job(job_id, **completion_fields)
+        event_bus.emit(
+            job_id, "complete",
+            solve_time_ms=elapsed_ms,
+            primary_solver=primary_name,
+        )
+
+    def _compute_preflight(
+        self,
+        cqm: dimod.ConstrainedQuadraticModel,
+        solver_params_overrides: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Estimate the lowered qubit count + per-tier verdict so the
+        approval UI can warn the user *before* a solver burns time.
+
+        The lowering is done via ``dimod.cqm_to_bqm`` with the same
+        Lagrange multiplier the real solve uses, then we read
+        ``num_variables`` off the BQM. Caps are pulled from the QAOA
+        tier table the orchestrator already enforces — if a tier's
+        cap is exceeded, the user sees a "would be skipped" verdict
+        upfront instead of discovering it after submitting.
+
+        When ``solver_params_overrides`` picks a real Origin backend
+        (Wukong / Hanyuan), also computes ``qpu_footprint`` — a rough
+        (low, high) range of compute-seconds. Queue time is deliberately
+        NOT part of the estimate: Origin and IBM both bill compute time
+        only, so queue time is a latency concern, not a cost concern.
+        """
+        try:
+            bqm, _invert = dimod.cqm_to_bqm(
+                cqm, lagrange_multiplier=self.lagrange_multiplier,
+            )
+            lowered_qubits = int(bqm.num_variables)
+            linear_count = sum(1 for c in bqm.linear.values() if c != 0.0)
+            quadratic_count = sum(1 for c in bqm.quadratic.values() if c != 0.0)
+        except Exception as e:  # noqa: BLE001
+            return {
+                "cqm_variables": int(len(cqm.variables)),
+                "cqm_constraints": int(len(cqm.constraints)),
+                "lowered_qubits": None,
+                "lowering_error": f"{type(e).__name__}: {e}",
+                "tier_verdicts": {},
+                "qpu_footprint": None,
+            }
+
+        # Mirror the caps the QAOA samplers actually enforce. Source of
+        # truth is the per-sampler config; we duplicate the numbers
+        # here so the UI verdict matches what the sampler will do.
+        tier_caps: dict[str, int] = {
+            "qaoa_sim": _DEFAULT_PARAMS_BY_SOLVER.get("qaoa_sim", {}).get("max_qubits", 12),
+            "qaoa_originqc": _DEFAULT_PARAMS_BY_SOLVER.get("qaoa_originqc", {}).get("max_qubits", 7),
+            "qaoa_ibmq": _DEFAULT_PARAMS_BY_SOLVER.get("qaoa_ibmq", {}).get("max_qubits", 20),
+        }
+        verdicts = {
+            name: {
+                "cap": cap,
+                "fits": lowered_qubits <= cap,
+            }
+            for name, cap in tier_caps.items()
+        }
+
+        qpu_footprint = self._estimate_qpu_footprint(
+            num_qubits=lowered_qubits,
+            linear_count=linear_count,
+            quadratic_count=quadratic_count,
+            solver_params_overrides=solver_params_overrides,
+        )
+
+        return {
+            "cqm_variables": int(len(cqm.variables)),
+            "cqm_constraints": int(len(cqm.constraints)),
+            "lowered_qubits": lowered_qubits,
+            "tier_verdicts": verdicts,
+            "qpu_footprint": qpu_footprint,
+        }
+
+    def _estimate_qpu_footprint(
+        self,
+        *,
+        num_qubits: int,
+        linear_count: int,
+        quadratic_count: int,
+        solver_params_overrides: dict[str, dict[str, Any]] | None,
+    ) -> dict[str, Any] | None:
+        """Rough compute-time estimate for the selected quantum backend.
+
+        Returns ``None`` when no real-QPU backend is selected — we only
+        surface the footprint card when it's actually decision-relevant
+        (a Wukong / Hanyuan submission that decrements the user's
+        quota). Simulator submissions are effectively free.
+
+        The estimate is a range on purpose. Ground-truth is one
+        observed data point (6 qubits, 200 shots, 1 layer, 7 edges =
+        ~2.5 s end-to-end on Wukong, 2026-06-30). The formula
+        back-solves from that point but the actual per-shot cost
+        varies with chip calibration, so we present a low/high range
+        rather than a single misleading number.
+        """
+        # Wukong-family real hardware only — matches
+        # QAOACloudSampler._REAL_HARDWARE_BACKENDS.
+        origin_backend = (
+            (solver_params_overrides or {})
+            .get("qaoa_originqc", {})
+            .get("backend_name")
+        )
+        real_origin = {"WK_C180", "WK_C180_2", "HanYuan_01"}
+        if origin_backend not in real_origin:
+            return None
+
+        origin_params = _DEFAULT_PARAMS_BY_SOLVER.get("qaoa_originqc", {})
+        shots = int(origin_params.get("shots", 200))
+        layers = int(origin_params.get("layer", 1))
+
+        # Circuit depth per layer: H prep + measure + per-layer body.
+        # Per layer: (quadratic ×3) + linear + qubits (mixer).
+        gates_per_layer = (quadratic_count * 3) + linear_count + num_qubits
+        total_gates = num_qubits + (layers * gates_per_layer) + num_qubits
+
+        # Back-solved from the 2026-06-30 Wukong data point:
+        #   observed = 2.5 s for shots=200, gates≈46, layers=1
+        # Overhead dominates over per-shot cost, so most of the range
+        # comes from queue-processing / classical / network variance.
+        fixed_low = 1.0
+        fixed_high = 3.0
+        per_shot_low = 0.003   # 3 ms per shot at the low end
+        per_shot_high = 0.010  # 10 ms per shot at the high end
+        # Small linear penalty for very deep circuits (irrelevant at
+        # our current 6-qubit demo sizes, but keeps the estimate honest
+        # if someone runs a wider template).
+        depth_penalty = max(0.0, (total_gates - 50) * 0.005)
+
+        est_low = fixed_low + shots * per_shot_low + depth_penalty
+        est_high = fixed_high + shots * per_shot_high + depth_penalty
+
+        return {
+            "backend": origin_backend,
+            "compute_seconds_low": round(est_low, 2),
+            "compute_seconds_high": round(est_high, 2),
+            "assumptions": {
+                "shots": shots,
+                "qaoa_layers": layers,
+                "estimated_gates": total_gates,
+                "num_qubits": num_qubits,
+            },
+            # Explicit note for the frontend to render — makes the
+            # "queue-time is not billed" story load-bearing in the UI.
+            "note": (
+                "Origin bills compute time only. Queue wait is a "
+                "latency concern, not a cost concern — those seconds "
+                "do not decrement your quota."
+            ),
+        }
 
 
 def _try_submit_async(
@@ -575,9 +906,18 @@ def _try_submit_async(
         # Auth errors, immediate API errors, etc. — record as a row
         # error and let the user retry. Async submit shouldn't take
         # long (just the LLM-free training step + a network round-trip).
+        # Capacity overflows (CQM too big for the configured cap) are
+        # classified as 'skipped' rather than 'error' — same logic as
+        # the sync path. The async wrapper prefix is only added for
+        # genuine errors so operators can tell "never reached cloud"
+        # from later sync failures; skipped messages are already
+        # self-explanatory.
+        status_, error_msg = _classify_solver_failure(e)
+        if status_ == "error":
+            error_msg = f"async submit failed: {error_msg}"
         results[name] = {
-            "status": "error",
-            "error": f"async submit failed: {type(e).__name__}: {e}",
+            "status": status_,
+            "error": error_msg,
             "elapsed_ms": int((time.perf_counter() - t0) * 1000),
             "tier_source": getattr(ident, "source", ""),
             "version": getattr(ident, "version", ""),
@@ -630,6 +970,19 @@ def _try_submit_async(
     )
     pj.add(pending)
 
+    # Stamp a "pre-execution" qaoa_extras onto the queued row so the
+    # frontend explainer panel can render the circuit + submitted code
+    # + metadata *while* the cloud job is still running. The histogram
+    # / top-K panels degrade gracefully to "waiting for cloud" when the
+    # measurement fields are still empty; when materialization fires
+    # later, the same block gets replaced with the full one that
+    # includes top_bitstrings + top_probabilities + top_energies.
+    pre_extras = _build_qaoa_extras_pre_execution(
+        bqm=bqm,
+        solver_name=name,
+        submission=submission,
+    )
+
     results[name] = {
         "status": "queued",
         "cloud_job_id": cloud_job_id,
@@ -638,8 +991,89 @@ def _try_submit_async(
         "tier_source": getattr(ident, "source", ""),
         "version": getattr(ident, "version", ""),
         "hardware": getattr(ident, "hardware", ""),
+        "qaoa_extras": pre_extras,
     }
     return True
+
+
+def _build_qaoa_extras_pre_execution(
+    *,
+    bqm: dimod.BinaryQuadraticModel,
+    solver_name: str,
+    submission: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the QAOA telemetry block WITHOUT sampled outcomes.
+
+    Used at cloud-submit time so the frontend can show the circuit +
+    metadata + submitted-code preview while the row is still ``queued``.
+    Shape matches :func:`_build_qaoa_extras` — same fields, but the
+    ``top_*`` measurement lists start empty. The pending-jobs
+    materializer replaces this whole block later with the sampled
+    version (see :func:`_row_from_originqc_result`).
+    """
+    bqm_bin = bqm.change_vartype(dimod.BINARY, inplace=False)
+    variables = list(bqm_bin.variables)
+    var_index = {v: i for i, v in enumerate(variables)}
+
+    h_terms: list[tuple[int, float]] = []
+    for v, c in bqm_bin.linear.items():
+        fc = _finite_or_none(c)
+        if fc is None or fc == 0.0:
+            continue
+        h_terms.append((var_index[v], fc))
+
+    j_terms: list[tuple[int, int, float]] = []
+    for (u, v), c in bqm_bin.quadratic.items():
+        fc = _finite_or_none(c)
+        if fc is None or fc == 0.0:
+            continue
+        i, j = var_index[u], var_index[v]
+        j_terms.append((min(i, j), max(i, j), fc))
+
+    backend_name = submission.get("backend_name") or ""
+    # Rough classification: Origin's "full_amplitude" (and "cpu_qvm",
+    # "single_amplitude", "partial_amplitude") are cloud simulators;
+    # "wu_yuan" / "wukong" / real-QPU backends are hardware. IBM's
+    # backend names distinguish simulator vs. real by containing
+    # "_simulator" or "simulator". Anything the sampler didn't
+    # explicitly tag is treated as simulator (safer default — we don't
+    # want to overclaim a real-QPU run).
+    lower = backend_name.lower()
+    is_real_hardware = bool(
+        submission.get("is_real_hardware")
+        # Origin real-QPU naming conventions we know about:
+        # ``WK_C180`` / ``WK_C180_2`` (Wukong 180 family), ``HanYuan_01``,
+        # and any future "wukong"-prefixed marketing name Origin might
+        # ship. Kept generous on purpose — false positives (marking a
+        # simulator as real hardware) are less harmful than the reverse.
+        or ("wk_c180" in lower or "wukong" in lower or "hanyuan" in lower)
+        or (solver_name == "qaoa_ibmq" and "simulator" not in lower and lower)
+    )
+
+    return {
+        "layer": submission.get("layer"),
+        "trained_gammas": [_finite_or_none(g) for g in submission.get("trained_gammas", [])],
+        "trained_betas": [_finite_or_none(b) for b in submission.get("trained_betas", [])],
+        "num_qubits": len(variables),
+        "num_logical_vars": None,
+        "linear_terms": h_terms,
+        "quadratic_terms": j_terms,
+        # Empty until the cloud comes back — the frontend renders a
+        # "waiting on cloud" placeholder where the histogram lives.
+        "top_bitstrings": [],
+        "top_probabilities": [],
+        "top_energies": [],
+        "train_loss": _finite_or_none(submission.get("train_loss")),
+        "train_optimizer": submission.get("train_optimizer"),
+        "backend_name": backend_name,
+        "is_real_hardware": is_real_hardware,
+        "job_id": submission.get("cloud_job_id", ""),
+        # Extra fields the pre-execution panel uses that the completed
+        # block doesn't carry (shots is only meaningful at submit time
+        # for the metadata card; the completed sampleset knows its own
+        # shot count via the probability distribution).
+        "shots": submission.get("shots"),
+    }
 
 
 def _serialize_bqm(bqm: dimod.BinaryQuadraticModel) -> dict[str, Any]:

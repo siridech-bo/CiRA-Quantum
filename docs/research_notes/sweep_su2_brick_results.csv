@@ -1,0 +1,16 @@
+dataset,n_qubits,n_layers,n_epochs,ansatz,momentum,lr,pca_applied,n_params,final_loss,final_train_acc,final_test_acc,wall_seconds,epochs_to_train_0.80,epochs_to_train_0.90
+moons,2,2,15,basic_ry,sgd,0.2,False,5,0.5896,0.633,0.74,15.4,,
+moons,2,2,15,su2_brick,sgd,0.1,False,13,0.5331,0.827,0.92,11.7,3,
+moons,2,2,15,su2_brick,adam,0.03,False,13,0.5039,0.827,0.9,11.3,2,
+circles,2,2,15,basic_ry,sgd,0.2,False,5,0.5785,0.827,0.8,14.7,4,
+circles,2,2,15,su2_brick,sgd,0.1,False,13,0.5134,1.0,1.0,11.4,1,2
+circles,2,2,15,su2_brick,adam,0.03,False,13,0.5171,0.947,0.96,11.5,1,7
+iris,4,2,15,basic_ry,sgd,0.2,False,9,0.5064,0.92,0.88,13.2,2,5
+iris,4,2,15,su2_brick,sgd,0.1,False,25,0.4911,0.933,0.84,8.6,4,9
+iris,4,2,15,su2_brick,adam,0.03,False,25,0.4642,0.96,0.84,8.3,2,4
+wine,4,2,15,basic_ry,sgd,0.2,True,9,0.6121,0.701,0.697,16.6,,
+wine,4,2,15,su2_brick,sgd,0.1,True,25,0.6208,0.66,0.758,11.0,,
+wine,4,2,15,su2_brick,adam,0.03,True,25,0.5869,0.773,0.606,11.2,,
+breast_cancer,4,2,15,basic_ry,sgd,0.2,True,9,0.6527,0.629,0.636,106.6,,
+breast_cancer,4,2,15,su2_brick,sgd,0.1,True,25,0.633,0.636,0.636,80.6,,
+breast_cancer,4,2,15,su2_brick,adam,0.03,True,25,0.6065,0.667,0.587,54.2,,

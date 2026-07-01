@@ -12,8 +12,9 @@
  * Drives entirely from data on the Job: `cqm_json` for panel 1,
  * `qaoa_extras` for panels 2-4. No backend roundtrips.
  */
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { Job, QaoaExtras } from '@/stores/solve'
+import QaoaCodePreview from './QaoaCodePreview.vue'
 
 const props = defineProps<{
   job: Job
@@ -22,7 +23,41 @@ const props = defineProps<{
   tierColor: string
   /** "minimize" / "maximize" — drives best-energy direction in panel 4. */
   sense: 'minimize' | 'maximize'
+  /** The solver's current lifecycle status. When 'queued' the histogram
+   * + top-K sections render "waiting for cloud" placeholders instead of
+   * hiding — the circuit + code + metadata are already visible. */
+  solverStatus?: string
+  /** The solver name — drives which code-preview tab opens by default. */
+  solverName?: string
 }>()
+
+const isQueued = computed(() => props.solverStatus === 'queued')
+const isRealHardware = computed(() => !!props.extras.is_real_hardware)
+
+// Fullscreen mode — user clicks "Open in full view" to lift the panel
+// out of the narrow half-column layout and see the circuit + histogram
+// at desktop width. CSS-only, no teleport, no duplicated DOM (matches
+// how Origin's dashboard renders the same content at full page width).
+const isFullscreen = ref(false)
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isFullscreen.value) {
+    isFullscreen.value = false
+  }
+}
+watch(isFullscreen, (on) => {
+  if (on) {
+    window.addEventListener('keydown', onKeydown)
+    // Prevent the page underneath from scrolling behind the overlay.
+    document.body.style.overflow = 'hidden'
+  } else {
+    window.removeEventListener('keydown', onKeydown)
+    document.body.style.overflow = ''
+  }
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
+})
 
 // ----------- Panel 1: the polynomial ------------------------------------------
 
@@ -321,9 +356,115 @@ function fmtEnergy(e: number): string {
 </script>
 
 <template>
-  <div class="qaoa-explainer pa-3">
-    <!-- ============ Panel 1: the polynomial ============ -->
+  <!-- Teleport the whole panel into <body> when fullscreen so the fixed
+       positioning isn't fighting parent stacking contexts. Without the
+       teleport, siblings in the same v-col (the "Solution" ResultDisplay
+       card) create their own z-index/transform layers that leak on top
+       of z-index: 2000, and the user sees the previous result card
+       bleeding through the overlay. `:disabled="!isFullscreen"` keeps
+       the panel in place for the normal inline view — Vue teleports
+       only when we ask it to. -->
+  <Teleport to="body" :disabled="!isFullscreen">
+  <div
+    class="qaoa-explainer pa-3"
+    :class="{ 'is-fullscreen': isFullscreen }"
+  >
+    <div
+      v-if="isFullscreen"
+      class="fullscreen-backdrop"
+      @click="isFullscreen = false"
+    />
+    <div class="qaoa-explainer-inner">
+    <!-- ============ Header: quantum job metadata (Origin-style) ============ -->
     <section class="explainer-section">
+      <header class="d-flex align-center mb-2 flex-wrap ga-2">
+        <v-icon icon="mdi-atom-variant" size="small" class="mr-2" />
+        <h4 class="text-subtitle-2 flex-grow-1">Quantum job</h4>
+        <v-chip
+          v-if="isRealHardware"
+          size="x-small"
+          color="error"
+          variant="tonal"
+          prepend-icon="mdi-alert-decagram"
+          title="This job runs on a real quantum processor, not a simulator."
+        >
+          Real QPU
+        </v-chip>
+        <v-chip
+          v-else
+          size="x-small"
+          color="warning"
+          variant="tonal"
+          prepend-icon="mdi-desktop-classic"
+          title="This job runs on a classical simulator of a quantum computer."
+        >
+          Simulator
+        </v-chip>
+        <v-chip
+          v-if="isQueued"
+          size="x-small"
+          color="info"
+          variant="tonal"
+          prepend-icon="mdi-cloud-clock-outline"
+        >
+          Waiting on cloud
+        </v-chip>
+        <v-btn
+          size="small"
+          variant="tonal"
+          :prepend-icon="isFullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
+          :title="isFullscreen ? 'Collapse to inline view (Esc)' : 'Open at full desktop width'"
+          @click.stop="isFullscreen = !isFullscreen"
+        >
+          {{ isFullscreen ? 'Exit full view' : 'Full view' }}
+        </v-btn>
+      </header>
+      <v-card variant="tonal" class="pa-3 mb-1">
+        <div class="d-flex flex-wrap ga-4">
+          <div>
+            <div class="text-caption text-medium-emphasis">Compute resource</div>
+            <div class="metadata-value">
+              {{ extras.backend_name || '—' }}
+            </div>
+          </div>
+          <v-divider vertical />
+          <div>
+            <div class="text-caption text-medium-emphasis">Qubits</div>
+            <div class="metadata-value">{{ extras.num_qubits }}</div>
+          </div>
+          <v-divider vertical />
+          <div>
+            <div class="text-caption text-medium-emphasis">Shots</div>
+            <div class="metadata-value">{{ extras.shots ?? '—' }}</div>
+          </div>
+          <v-divider vertical />
+          <div>
+            <div class="text-caption text-medium-emphasis">QAOA layers</div>
+            <div class="metadata-value">{{ extras.layer ?? '—' }}</div>
+          </div>
+          <v-divider v-if="extras.job_id" vertical />
+          <div v-if="extras.job_id" class="flex-grow-1">
+            <div class="text-caption text-medium-emphasis">Cloud job ID</div>
+            <code class="cloud-job-id">{{ extras.job_id }}</code>
+          </div>
+        </div>
+      </v-card>
+    </section>
+
+    <!-- ============ Submitted code (pyqpanda / Qiskit / BQM tabs) ============ -->
+    <section class="explainer-section mt-4">
+      <header class="d-flex align-center mb-2">
+        <v-icon icon="mdi-code-tags" size="small" class="mr-2" />
+        <h4 class="text-subtitle-2">Submitted code</h4>
+      </header>
+      <QaoaCodePreview
+        :extras="extras"
+        :solver-name="solverName || 'qaoa_sim'"
+      />
+    </section>
+
+    <!-- ============ Panel 1: the polynomial ============ -->
+    <section class="explainer-section mt-4">
       <header class="d-flex align-center mb-2">
         <v-icon icon="mdi-function-variant" size="small" class="mr-2" />
         <h4 class="text-subtitle-2">1 · The polynomial we're optimizing</h4>
@@ -569,7 +710,25 @@ function fmtEnergy(e: number): string {
           3 · Measurement histogram (top {{ histogramBars.length }} by probability)
         </h4>
       </header>
-      <div v-if="!histogramBars.length" class="text-medium-emphasis">
+      <div v-if="!histogramBars.length && isQueued" class="waiting-block">
+        <v-progress-circular
+          indeterminate
+          color="info"
+          size="24"
+          width="2"
+          class="mr-3"
+        />
+        <div>
+          <div class="text-body-2">Waiting on cloud measurement…</div>
+          <div class="text-caption text-medium-emphasis">
+            The circuit above was submitted to
+            <strong>{{ extras.backend_name || 'the cloud QPU' }}</strong>.
+            The histogram and top-K filter will fill in as soon as the
+            job returns.
+          </div>
+        </div>
+      </div>
+      <div v-else-if="!histogramBars.length" class="text-medium-emphasis">
         No probability distribution recorded.
       </div>
       <div v-else class="histogram">
@@ -616,7 +775,10 @@ function fmtEnergy(e: number): string {
     </section>
 
     <!-- ============ Panel 4: top-K filter ============ -->
-    <section class="explainer-section mt-4">
+    <section
+      v-if="!isQueued || filterRows.length"
+      class="explainer-section mt-4"
+    >
       <header class="d-flex align-center mb-2">
         <v-icon icon="mdi-filter-variant" size="small" class="mr-2" />
         <h4 class="text-subtitle-2">4 · The classical top-K filter (where the answer is actually picked)</h4>
@@ -663,7 +825,9 @@ function fmtEnergy(e: number): string {
         This is why a noisy QPU can still produce an exact answer.
       </div>
     </section>
+    </div>
   </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -674,8 +838,57 @@ function fmtEnergy(e: number): string {
   max-width: 100%;
   box-sizing: border-box;
 }
+/* Full-view mode: lift the panel out of the half-column, cover the
+ * viewport, and center the content at ~1400px so the circuit + code
+ * finally have room to breathe. Toggled via the "Full view" button
+ * in the header; Esc key + backdrop click both dismiss. Mirrors how
+ * Origin's own dashboard renders the same content at full page width. */
+.qaoa-explainer.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgb(var(--v-theme-surface));
+  overflow: auto;
+  padding: 2rem 1rem;
+  border-left: none;
+  border-radius: 0;
+}
+.qaoa-explainer.is-fullscreen .qaoa-explainer-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  background: rgba(124, 58, 237, 0.04);
+  border-left: 3px solid rgb(var(--v-theme-primary));
+  border-radius: 4px;
+  padding: 1.25rem 1.5rem;
+}
+.fullscreen-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.55);
+}
 .explainer-section {
   font-size: 0.9rem;
+}
+.metadata-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.cloud-job-id {
+  font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 3px;
+  word-break: break-all;
+}
+.waiting-block {
+  display: flex;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
 }
 .polynomial {
   font-family: 'Cascadia Code', 'Consolas', monospace;

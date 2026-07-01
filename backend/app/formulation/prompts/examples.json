@@ -1,6 +1,55 @@
 {
-  "$comment": "Three worked examples used as few-shot turns by every provider. Each entry is one {problem, cqm_json} pair. The CQM JSON values below are taken verbatim from tests/instances/ \u2014 they are already schema-valid under cqm_v1.json. Update both places together if you change a fixture.",
+  "$comment": "Four worked examples used as few-shot turns by every provider. Each entry is one {problem, cqm_json} pair. The CQM JSON values are taken verbatim from tests/instances/ \u2014 they are already schema-valid under cqm_v1.json. Update both places together if you change a fixture. The Max-Cut example is intentionally encoded in the NATURAL unconstrained binary form (no edge-indicator variables, no linearization constraints) to anchor the model toward QAOA-friendly encodings; without this anchor the LLMs reliably emit a 13-variable / 28-constraint form that lowers to 69+ qubits and gets skipped by every QAOA tier.",
   "examples": [
+    {
+      "problem": "I have a graph with 4 nodes labeled 0,1,2,3 and edges (0,1), (0,2), (1,3), (2,3). Partition the nodes into two groups to maximize the number of edges that cross between groups.",
+      "cqm_json": {
+        "version": "1",
+        "description": "Max-Cut on a 4-node graph with edges (0,1), (0,2), (1,3), (2,3). Natural unconstrained binary encoding: each x_i \u2208 {0,1} marks which side of the cut node i is on; for every edge (i,j) the contribution to the cut is x_i + x_j - 2*x_i*x_j (which is 1 when sides differ, 0 when they match). NO indicator variables for edges. NO constraints. The objective is a pure quadratic form, ideal for QAOA / annealers because the lowered BQM has exactly N qubits where N is the node count.",
+        "variables": [
+          {
+            "name": "x_0",
+            "type": "binary",
+            "description": "Node 0 group assignment: 0 = group A, 1 = group B"
+          },
+          {
+            "name": "x_1",
+            "type": "binary",
+            "description": "Node 1 group assignment: 0 = group A, 1 = group B"
+          },
+          {
+            "name": "x_2",
+            "type": "binary",
+            "description": "Node 2 group assignment: 0 = group A, 1 = group B"
+          },
+          {
+            "name": "x_3",
+            "type": "binary",
+            "description": "Node 3 group assignment: 0 = group A, 1 = group B"
+          }
+        ],
+        "objective": {
+          "sense": "maximize",
+          "linear": {
+            "x_0": 2,
+            "x_1": 2,
+            "x_2": 2,
+            "x_3": 2
+          },
+          "quadratic": {
+            "x_0,x_1": -2,
+            "x_0,x_2": -2,
+            "x_1,x_3": -2,
+            "x_2,x_3": -2
+          }
+        },
+        "constraints": [],
+        "test_instance": {
+          "description": "Optimum cut value = 4. Bipartition {0, 3} vs {1, 2} crosses every edge.",
+          "expected_optimum": 4
+        }
+      }
+    },
     {
       "problem": "I have 5 items with weights [2, 3, 4, 5, 9] and values [3, 4, 5, 8, 10]. My knapsack can hold at most 20 units of weight. Which items should I pack to maximize total value?",
       "cqm_json": {

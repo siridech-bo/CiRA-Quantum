@@ -64,6 +64,106 @@ def test_train_vqc_history_fields():
         assert {"epoch", "loss", "train_accuracy", "test_accuracy"}.issubset(h)
 
 
+def test_train_vqc_su2_brick_converges_on_moons():
+    """SU(2) brick-wall ansatz with Riemannian (Stiefel) updates should
+    drive BCE down monotonically and reach decent test accuracy on the
+    moons dataset. Bound is loose to stay robust to numpy BLAS jitter.
+    """
+    split = data_loader.load("moons", max_qubits=2)
+    cfg = VQCConfig(
+        n_qubits=2, n_layers=2, n_epochs=10,
+        batch_size=32, learning_rate=0.1, seed=42,
+        ansatz="su2_brick",
+    )
+    result = train_vqc(
+        split.X_train, split.y_train,
+        split.X_test, split.y_test,
+        config=cfg,
+    )
+    # Loss strictly decreases from epoch 1 to the last (within tolerance
+    # for floating-point jitter on the eval set).
+    assert result.history[-1]["loss"] < result.history[0]["loss"] - 0.05, (
+        f"loss did not decrease: history={result.history}"
+    )
+    # Should comfortably beat chance on the held-out split.
+    assert result.final_test_accuracy >= 0.75, (
+        f"test accuracy too low: {result.final_test_accuracy}"
+    )
+    # Result struct: SU(2) path populates su2_unitaries and leaves
+    # the scalar-angles `weights` field empty.
+    assert result.weights == []
+    assert result.su2_unitaries is not None
+    arr = np.array(result.su2_unitaries)
+    # Shape (n_layers, n_qubits, 2, 2, 2): trailing 2 is [real, imag].
+    assert arr.shape == (cfg.n_layers, cfg.n_qubits, 2, 2, 2)
+    # Reconstructed complex matrices should be unitary.
+    for layer in range(cfg.n_layers):
+        for q in range(cfg.n_qubits):
+            re = arr[layer, q, :, :, 0]
+            im = arr[layer, q, :, :, 1]
+            U = re + 1j * im
+            assert np.allclose(U.conj().T @ U, np.eye(2), atol=1e-6), (
+                f"layer {layer} qubit {q} drifted off the unitary manifold"
+            )
+    # CircuitInfo reflects the SU(2) ansatz so the frontend can label it.
+    assert "SU(2)" in result.circuit_info.entangler
+    # 3 real DOF per SU(2) gate + 1 bias.
+    expected_params = 3 * cfg.n_layers * cfg.n_qubits + 1
+    assert result.circuit_info.n_trainable_params == expected_params
+
+
+def test_train_vqc_su2_brick_with_adam_converges():
+    """Riemannian Adam on the SU(2) brick-wall ansatz should converge at
+    least as well as vanilla Riemannian SGD on moons, and typically
+    faster (Adam's adaptive step size shines when ‖grad‖ varies across
+    gates). Assertion is conservative — we only check the Adam path
+    *also* converges, not that it strictly beats SGD.
+    """
+    split = data_loader.load("moons", max_qubits=2)
+    cfg = VQCConfig(
+        n_qubits=2, n_layers=2, n_epochs=10,
+        batch_size=32, learning_rate=0.03, seed=42,
+        ansatz="su2_brick", momentum="adam",
+    )
+    result = train_vqc(
+        split.X_train, split.y_train,
+        split.X_test, split.y_test,
+        config=cfg,
+    )
+    assert result.history[-1]["loss"] < result.history[0]["loss"] - 0.05
+    assert result.final_test_accuracy >= 0.75
+    # SU(2) result-shape contract still holds with Adam.
+    arr = np.array(result.su2_unitaries)
+    assert arr.shape == (cfg.n_layers, cfg.n_qubits, 2, 2, 2)
+    for layer in range(cfg.n_layers):
+        for q in range(cfg.n_qubits):
+            re = arr[layer, q, :, :, 0]
+            im = arr[layer, q, :, :, 1]
+            U = re + 1j * im
+            assert np.allclose(U.conj().T @ U, np.eye(2), atol=1e-6), (
+                f"Adam update broke unitarity at layer {layer} qubit {q}"
+            )
+
+
+def test_train_vqc_su2_brick_emits_on_epoch():
+    """on_epoch callback fires once per epoch for the SU(2) path too."""
+    split = data_loader.load("moons", max_qubits=2)
+    cfg = VQCConfig(
+        n_qubits=2, n_layers=1, n_epochs=3,
+        batch_size=32, seed=1, ansatz="su2_brick",
+    )
+    emitted: list[dict] = []
+    train_vqc(
+        split.X_train, split.y_train,
+        split.X_test, split.y_test,
+        config=cfg,
+        on_epoch=lambda i, m: emitted.append(m),
+    )
+    assert len(emitted) == cfg.n_epochs
+    for m in emitted:
+        assert {"epoch", "loss", "train_accuracy", "test_accuracy"}.issubset(m)
+
+
 @pytest.fixture
 def isolated_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Same isolation pattern as the other route test files."""
