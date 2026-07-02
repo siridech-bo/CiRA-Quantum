@@ -275,6 +275,25 @@ def run_training_job(
                     "split": "test",
                 })
 
+        # Persist the full N-dim test split so real-QPU inference
+        # (QML-5 IBMQ + QML-6 Origin) can work for jobs with more than
+        # 2 features. ``scatter_points`` above only carries the first
+        # two dimensions for plotting purposes; ``test_split`` below
+        # is the raw ``n_qubits``-dimensional vectors the VQC actually
+        # consumes at inference time. Bounded to the test rows only
+        # because IBM's batch path evaluates the whole test set and
+        # Origin's single-point path selects by index — neither reuses
+        # the training rows.
+        test_split: dict[str, Any] | None = None
+        if split.X_test.shape[0] > 0:
+            test_split = {
+                "X_test": [
+                    [round(float(v), 6) for v in row]
+                    for row in split.X_test
+                ],
+                "y_test": [int(y) for y in split.y_test],
+            }
+
         result_dict = {
             "final_train_accuracy": result.final_train_accuracy,
             "final_test_accuracy": result.final_test_accuracy,
@@ -293,6 +312,13 @@ def run_training_job(
             "baselines": baselines_serialized,
             "decision_grid": result.final_decision_grid,
             "scatter_points": scatter_points,
+            # N-dim test split — the real-QPU inference endpoints
+            # (routes/qml.py) prefer this over scatter_points so that
+            # jobs with n_qubits > 2 can still submit to IBMQ / Origin.
+            # Old jobs trained before this field was added have
+            # ``test_split = None``; the endpoint falls back to
+            # scatter_points (2-qubit only) for those.
+            "test_split": test_split,
             # SU(2)-ansatz only. ``None`` for basic_ry; populated with
             # shape (n_layers, n_qubits, 2, 2, 2) for su2_brick — the
             # trailing axis is [real, imag] per complex matrix entry.

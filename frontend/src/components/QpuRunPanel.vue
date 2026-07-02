@@ -23,7 +23,7 @@ import { useQmlStore, type QmlQpuRun } from '@/stores/qml'
 const props = defineProps<{
   parentJobId: string
   /** Whether the parent has a 2D test split (required for the QML-5/6 cut). */
-  has2dSplit: boolean
+  hasTestSplit: boolean
   /** Optional: VQC simulator accuracy, for the "compare vs simulator" row. */
   simulatorTestAccuracy?: number | null
 }>()
@@ -181,17 +181,19 @@ function providerColor(p: string) {
 
     <!-- 2D-split gate (applies to both providers) -->
     <v-alert
-      v-if="!has2dSplit"
+      v-if="!hasTestSplit"
       type="info"
       variant="tonal"
       density="compact"
       class="mb-3"
       icon="mdi-information-outline"
     >
-      Real-QPU inference is enabled for <strong>2-qubit jobs</strong>
-      (Moons / Circles, or any dataset where you set
-      <code>n_qubits = 2</code>). This run used more qubits — train a
-      2-qubit job to try the real-hardware path.
+      This job doesn't have a persisted test split, so real-QPU
+      inference can't reconstruct the test data. This applies to
+      jobs trained before 2026-07-02 (only the 2D scatter for the
+      boundary plot was saved back then). Re-train to enable the
+      real-hardware path — the new pipeline persists the full
+      N-dimensional test split for any qubit count up to Wukong's 12.
     </v-alert>
 
     <v-window v-else v-model="provider">
@@ -344,7 +346,7 @@ function providerColor(p: string) {
       </div>
     </v-alert>
 
-    <div v-if="has2dSplit" class="d-flex align-center mt-3">
+    <div v-if="hasTestSplit" class="d-flex align-center mt-3">
       <v-spacer />
       <v-btn
         :color="providerColor(provider)"

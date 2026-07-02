@@ -247,6 +247,16 @@ def test_run_training_job_persists_metrics(isolated_app):
     assert isinstance(scatter, list) and len(scatter) > 0
     s0 = scatter[0]
     assert {"x", "y", "label", "split"} == set(s0.keys())
+    # QML-5/6 (2026-07-02) — the trainer persists the full N-dim test
+    # split so real-QPU inference works for any qubit count, not just
+    # 2. For this 2-qubit fixture ``X_test`` rows are 2-vectors; the
+    # shape assertion here is what routes/qml.py relies on.
+    test_split = metrics["test_split"]
+    assert isinstance(test_split, dict)
+    assert "X_test" in test_split and "y_test" in test_split
+    assert len(test_split["X_test"]) == len(test_split["y_test"])
+    assert len(test_split["X_test"]) > 0
+    assert len(test_split["X_test"][0]) == 2  # n_qubits for this fixture
 
 
 def test_decision_grid_shape_and_bounds():

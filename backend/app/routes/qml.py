@@ -292,23 +292,63 @@ def qml_job_stream(job_id: str):
 # ---- QML-5: Real-QPU inference ---------------------------------------------
 
 
+# Per-backend qubit budget for the Origin QPU inference path. Mirrors
+# the optimization side (QAOACloudSampler / _REAL_HARDWARE_BACKENDS)
+# so the two apps behave the same when a user's VQC width exceeds
+# what the chosen chip can hold. Return a helpful error at submit
+# time instead of letting pyqpanda3 emit a cryptic circuit-compile
+# failure downstream.
+_ORIGIN_QUBIT_CAPS: dict[str, int] = {
+    "full_amplitude": 7,   # Origin's cloud simulator budget.
+    "WK_C180": 12,
+    "WK_C180_2": 12,
+    "HanYuan_01": 12,
+}
+
+
+def _origin_qubit_cap(backend_name: str) -> int | None:
+    """Return the qubit cap for the given Origin backend, or ``None``
+    when the backend isn't in our whitelist (letting pyqpanda3 return
+    its own error keeps forward-compat: new Origin chips work without
+    a code change)."""
+    return _ORIGIN_QUBIT_CAPS.get(backend_name)
+
+
 def _load_test_split_from_metrics(metrics_json: str | None):
     """Reconstruct ``(X_test, y_test, weights, bias)`` from the parent
-    job's persisted metrics. Returns ``None`` if the job hasn't completed
-    or wasn't a 2-qubit run (the only ones we support right now)."""
+    job's persisted metrics. Returns ``None`` if the metrics can't be
+    parsed or the fields aren't there.
+
+    Prefers the ``test_split`` field (N-dim, added 2026-07-02) so
+    real-QPU inference works for any qubit count up to the backend's
+    cap. Falls back to ``scatter_points`` (2D only) for jobs trained
+    before ``test_split`` was persisted — those will continue to work
+    on the 2-qubit path.
+    """
     if not metrics_json:
         return None
     try:
         m = json.loads(metrics_json)
     except Exception:
         return None
-    scatter = m.get("scatter_points")
     weights = m.get("weights")
     bias = m.get("bias")
-    if not scatter or not weights or bias is None:
+    if not weights or bias is None:
         return None
 
     import numpy as _np
+
+    # ---- Preferred: N-dim test_split (works for any n_qubits) ----
+    ts = m.get("test_split")
+    if ts and ts.get("X_test") and ts.get("y_test"):
+        X_test = _np.array(ts["X_test"], dtype=_np.float32)
+        y_test = _np.array(ts["y_test"], dtype=_np.int64)
+        return X_test, y_test, weights, float(bias)
+
+    # ---- Fallback: 2D scatter_points (legacy jobs, 2-qubit only) ----
+    scatter = m.get("scatter_points")
+    if not scatter:
+        return None
     test_pts = [p for p in scatter if p.get("split") == "test"]
     if not test_pts:
         return None
@@ -364,9 +404,13 @@ def qml_submit_qpu_ibmq(job_id: str):
     split = _load_test_split_from_metrics(parent.get("metrics"))
     if split is None:
         return jsonify({
-            "error": "This parent job doesn't have a 2D test split — "
-                     "real-QPU inference is only enabled for 2-qubit jobs in QML-5.",
-            "code": "UNSUPPORTED_SHAPE",
+            "error": (
+                "This job's metrics don't include a persisted test "
+                "split. Jobs trained before 2026-07-02 only saved the "
+                "2D scatter used for the decision-boundary plot; "
+                "re-train to enable real-QPU inference."
+            ),
+            "code": "NO_TEST_SPLIT",
         }), 400
     X_test, y_test, weights, bias = split
 
@@ -460,11 +504,34 @@ def qml_submit_qpu_originqc(job_id: str):
     split = _load_test_split_from_metrics(parent.get("metrics"))
     if split is None:
         return jsonify({
-            "error": "This parent job doesn't have a 2D test split — "
-                     "real-QPU inference is only enabled for 2-qubit jobs.",
-            "code": "UNSUPPORTED_SHAPE",
+            "error": (
+                "This job's metrics don't include a persisted test "
+                "split. Jobs trained before 2026-07-02 only saved the "
+                "2D scatter used for the decision-boundary plot; "
+                "re-train to enable real-QPU inference."
+            ),
+            "code": "NO_TEST_SPLIT",
         }), 400
     X_test, y_test, weights, bias = split
+
+    # Qubit-cap preflight for known Origin backends. Origin's
+    # ``full_amplitude`` simulator holds 7 qubits, and the Wukong /
+    # HanYuan chips hold 12. Trying to submit a wider VQC produces
+    # a cryptic pyqpanda3 error after the shots have already been
+    # billed on some plans; catching it here saves the user a bad
+    # experience and (potentially) real money.
+    n_features = int(X_test.shape[1])
+    cap = _origin_qubit_cap(backend_name)
+    if cap is not None and n_features > cap:
+        return jsonify({
+            "error": (
+                f"This VQC uses {n_features} qubits, but backend "
+                f"{backend_name!r} only supports up to {cap}. Either "
+                f"pick a wider backend (Wukong=12) or re-train with "
+                f"fewer features (Settings → n_qubits)."
+            ),
+            "code": "QUBIT_CAP_EXCEEDED",
+        }), 400
 
     run_id = create_qml_qpu_run(
         qml_job_id=job_id,

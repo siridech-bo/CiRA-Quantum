@@ -133,10 +133,21 @@ const baselinesWithQpu = computed<QmlBaseline[]>(() => {
   return base
 })
 
-// 2-qubit jobs are the only ones with a 2D test split persisted, which
-// is what the QPU panel needs. Check it the cheap way: scatter_points
-// existing AND every point having exactly 2 coordinates is implied by
-// the trainer's invariant, so a non-null scatter is enough.
+// The QPU panel needs a persisted test split to send to IBM/Origin.
+// Two shapes support this:
+//   * ``test_split`` — N-dim array of test vectors (post-2026-07-02).
+//     Present for any qubit count; the preferred source.
+//   * ``scatter_points`` — 2D-only array used for the decision-boundary
+//     plot (pre-2026-07-02 jobs saved this instead).
+// We compute the split shapes independently so the UI can also render
+// the boundary heatmap when scatter_points is available.
+const hasTestSplit = computed(() => {
+  const metrics = qml.currentJob?.metrics as any
+  if (!metrics) return false
+  const ts = metrics.test_split
+  if (ts && Array.isArray(ts.X_test) && ts.X_test.length > 0) return true
+  return Array.isArray(scatterPoints.value) && scatterPoints.value.length > 0
+})
 const has2dSplit = computed(
   () => Array.isArray(scatterPoints.value) && scatterPoints.value.length > 0,
 )
@@ -473,7 +484,7 @@ onBeforeUnmount(() => {
                the scoreboard. -->
           <QpuRunPanel
             :parent-job-id="qml.currentJob.id"
-            :has2d-split="has2dSplit"
+            :has-test-split="hasTestSplit"
             :simulator-test-accuracy="qml.finalMetrics.final_test_accuracy"
             class="mt-4"
           />
