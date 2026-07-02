@@ -1,0 +1,21 @@
+{
+  "id": "max_cut_4node",
+  "title": "Max-Cut on a 4-Node Graph",
+  "category": "graph",
+  "difficulty": "beginner",
+  "tags": ["spin", "quadratic", "unconstrained", "qpu_friendly"],
+  "summary": "The smallest interesting Max-Cut. 4 nodes, 4 qubits — comfortably fits any real superconducting QPU.",
+  "problem_statement": "I have a graph with 4 nodes labeled 0, 1, 2, 3 and edges: (0,1), (0,2), (1,3), (2,3). Partition the nodes into two groups so the number of edges crossing between the groups is maximized. Tell me which nodes go in each group.",
+  "real_world_example": "The 4-node cycle is the textbook 'smallest interesting graph problem' — big enough for a nontrivial partition, small enough to fit a demo without slack qubits. Same shape appears in tiny routing decisions and 2×2 assignment scoring.",
+  "expected_pattern": {
+    "variables": "x_i in {0, 1} — which group node i belongs to",
+    "objective": "maximize sum over edges (i,j) of (x_i + x_j - 2*x_i*x_j)",
+    "constraints": "none — pure quadratic objective"
+  },
+  "expected_optimum": 4,
+  "expected_solution_summary": "Bipartition {0, 3} vs {1, 2} cuts all 4 edges. Symmetric with the swap.",
+  "learning_notes": "The natural unconstrained binary encoding lowers to exactly 4 qubits with no slack. This is the recommended smoke test for the real-QPU path: click Solve with Wukong picked and you should see the same energy from qaoa_originqc and all classical solvers.",
+  "estimated_solve_time_seconds": 1,
+  "min_solver_tier": "gpu_sa",
+  "qpu_ready": true
+}

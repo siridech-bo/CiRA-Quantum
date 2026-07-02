@@ -243,6 +243,25 @@ class Orchestrator:
             # constant stays canonical.
             if overrides.get(name):
                 params.update(overrides[name])
+            # Per-backend qubit budget for qaoa_originqc. The module
+            # constant's ``max_qubits: 7`` matches Origin's cloud
+            # ``full_amplitude`` simulator budget. Real superconducting
+            # chips (Wukong 180, 180-2, Hanyuan) have 180 physical
+            # qubits — realistically usable for QAOA at reasonable
+            # depth is ~10-15 before transpile blows up. We use 12 as
+            # a safe upper bound that fits every gallery template
+            # marked qpu_ready without pushing compile times. Bumping
+            # only happens when the user hasn't set max_qubits
+            # explicitly via overrides (they can't today, but this
+            # keeps the logic future-proof).
+            if (
+                name == "qaoa_originqc"
+                and params.get("backend_name") in {
+                    "WK_C180", "WK_C180_2", "HanYuan_01",
+                }
+                and (overrides.get(name, {}) or {}).get("max_qubits") is None
+            ):
+                params["max_qubits"] = 12
 
             # BYOK injection. qaoa_originqc requires an Origin Quantum
             # API key stored under provider "qpanda" in the api_keys
@@ -531,6 +550,13 @@ class Orchestrator:
                 cqm=cqm, registry=registry, sense=sense,
                 solvers=solvers, event_bus=event_bus,
                 solver_params_overrides=solver_params_overrides,
+                # Threaded through so stage-5 can call
+                # provider.summarize_solution() with the same key that
+                # ran the formulation; None on the resume path (see
+                # resume_after_approval).
+                problem_statement=problem_statement,
+                provider_name=provider_name,
+                api_key=api_key,
             )
 
         except PipelineError as e:
@@ -595,6 +621,26 @@ class Orchestrator:
             solver_params_overrides = (
                 json.loads(overrides_raw) if overrides_raw else None
             )
+            # Rehydrate the LLM-summary inputs — the paused row already
+            # carries problem_statement + provider; the BYOK key comes
+            # from the user's stored credential (best-effort — if the
+            # key was rotated between pause and resume, the summary
+            # will silently skip and the technical view remains).
+            resumed_problem_statement = job.get("problem_statement")
+            resumed_provider = job.get("provider")
+            resumed_api_key: str | None = None
+            if resumed_provider and resumed_provider != "local":
+                try:
+                    from app.config import KEY_ENCRYPTION_SECRET
+                    from app.crypto import decrypt_api_key
+                    from app.models import get_api_key_ciphertext
+                    cipher = get_api_key_ciphertext(user_id, resumed_provider)
+                    if cipher is not None:
+                        resumed_api_key = decrypt_api_key(
+                            cipher, KEY_ENCRYPTION_SECRET,
+                        )
+                except Exception:  # noqa: BLE001
+                    resumed_api_key = None
             # The previous bus session emitted a terminal
             # ``awaiting_approval`` event; the channel is now closed and
             # ``emit`` would silently drop our new events. Reset it so
@@ -605,6 +651,9 @@ class Orchestrator:
                 cqm=cqm, registry=registry, sense=sense,
                 solvers=solvers, event_bus=event_bus,
                 solver_params_overrides=solver_params_overrides,
+                problem_statement=resumed_problem_statement,
+                provider_name=resumed_provider,
+                api_key=resumed_api_key,
             )
         except PipelineError as e:
             update_job(
@@ -635,6 +684,11 @@ class Orchestrator:
         solvers: list[str] | None,
         event_bus: EventBus,
         solver_params_overrides: dict[str, dict[str, Any]] | None = None,
+        # Optional — enables the plain-English post-processing call. On
+        # the approval resume path we look these up from the DB.
+        problem_statement: str | None = None,
+        provider_name: str | None = None,
+        api_key: str | None = None,
     ) -> None:
         """Stages 4 + 5 — solve, pick winner, interpret, write completion.
 
@@ -685,6 +739,26 @@ class Orchestrator:
             primary_name = "gpu_sa"
 
         interpreted = interpret_solution(cqm_sample, registry, cqm, sense=sense)
+        # Plain-English summary. Best-effort — a failure at this stage
+        # must never abort a successful solve; the technical
+        # ``interpreted`` above is the safety net. When ``problem_statement``
+        # + ``api_key`` are missing (legacy callers) or the provider
+        # returns None, ``plain_english`` stays None and the frontend
+        # falls back to the technical view.
+        plain_english: str | None = None
+        if problem_statement and provider_name and api_key:
+            try:
+                provider = self.provider_resolver(provider_name)
+                plain_english = await provider.summarize_solution(
+                    problem_statement=problem_statement,
+                    interpreted_solution=interpreted,
+                    api_key=api_key,
+                )
+            except Exception:  # noqa: BLE001
+                # Any provider-side failure (HTTP, timeout, malformed
+                # response) is swallowed — the interpretation is
+                # informational, not load-bearing.
+                plain_english = None
         # JSON keys must be strings even when the CQM uses int variable
         # labels; coerce numpy scalars to Python natives so the default
         # JSON encoder doesn't reject them.
@@ -699,6 +773,8 @@ class Orchestrator:
             "solve_time_ms": elapsed_ms,
             "completed_at": datetime.utcnow().isoformat(),
         }
+        if plain_english:
+            completion_fields["plain_english_solution"] = plain_english
         if public_solver_results is not None:
             completion_fields["solver_results"] = json.dumps({
                 "solvers": public_solver_results,
@@ -753,9 +829,31 @@ class Orchestrator:
         # Mirror the caps the QAOA samplers actually enforce. Source of
         # truth is the per-sampler config; we duplicate the numbers
         # here so the UI verdict matches what the sampler will do.
+        #
+        # ``qaoa_originqc``'s cap is backend-dependent. The module
+        # default (7) matches Origin's ``full_amplitude`` cloud
+        # simulator budget; picking a real Wukong / Hanyuan backend in
+        # ProblemInput bumps to 12 inside ``_run_multi_solver``. We
+        # mirror that logic here so the preflight card doesn't
+        # under-report (showing "would skip 10 > 7") when the runtime
+        # cap will actually be 12 — before this fix, users on the Max
+        # Independent Set 5-node template with Wukong selected saw a
+        # "would skip" that never actually happened.
+        origin_backend = (
+            (solver_params_overrides or {})
+            .get("qaoa_originqc", {})
+            .get("backend_name")
+        )
+        real_origin = {"WK_C180", "WK_C180_2", "HanYuan_01"}
+        origin_default_cap = _DEFAULT_PARAMS_BY_SOLVER.get(
+            "qaoa_originqc", {},
+        ).get("max_qubits", 7)
+        origin_effective_cap = (
+            12 if origin_backend in real_origin else origin_default_cap
+        )
         tier_caps: dict[str, int] = {
             "qaoa_sim": _DEFAULT_PARAMS_BY_SOLVER.get("qaoa_sim", {}).get("max_qubits", 12),
-            "qaoa_originqc": _DEFAULT_PARAMS_BY_SOLVER.get("qaoa_originqc", {}).get("max_qubits", 7),
+            "qaoa_originqc": origin_effective_cap,
             "qaoa_ibmq": _DEFAULT_PARAMS_BY_SOLVER.get("qaoa_ibmq", {}).get("max_qubits", 20),
         }
         verdicts = {

@@ -32,6 +32,16 @@ const DIFF_COLOR: Record<string, string> = {
         </v-chip>
         <v-spacer />
         <v-chip
+          v-if="template.qpu_ready"
+          size="x-small"
+          variant="tonal"
+          color="success"
+          prepend-icon="mdi-atom-variant"
+          title="Compiled circuit fits inside the real superconducting QPU's qubit budget."
+        >
+          Real QPU
+        </v-chip>
+        <v-chip
           v-if="template.module_id"
           size="x-small"
           variant="tonal"

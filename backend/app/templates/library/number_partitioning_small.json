@@ -1,0 +1,21 @@
+{
+  "id": "number_partitioning_small",
+  "title": "Number Partitioning (5 numbers)",
+  "category": "allocation",
+  "difficulty": "beginner",
+  "tags": ["spin", "quadratic", "unconstrained", "qpu_friendly"],
+  "summary": "Split 5 numbers into two groups so the absolute difference of the group sums is as small as possible. 5 qubits.",
+  "problem_statement": "I have a set of 5 positive numbers: [4, 3, 2, 3, 1]. Split them into two groups so the absolute difference between the two group sums is as small as possible. Tell me which numbers go in each group.",
+  "real_world_example": "Balancing two teams so their total experience points are as equal as possible. Or splitting a stack of tasks between two workers so their finish times are as close as possible.",
+  "expected_pattern": {
+    "variables": "s_i in {-1, +1} — which group number i belongs to (equivalently x_i in {0, 1})",
+    "objective": "minimize (sum a_i * s_i)^2 — the squared imbalance is the entire objective",
+    "constraints": "none"
+  },
+  "expected_optimum": 1,
+  "expected_solution_summary": "Group A = {4, 2} (sum 6), Group B = {3, 3, 1} (sum 7). Absolute difference = 1. (Any split with difference 1 is optimal.)",
+  "learning_notes": "Sum of numbers is 13 — an odd total means the minimum possible imbalance is 1, not 0. This is a useful teaching moment: the theoretically minimum objective is dictated by the input's parity. The unconstrained squared-imbalance form lowers to exactly 5 qubits with no slack.",
+  "estimated_solve_time_seconds": 1,
+  "min_solver_tier": "gpu_sa",
+  "qpu_ready": true
+}

@@ -1,0 +1,21 @@
+{
+  "id": "max_independent_set_5node",
+  "title": "Max Independent Set (5-Node Graph)",
+  "category": "graph",
+  "difficulty": "beginner",
+  "tags": ["binary", "penalty", "graph", "qpu_friendly"],
+  "summary": "Pick the largest set of nodes from a graph such that no two chosen nodes share an edge. 5 qubits.",
+  "problem_statement": "I have a graph with 5 nodes labeled 0 through 4 and edges (0,1), (0,2), (1,3), (2,3), (3,4). Pick a subset of nodes such that no two chosen nodes are connected by an edge, and the subset is as large as possible. Tell me which nodes are chosen.",
+  "real_world_example": "Choosing conference talks to attend when many overlap in time — each talk is a node, edges connect overlapping talks, and you want to see as many as possible. Or selecting compatible medications from a list where some pairs interact.",
+  "expected_pattern": {
+    "variables": "x_i in {0, 1} — whether node i is chosen",
+    "objective": "maximize sum(x_i) - λ * sum over edges (i,j) of x_i * x_j (penalty for choosing both endpoints)",
+    "constraints": "encoded into the objective via the pairwise penalty term; no explicit constraints"
+  },
+  "expected_optimum": 3,
+  "expected_solution_summary": "Optimal choice: {1, 2, 4} — three nodes with no edge between any pair (1–2, 1–4, 2–4 are all non-edges). Verify by inspection: no edge in the graph has both endpoints in this set.",
+  "learning_notes": "This is a classic 'penalty formulation' problem. There's no hard constraint — instead, we penalize any pair of chosen adjacent nodes heavily enough that the maximizer will never pick both. Choosing the penalty weight λ correctly is the interesting design decision; too small and the solver picks invalid sets, too large and the objective landscape becomes flat.",
+  "estimated_solve_time_seconds": 1,
+  "min_solver_tier": "gpu_sa",
+  "qpu_ready": true
+}

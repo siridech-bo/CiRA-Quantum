@@ -139,6 +139,16 @@ def init_db() -> None:
         if "solver_params_overrides" not in existing_columns:
             cursor.execute("ALTER TABLE jobs ADD COLUMN solver_params_overrides TEXT")
 
+        # 2026-07-01 plain-English summary — LLM rewrite of the
+        # deterministic interpreter output, so the user gets an answer
+        # phrased in the same vocabulary as their original question.
+        # Generated best-effort during stage 5 by calling the
+        # formulation provider's ``summarize_solution`` method; NULL
+        # when the call failed or the provider doesn't support it (the
+        # frontend falls back to the technical view in that case).
+        if "plain_english_solution" not in existing_columns:
+            cursor.execute("ALTER TABLE jobs ADD COLUMN plain_english_solution TEXT")
+
         # QML-6: per-provider state on QPU runs (e.g. Origin's
         # sample_index — which test point we evaluated). IBM ignores it
         # because it batches the whole test set. Idempotent ALTER so

@@ -36,6 +36,7 @@ templates_bp = Blueprint("templates", __name__)
 _SUMMARY_FIELDS = (
     "id", "title", "category", "difficulty", "summary",
     "tags", "estimated_solve_time_seconds",
+    "qpu_ready",
 )
 
 

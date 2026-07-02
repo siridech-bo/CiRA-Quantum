@@ -17,6 +17,7 @@
   "learning_notes": "Max-Cut is the textbook example of a quadratic-objective, constraint-free QUBO. It maps directly into Ising form. The 'group A vs group B' symmetry means there are always at least two equivalent optima — the solver may give you either.",
   "estimated_solve_time_seconds": 1,
   "min_solver_tier": "gpu_sa",
+  "qpu_ready": true,
   "module": {
     "module_id": "qubo_foundations",
     "lesson_id": "graph_objective_no_constraints",

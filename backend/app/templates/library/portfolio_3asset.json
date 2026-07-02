@@ -16,5 +16,6 @@
   "expected_solution_summary": "Pick assets 1 and 3 (highest returns with modest covariance). Return = 0.10 + 0.12 = 0.22; variance = 0.04 + 0.05 + 2*0.02 = 0.13; objective ≈ 0.22 − 0.065 ≈ 0.155. Other 2-asset subsets give lower objectives.",
   "learning_notes": "Portfolio selection is the textbook 'quadratic objective with budget' problem. The covariance matrix enters the objective as a quadratic form — exactly the shape QUBO solvers were built for. The binary-selection variant is a simplification; the continuous-weight version (Markowitz proper) needs a different solver. Real portfolio teams care about *both* the binary 'which assets even appear' question and the continuous 'what weight does each get'; the binary form is the screening pass.",
   "estimated_solve_time_seconds": 2,
-  "min_solver_tier": "gpu_sa"
+  "min_solver_tier": "gpu_sa",
+  "qpu_ready": true
 }

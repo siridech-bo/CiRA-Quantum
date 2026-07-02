@@ -18,6 +18,11 @@ export interface TemplateSummary {
   estimated_solve_time_seconds: number
   module_id?: string
   module_order?: number
+  /** True when the compiled BQM fits within the real superconducting
+   * QPU's qubit budget (currently 12 for Wukong / Hanyuan via
+   * qaoa_originqc). Drives the gallery's "Real Quantum Friendly"
+   * vs. "Classical / Larger Instances" split. Absent = false. */
+  qpu_ready?: boolean
 }
 
 export interface TemplateDetail extends TemplateSummary {

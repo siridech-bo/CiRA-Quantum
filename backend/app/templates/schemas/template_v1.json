@@ -45,6 +45,10 @@
       "type": "string",
       "enum": ["cpu_sa", "gpu_sa", "sqbm_plus"]
     },
+    "qpu_ready": {
+      "type": "boolean",
+      "description": "Whether the compiled BQM fits inside a real superconducting QPU's qubit budget (currently 12 for Wukong / Hanyuan via qaoa_originqc). Templates that lower to more qubits should set this to false so the gallery separates them from the real-quantum-friendly picks. Absent = false."
+    },
     "module": {
       "$comment": "v2 addition. Turns a template into a Modules-library lesson with explicit learning objectives + prerequisite chain.",
       "type": "object",

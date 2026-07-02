@@ -513,6 +513,232 @@ top-K filter is you looking at the results.
   </li>
 </ul>
 
+<h2>Follow-up (2026-07-02): from bitstring to answer</h2>
+
+<p>
+A subsequent solve on the same platform used the <strong>Max Independent
+Set (5-Node)</strong> template — a natural follow-up demo for
+non-technical audiences. Claude's formulation lowered to a
+<strong>10-qubit BQM</strong>, and the surprise was: <em>why 10 qubits
+for a 5-node problem?</em> The answer led to a clean explanation of
+how a real QPU's raw measurement gets turned into a plain-English
+answer, and how <strong>slack qubits</strong> (a QUBO-encoding trick)
+differ from <strong>quantum error correction</strong> (a hardware
+noise-protection technique). Both concepts add "extra qubits", but
+they exist for orthogonal reasons.
+</p>
+
+<h3>Why the 5-node problem used 10 qubits</h3>
+
+<p>
+The CQM Claude emitted had 5 logical binary variables (one per node,
+<code>x_0</code>…<code>x_4</code>) plus <strong>5 inequality
+constraints</strong> — one per graph edge, enforcing "not both
+endpoints picked". When <code>dimod.cqm_to_bqm</code> lowered this
+CQM into a QUBO/Ising form suitable for QAOA, each inequality
+constraint required a <strong>slack qubit</strong> to soak up the
+"how far below the bound are we?" quantity. Five constraints → five
+slack qubits → 10 total qubits.
+</p>
+
+<div class="metric-grid">
+  <div class="metric">
+    <div class="metric-label">Node binaries</div>
+    <div class="metric-value">5</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Inequality constraints</div>
+    <div class="metric-value">5</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Slack qubits added</div>
+    <div class="metric-value">5</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Total qubits on QPU</div>
+    <div class="metric-value">10</div>
+  </div>
+</div>
+
+<h3>The four-stage interpretation pipeline</h3>
+
+<p>
+Every raw QPU measurement goes through the same pipeline before
+becoming a sentence the user can read:
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Stage</th>
+      <th>Input</th>
+      <th>Output</th>
+      <th>What it does</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1. Measurement</td>
+      <td>QAOA circuit on 10 qubits</td>
+      <td>10-bit string, e.g. <code>0010011101</code></td>
+      <td>Wukong collapses the entangled state; every rail is measured</td>
+    </tr>
+    <tr>
+      <td>2. Inversion</td>
+      <td>Full BQM sample (logical + slack)</td>
+      <td>CQM sample: <code>{x_0:0, x_1:1, x_2:1, x_3:0, x_4:1}</code></td>
+      <td>The <code>invert()</code> closure dimod returned during
+      lowering drops the slack qubits and restores the original
+      variable names</td>
+    </tr>
+    <tr>
+      <td>3. Registry lookup</td>
+      <td>CQM sample + variable descriptions</td>
+      <td>"Node 1 is chosen", "Node 2 is chosen", "Node 4 is chosen"</td>
+      <td>The interpreter walks <code>cqm.variables</code> in order
+      and pulls each description from the registry the LLM emitted</td>
+    </tr>
+    <tr>
+      <td>4. LLM summary</td>
+      <td>Problem statement + technical listing</td>
+      <td>"The largest independent set has 3 nodes: {1, 2, 4}."</td>
+      <td>Claude Sonnet rewrites the technical output as a plain-English
+      answer matching the user's question vocabulary</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <p>
+    <strong>Key insight:</strong> the QPU has no notion of "some of
+    these are the answer, others are internal". It measures every
+    rail. The distinction between logical variables (the answer) and
+    slack qubits (bookkeeping) is a <em>compile-time construct</em>
+    that lives in the closure <code>invert()</code> captures. The
+    QPU is oblivious.
+  </p>
+</div>
+
+<h3>Why the slack qubits matter even though we discard them</h3>
+
+<p>
+A reasonable question: <em>if the slack qubits are thrown away, why
+bother?</em> Because during QAOA optimization, they are what makes
+the <strong>energy landscape</strong> encode the constraint. A
+bitstring where the logical variables violate a non-adjacency
+constraint gets a big energy penalty <em>through the slack coupling
+terms</em> — so the QPU's probability distribution steers away from
+those states even at low circuit depth.
+</p>
+
+<p>
+Concrete evidence: the top-K filter on this solve showed energies
+from <code>−9</code> (winner) down to <code>−97</code>. The energy
+is computed over the <strong>full 10-qubit assignment</strong>
+(logical + slack) because that's what makes the ranking meaningful.
+If we only scored the 5 logical bits, all the "picked adjacent
+nodes" states would look identical to valid states.
+</p>
+
+<h2>Slack qubits vs. quantum error correction — a common confusion</h2>
+
+<p>
+Both add "extra qubits" beyond the logical minimum. Users new to
+quantum computing often conflate them because both appear as
+overhead in a qubit-count budget. But they exist at completely
+different layers of the stack, for orthogonal reasons.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Slack qubits</th>
+      <th>Quantum error correction</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Purpose</strong></td>
+      <td>Encode inequality constraints into a QUBO form the sampler
+      can handle</td>
+      <td>Protect a fragile quantum state against decoherence and gate
+      errors</td>
+    </tr>
+    <tr>
+      <td><strong>Where it lives</strong></td>
+      <td>Problem formulation / compile time</td>
+      <td>Hardware or firmware / execution time</td>
+    </tr>
+    <tr>
+      <td><strong>What it uses</strong></td>
+      <td>Logical binary variables (same kind as your problem
+      variables)</td>
+      <td>Physical qubits in structured code layouts (surface,
+      Steane, qLDPC…)</td>
+    </tr>
+    <tr>
+      <td><strong>Solver-agnostic?</strong></td>
+      <td>Yes — same trick used by classical SA, GPU SA, CP-SAT,
+      D-Wave, and QAOA</td>
+      <td>No — inseparable from a specific hardware model and its
+      noise characterization</td>
+    </tr>
+    <tr>
+      <td><strong>Overhead scale</strong></td>
+      <td>~1 slack qubit per <code>≤</code> or <code>≥</code>
+      inequality</td>
+      <td>Dozens (Steane) to thousands (early surface code) of
+      physical qubits per logical qubit</td>
+    </tr>
+    <tr>
+      <td><strong>Failure mode</strong></td>
+      <td>An infeasible bitstring appears as a high-energy state; the
+      classical filter never picks it</td>
+      <td>Syndrome measurement decodes errors; if noise exceeds the
+      code's threshold, correction fails silently</td>
+    </tr>
+    <tr>
+      <td><strong>Example on Origin Wukong today</strong></td>
+      <td>The 5 slack qubits added to encode the 5 non-adjacency
+      constraints in Max Independent Set</td>
+      <td>Not exercised in this run — Wukong 180-2 is a
+      near-term-noisy chip (NISQ), no QEC layer is engaged</td>
+    </tr>
+    <tr>
+      <td><strong>Where it appears in this platform</strong></td>
+      <td>Optimization module, invisible to end users but visible in
+      the preflight "lowered qubits" number</td>
+      <td>qLDPC module (a separate app in the CiRA Quantum family) —
+      designs, routes, and benchmarks quantum LDPC codes end-to-end</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="demo-quote">
+Both slack qubits and QEC add "extra qubits", but they do so for
+orthogonal reasons. Slack is <em>problem-encoding</em> overhead — a
+compile-time trick to make inequalities fit a QUBO. QEC is
+<em>hardware noise-protection</em> overhead — a runtime layer that
+detects and corrects errors on physical qubits. Same superficial
+symptom (bigger circuit than the logical problem asks for), completely
+different mechanism.
+</div>
+
+<h3>Where this matters for the demo narrative</h3>
+
+<p>
+When presenting to a research audience: the platform's <strong>slack
+qubit count is a formulation-quality signal</strong>. A tight
+formulation (like the natural-form Max-Cut, no auxiliary variables)
+lowers 1:1 from logical to BQM qubits. A loose one (like Claude's
+first Max Independent Set attempt with 5 inequality constraints)
+doubles the qubit budget through slack. That's an actionable insight
+— tighter formulations reach smaller QPUs. It has nothing to do with
+quantum error correction, which the platform's qLDPC module addresses
+in a separate track entirely.
+</p>
+
 <h2>Reproducing this result</h2>
 
 <p>
@@ -539,7 +765,9 @@ the QPU produces it at least once.
 </ul>
 
 <footer>
-  Generated 2026-07-01. Author: CiRA Quantum team.
+  Generated 2026-07-01, extended 2026-07-02 with the
+  bitstring-interpretation + slack-vs-QEC follow-up. Author: CiRA
+  Quantum team.
   Source: platform job <code>3af1d5b6-cd5a-4c32-81fe-a3951cf4abab</code>,
   cloud job <code>9E9D3EBB27A7921E2091B3ED5AB89FC5</code> on
   <code>WK_C180_2</code>.

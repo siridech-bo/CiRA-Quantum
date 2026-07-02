@@ -34,6 +34,18 @@ const filtered = computed<TemplateSummary[]>(() => {
   })
 })
 
+// Split the filtered list into two shelves so the gallery signals
+// which templates will actually reach real superconducting hardware
+// vs. which are classical/quantum-inspired only. The dividing line is
+// the qaoa_originqc real-QPU qubit budget (currently 12) — templates
+// whose lowered BQM fits under it are marked qpu_ready in their JSON.
+const qpuReady = computed<TemplateSummary[]>(
+  () => filtered.value.filter((t) => t.qpu_ready === true),
+)
+const otherTemplates = computed<TemplateSummary[]>(
+  () => filtered.value.filter((t) => t.qpu_ready !== true),
+)
+
 async function openTemplate(t: TemplateSummary) {
   modalTemplate.value = null
   modalOpen.value = true
@@ -145,9 +157,31 @@ onMounted(async () => {
           <v-chip value="advanced" size="small">Advanced</v-chip>
         </v-chip-group>
 
-        <v-row>
+        <!-- Section 1: Real Quantum Friendly (compiled BQM ≤ 12 qubits) -->
+        <div v-if="qpuReady.length" class="section-header">
+          <v-icon icon="mdi-atom-variant" color="success" class="mr-2" />
+          <div class="flex-grow-1">
+            <div class="text-h6">Real Quantum Friendly</div>
+            <div class="text-caption text-medium-emphasis">
+              Compiled circuit fits inside the real superconducting QPU's
+              qubit budget (currently 12 qubits for Wukong / Hanyuan).
+              Pick <code>qaoa_originqc</code> plus a real backend in the
+              solver setup to actually reach the chip.
+            </div>
+          </div>
+          <v-chip
+            size="small"
+            color="success"
+            variant="tonal"
+            prepend-icon="mdi-atom-variant"
+          >
+            {{ qpuReady.length }} example{{ qpuReady.length === 1 ? '' : 's' }}
+          </v-chip>
+        </div>
+
+        <v-row v-if="qpuReady.length" class="mb-4">
           <v-col
-            v-for="t in filtered"
+            v-for="t in qpuReady"
             :key="t.id"
             cols="12"
             sm="6"
@@ -157,6 +191,47 @@ onMounted(async () => {
             <TemplateCard :template="t" @open="openTemplate" />
           </v-col>
         </v-row>
+
+        <!-- Section 2: Classical / Larger Instances -->
+        <div v-if="otherTemplates.length" class="section-header">
+          <v-icon icon="mdi-desktop-tower" color="info" class="mr-2" />
+          <div class="flex-grow-1">
+            <div class="text-h6">
+              Classical &amp; quantum-inspired
+              <span class="text-caption text-medium-emphasis">
+                (larger instances)
+              </span>
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              Compiled circuit exceeds the real QPU's qubit budget after
+              lowering, so <code>qaoa_originqc</code> will skip these.
+              Every other solver — GPU SA, CPU SA, CP-SAT, HiGHS, parallel
+              tempering, simulated bifurcation — still runs.
+            </div>
+          </div>
+          <v-chip
+            size="small"
+            color="info"
+            variant="tonal"
+            prepend-icon="mdi-desktop-tower"
+          >
+            {{ otherTemplates.length }} example{{ otherTemplates.length === 1 ? '' : 's' }}
+          </v-chip>
+        </div>
+
+        <v-row v-if="otherTemplates.length">
+          <v-col
+            v-for="t in otherTemplates"
+            :key="t.id"
+            cols="12"
+            sm="6"
+            md="4"
+            lg="3"
+          >
+            <TemplateCard :template="t" @open="openTemplate" />
+          </v-col>
+        </v-row>
+
         <v-card v-if="!filtered.length" class="pa-6 text-center" variant="tonal">
           <v-icon icon="mdi-magnify-close" size="large" class="mb-2" />
           <div>No examples match your filters. Try clearing them.</div>
@@ -243,6 +318,22 @@ onMounted(async () => {
 }
 .lesson-card:hover {
   transform: translateY(-1px);
+}
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  margin: 0.5rem 0 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid rgba(255, 255, 255, 0.12);
+}
+.section-header code {
+  font-family: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  font-size: 0.82em;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 .logo-link {
   cursor: pointer;

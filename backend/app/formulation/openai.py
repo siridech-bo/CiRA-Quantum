@@ -141,6 +141,69 @@ class OpenAIFormulationProvider(FormulationProvider):
                     "completion_tokens": usage.get("completion_tokens")},
         )
 
+    async def summarize_solution(
+        self,
+        problem_statement: str,
+        interpreted_solution: str,
+        api_key: str,
+        timeout: int = 30,
+    ) -> str | None:
+        """Best-effort plain-English rewrite. Returns ``None`` on any
+        failure so the solve still completes without a summary."""
+        if not api_key:
+            return None
+
+        system = (
+            "You translate optimization-solver output into a plain-English "
+            "answer that matches the user's original question. Rules:\n"
+            "1. Account for EVERY variable/item/entity the solver "
+            "reported. Never drop items to save space.\n"
+            "2. Use the user's own vocabulary (nodes/items/groups/bins/etc.).\n"
+            "3. Show concrete values: which item goes where, the totals, "
+            "and the final objective value.\n"
+            "4. Ignore auxiliary/slack variables (sum_A, sum_B, y_bin, "
+            "absolute-difference indicators). Report only what the user "
+            "asked about.\n"
+            "5. Start with the answer directly. No preamble.\n"
+            "6. 2-4 short sentences. Use braces {a, b, c} for lists."
+        )
+        user = (
+            f"USER'S QUESTION:\n{problem_statement}\n\n"
+            f"SOLVER'S RAW OUTPUT:\n{interpreted_solution}\n\n"
+            "Rewrite as a plain-English answer following the rules."
+        )
+        payload = {
+            "model": self.model,
+            "max_tokens": 400,
+            "temperature": 0.0,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        headers = {
+            "authorization": f"Bearer {api_key}",
+            "content-type": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    OPENAI_API_URL, json=payload, headers=headers,
+                )
+        except httpx.HTTPError:
+            return None
+
+        if response.status_code != 200:
+            return None
+
+        body = response.json()
+        choices = body.get("choices", [])
+        if not choices:
+            return None
+        text = (choices[0].get("message", {}).get("content", "") or "").strip()
+        return text or None
+
     def estimate_cost(self, problem_statement: str) -> float:
         prompt_tokens = _FIXED_PROMPT_TOKENS + max(1, len(problem_statement) / _CHARS_PER_TOKEN)
         completion_tokens = min(self.max_tokens, max(800, prompt_tokens * 0.25))

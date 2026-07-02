@@ -93,6 +93,32 @@ class FormulationProvider(ABC):
         """USD estimate based on token count, for the UI's pre-submit
         cost preview. Should not make network calls."""
 
+    async def summarize_solution(
+        self,
+        problem_statement: str,
+        interpreted_solution: str,
+        api_key: str,
+        timeout: int = 30,
+    ) -> str | None:
+        """Rewrite a technical solver output as a plain-English answer
+        to the user's original question. Called after ``interpret_solution``
+        in the orchestrator; best-effort — the pipeline treats a
+        ``None`` return or exception as "no summary this time" and the
+        job still completes with the technical view.
+
+        Base implementation returns ``None``. Concrete providers
+        override with a real call. Kept non-abstract so a provider that
+        doesn't want to spend the extra call (or a test stub) can just
+        skip it.
+
+        Costs vary per provider. Claude Sonnet 4.6 on a typical
+        summary: ~200 input + 150 output tokens ≈ $0.003. OpenAI mini:
+        ~$0.0002. Local: free but the small in-browser models kept
+        dropping variables, so this path exists as the reliable
+        alternative.
+        """
+        return None
+
 
 # ---- Provider registry ----
 

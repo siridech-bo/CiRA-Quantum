@@ -146,6 +146,74 @@ class ClaudeFormulationProvider(FormulationProvider):
                     "output_tokens": usage.get("output_tokens")},
         )
 
+    async def summarize_solution(
+        self,
+        problem_statement: str,
+        interpreted_solution: str,
+        api_key: str,
+        timeout: int = 30,
+    ) -> str | None:
+        """Rewrite the technical interpreter output as a plain-English
+        answer matching the user's question. Best-effort — returns
+        ``None`` on any failure (network, HTTP error, empty response)
+        so the solve still completes.
+
+        No few-shot examples on purpose. This is a translation task,
+        not a formulation one; Sonnet handles it reliably from a
+        clear system prompt alone, and the extra tokens would just
+        cost more.
+        """
+        if not api_key:
+            return None
+
+        system = (
+            "You translate optimization-solver output into a plain-English "
+            "answer that matches the user's original question. Rules:\n"
+            "1. Account for EVERY variable/item/entity the solver "
+            "reported. Never drop items to save space.\n"
+            "2. Use the user's own vocabulary (nodes/items/groups/bins/etc.).\n"
+            "3. Show concrete values: which item goes where, the totals, "
+            "and the final objective value.\n"
+            "4. Ignore auxiliary/slack variables (sum_A, sum_B, y_bin, "
+            "absolute-difference indicators). Report only what the user "
+            "asked about.\n"
+            "5. Start with the answer directly. No preamble like 'Sure!' "
+            "or 'Here's the answer:'.\n"
+            "6. 2-4 short sentences. Use braces {a, b, c} for lists."
+        )
+        user = (
+            f"USER'S QUESTION:\n{problem_statement}\n\n"
+            f"SOLVER'S RAW OUTPUT:\n{interpreted_solution}\n\n"
+            "Rewrite as a plain-English answer following the rules."
+        )
+        payload = {
+            "model": self.model,
+            "max_tokens": 400,
+            "temperature": 0.0,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+        }
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": CLAUDE_API_VERSION,
+            "content-type": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    CLAUDE_API_URL, json=payload, headers=headers,
+                )
+        except httpx.HTTPError:
+            return None
+
+        if response.status_code != 200:
+            return None
+
+        body = response.json()
+        text = _join_content_text(body.get("content", [])).strip()
+        return text or None
+
     def estimate_cost(self, problem_statement: str) -> float:
         prompt_tokens = _FIXED_PROMPT_TOKENS + max(1, len(problem_statement) / _CHARS_PER_TOKEN)
         # Assume completions are ~25% the size of the prompt budget,

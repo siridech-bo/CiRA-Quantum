@@ -49,6 +49,13 @@ export interface Job {
   validation_report?: Record<string, any> | null
   solution?: Record<string, number> | null
   interpreted_solution?: string | null
+  /** Server-side LLM rewrite of ``interpreted_solution`` as plain
+   * English matching the user's question vocabulary. Populated
+   * best-effort during stage 5 via the same provider that formulated
+   * the CQM (Claude / OpenAI); ``null`` on ``local`` provider or on
+   * any transient LLM failure. Frontend renders it above the
+   * technical view when present and hides the section when absent. */
+  plain_english_solution?: string | null
   error?: string | null
   num_variables?: number | null
   num_constraints?: number | null

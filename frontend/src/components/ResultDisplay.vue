@@ -65,9 +65,41 @@ function copy(label: string, text: string) {
     <v-window v-model="tab">
       <!-- Solution -->
       <v-window-item value="solution">
+        <!-- Server-side LLM plain-English rewrite. Populated by the
+             orchestrator's post-solve summarize call against the same
+             Claude / OpenAI key that formulated the CQM. Renders as
+             the primary answer above the technical view; hides
+             entirely (no placeholder) when the provider skipped it. -->
+        <v-card
+          v-if="job.plain_english_solution"
+          variant="tonal"
+          color="primary"
+          class="pa-4 mb-3"
+        >
+          <div class="d-flex align-center mb-2">
+            <v-icon icon="mdi-message-text" size="small" class="mr-2" />
+            <span class="text-subtitle-2 flex-grow-1">Plain English</span>
+            <v-btn
+              size="x-small"
+              variant="text"
+              :prepend-icon="justCopied === 'plain' ? 'mdi-check' : 'mdi-content-copy'"
+              @click="copy('plain', job.plain_english_solution || '')"
+            >
+              {{ justCopied === 'plain' ? 'Copied' : 'Copy' }}
+            </v-btn>
+          </div>
+          <div class="plain-english-text">
+            {{ job.plain_english_solution }}
+          </div>
+        </v-card>
+
         <div class="d-flex align-center mb-2">
           <span class="text-caption text-medium-emphasis flex-grow-1">
-            Interpreted from the solver's first feasible sample
+            {{
+              job.plain_english_solution
+                ? 'Solver assignments — the exact variable-by-variable output backing the plain-English answer above.'
+                : "Interpreted from the solver's first feasible sample."
+            }}
           </span>
           <v-btn
             v-if="job.interpreted_solution"
@@ -224,5 +256,11 @@ function copy(label: string, text: string) {
   word-wrap: break-word;
   max-height: 480px;
   overflow: auto;
+}
+.plain-english-text {
+  font-size: 1rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: rgba(255, 255, 255, 0.95);
 }
 </style>

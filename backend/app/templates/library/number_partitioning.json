@@ -17,6 +17,7 @@
   "learning_notes": "Number partitioning is the textbook 'pure Ising' problem: spin variables, quadratic objective, no constraints. The squared imbalance expands to a quadratic form over the spins. The same shape appears in graph max-cut and clustering.",
   "estimated_solve_time_seconds": 1,
   "min_solver_tier": "gpu_sa",
+  "qpu_ready": true,
   "module": {
     "module_id": "qubo_foundations",
     "lesson_id": "spin_variables_quadratic_objective",

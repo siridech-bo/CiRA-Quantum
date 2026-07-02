@@ -414,6 +414,12 @@ def _public_job(job: dict[str, Any] | None) -> dict[str, Any] | None:
         "cqm_json", "variable_registry", "validation_report", "solution",
         "solver_results", "solvers_requested", "preflight",
         "solver_params_overrides",
+        # NB: plain_english_solution is a plain string, not JSON —
+        # json.loads would happily parse a string with a numeric-only
+        # value and mangle it. The try/except in _public_job's loop
+        # tolerates the failure, but keeping it out of the decode set
+        # entirely is cleaner. Leaving it here as a doc breadcrumb so
+        # a future contributor doesn't add it thinking it was missed.
     ):
         if out.get(column):
             try:
