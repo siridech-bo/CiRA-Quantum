@@ -61,6 +61,62 @@ class FormulationResult:
     extras: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class ClassificationResult:
+    """Output of one ``classify_problem`` call.
+
+    The classifier reads a natural-language problem statement and
+    decides whether it matches a hardcoded family. When ``family`` is
+    non-empty and ``confidence`` is high, the orchestrator routes to the
+    deterministic formulator in ``app.formulation.hardcoded`` and skips
+    the LLM CQM-emission path entirely — buying 100% coefficient
+    accuracy at the cost of one small extra LLM call. When the
+    classifier is uncertain (or the family isn't recognized), the
+    orchestrator falls back to the legacy LLM-emits-CQM behavior so
+    freeform problems still work.
+
+    Fields
+    ------
+    family
+        A registered hardcoded family name (see
+        ``hardcoded.list_families()``) or ``""`` for "no match".
+    parameters
+        Structured params ready to pass to ``hardcoded.formulate``.
+        Guaranteed to satisfy the family's schema when the classifier
+        succeeds; empty when ``family == ""``.
+    confidence
+        Model's self-reported confidence in the match, in ``[0, 1]``.
+        The orchestrator's routing threshold (currently 0.85) gates on
+        this — a low-confidence match falls back to LLM CQM emission.
+    reasoning
+        One-liner explaining the choice. Surfaced to the UI in the
+        approval panel so the user can see why the classifier routed
+        the way it did.
+    raw_llm_output
+        Verbatim classifier response, kept for debugging when the
+        parsed structure disagrees with the observed CQM.
+    tokens_used
+        Total tokens spent on this classification call.
+    model
+        Model identifier that produced the classification.
+    """
+
+    family: str
+    parameters: dict[str, Any]
+    confidence: float
+    reasoning: str = ""
+    raw_llm_output: str = ""
+    tokens_used: int = 0
+    model: str = ""
+
+    @property
+    def is_confident(self) -> bool:
+        """Above the orchestrator's default routing threshold. Kept as a
+        property so the threshold moves in one place — bumping it later
+        (e.g. 0.9 after a regression) touches nothing else."""
+        return bool(self.family) and self.confidence >= 0.85
+
+
 # ---- Provider ABC ----
 
 
@@ -92,6 +148,33 @@ class FormulationProvider(ABC):
     def estimate_cost(self, problem_statement: str) -> float:
         """USD estimate based on token count, for the UI's pre-submit
         cost preview. Should not make network calls."""
+
+    async def classify_problem(
+        self,
+        problem_statement: str,
+        api_key: str,
+        timeout: int = 30,
+    ) -> ClassificationResult | None:
+        """Try to route ``problem_statement`` to a hardcoded family.
+
+        Returns a ``ClassificationResult`` on any answer from the model
+        (including confident non-matches, with ``family=""``); returns
+        ``None`` when the classifier call itself failed (network error,
+        HTTP error, malformed output). The orchestrator distinguishes
+        the two: ``None`` means "classifier unavailable, go straight to
+        LLM CQM emission", while a low-confidence result means "the
+        classifier tried and doesn't recognize this problem".
+
+        Base implementation returns ``None`` — providers that opt in
+        override with a real call. Kept non-abstract so a test stub or a
+        provider that doesn't want the extra cost can skip it.
+
+        Costs: ~1500 input + 200 output tokens per call. Sonnet ≈
+        $0.008; GPT-5-mini ≈ $0.0008. The classifier is only invoked
+        when the orchestrator's routing feature flag is on, so the cost
+        is opt-in.
+        """
+        return None
 
     async def summarize_solution(
         self,

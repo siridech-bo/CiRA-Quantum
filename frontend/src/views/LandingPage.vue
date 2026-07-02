@@ -1,17 +1,68 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import CiraLogo from '@/components/CiraLogo.vue'
+import AuthDialog from '@/components/AuthDialog.vue'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
+
+// Auth dialog wiring. The dialog handles both login and signup via a
+// mode prop; opening it from either app-bar button just sets the mode
+// before flipping the model. The auth guard bounces protected routes
+// back to ``/`` with a ``?auth=login`` query — we react to that on
+// mount + on watch so a user who tried to visit /solve unauthenticated
+// gets the login form immediately without a manual click.
+const authDialogOpen = ref(false)
+const authMode = ref<'login' | 'signup'>('login')
+
+function openLogin() {
+  authMode.value = 'login'
+  authDialogOpen.value = true
+}
+function openSignup() {
+  authMode.value = 'signup'
+  authDialogOpen.value = true
+}
+
+function onAuthenticated() {
+  // If the auth guard redirected here from a protected route, follow
+  // through. Otherwise stay on the landing page — the user menu now
+  // shows their identity and their next click decides where to go.
+  const redirect = route.query.redirect as string | undefined
+  if (redirect) {
+    router.push(redirect)
+    return
+  }
+  // Clear the ``auth=login`` query so a hard refresh doesn't re-open
+  // the dialog.
+  if (route.query.auth) {
+    router.replace({ path: '/', query: {} })
+  }
+}
+
+function maybeAutoOpenDialog() {
+  if (!auth.user && route.query.auth === 'login') openLogin()
+  if (!auth.user && route.query.auth === 'signup') openSignup()
+}
+
+onMounted(maybeAutoOpenDialog)
+watch(() => route.query.auth, maybeAutoOpenDialog)
 
 function openOptimization() {
   if (auth.user) {
     router.push('/solve')
   } else {
-    router.push({ path: '/login', query: { redirect: '/solve' } })
+    // Not signed in — pop the login dialog inline instead of routing.
+    router.replace({ path: '/', query: { auth: 'login', redirect: '/solve' } })
+    openLogin()
   }
+}
+
+async function logout() {
+  await auth.logout()
 }
 
 function openQml() {
@@ -118,20 +169,96 @@ const qldpcCodeTiers = [
           </v-list-item>
         </v-list>
       </v-menu>
-      <v-btn
-        v-if="!auth.user"
-        variant="outlined"
-        class="ml-2"
-        @click="router.push('/login')"
-      >Log in</v-btn>
-      <v-btn
-        v-else
-        variant="outlined"
-        class="ml-2"
-        @click="openOptimization"
-      >Open Optimization</v-btn>
+      <!-- Auth-state-dependent controls. The dialog-based flow keeps
+           the user on ``/`` throughout auth — no route churn, no lost
+           scroll. Signed-in users get a compact identity chip plus a
+           menu with Settings and Log out; the "Open Optimization"
+           entry moves inside the menu so the app bar stays uncluttered. -->
+      <template v-if="!auth.user">
+        <v-btn
+          variant="text"
+          class="ml-2"
+          @click="openLogin"
+        >Log in</v-btn>
+        <v-btn
+          variant="outlined"
+          class="ml-2"
+          @click="openSignup"
+        >Sign up</v-btn>
+      </template>
+      <template v-else>
+        <v-btn
+          variant="outlined"
+          class="ml-2"
+          @click="openOptimization"
+        >Open Optimization</v-btn>
+        <v-menu>
+          <template #activator="{ props: act }">
+            <v-btn
+              variant="text"
+              icon
+              v-bind="act"
+              class="ml-2"
+              :aria-label="`Signed in as ${auth.user.display_name}`"
+            >
+              <v-avatar size="34" color="primary" variant="tonal">
+                <span class="text-body-2 font-weight-bold">
+                  {{ auth.user.display_name?.[0]?.toUpperCase() || 'U' }}
+                </span>
+              </v-avatar>
+            </v-btn>
+          </template>
+          <v-list density="compact" min-width="220">
+            <v-list-item>
+              <v-list-item-title>
+                {{ auth.user.display_name }}
+                <v-chip
+                  v-if="auth.user.role === 'admin'"
+                  size="x-small"
+                  color="accent"
+                  class="ml-1"
+                >admin</v-chip>
+              </v-list-item-title>
+              <v-list-item-subtitle>
+                @{{ auth.user.username }}
+              </v-list-item-subtitle>
+            </v-list-item>
+            <v-divider />
+            <v-list-item
+              prepend-icon="mdi-cog-outline"
+              @click="router.push('/settings')"
+            >
+              <v-list-item-title>Settings</v-list-item-title>
+            </v-list-item>
+            <v-list-item
+              v-if="auth.user.role === 'admin'"
+              prepend-icon="mdi-shield-account"
+              @click="router.push('/admin')"
+            >
+              <v-list-item-title>Admin</v-list-item-title>
+            </v-list-item>
+            <v-divider />
+            <v-list-item
+              prepend-icon="mdi-logout"
+              @click="logout"
+            >
+              <v-list-item-title>Log out</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </template>
     </v-container>
   </v-app-bar>
+
+  <!-- The single authentication surface on the platform. Mounted here
+       so both direct-clicks (Log in / Sign up buttons above) and
+       redirected clicks (?auth=login from the router guard) flow
+       through one component. -->
+  <AuthDialog
+    v-model="authDialogOpen"
+    v-model:mode="authMode"
+    @authenticated="onAuthenticated"
+  />
 
   <v-main>
     <!-- Hero — app-agnostic now. The two-app showcase below IS the

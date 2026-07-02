@@ -141,6 +141,17 @@ def compile_cqm_json(
             )
         cqm.objective.add_quadratic(u, v, sign * float(coeff))
 
+    # Optional constant term. Lets natural-form encodings like number
+    # partitioning's ``(S - 2·Σn_i·x_i)² - S²`` report 0 at the perfect-
+    # partition optimum instead of the raw shifted value ``-S²`` — the
+    # constant is mathematically irrelevant for optimization but makes
+    # ``expected_optimum`` and the plain-English summary line up with
+    # the user's mental model. ``sign`` flip matches the linear/quadratic
+    # convention so the offset behaves under a ``maximize`` sense too.
+    offset = obj.get("offset")
+    if offset is not None:
+        cqm.objective.offset += sign * float(offset)
+
     # ---- Constraints ----
     for cdata in cqm_json.get("constraints", []):
         label = cdata.get("label")

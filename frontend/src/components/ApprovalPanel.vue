@@ -30,6 +30,31 @@ const showCqm = ref(false)
 const preflight = computed(() => props.job.preflight)
 const qpuFootprint = computed(() => preflight.value?.qpu_footprint ?? null)
 
+// Formulation-routing audit trail (2026-07-02). When the classifier
+// confidently matched a hardcoded family, ``route === 'hardcoded'`` and
+// ``parameters`` holds the structured translation extracted from the
+// user's prose. Rendered as a "problem statement (translated)" text
+// box so the user can eyeball what the LLM saw before approving.
+const route = computed(() => props.job.formulation_route ?? null)
+const routeIsHardcoded = computed(() => route.value?.route === 'hardcoded')
+const familyLabel = computed(() => {
+  const f = route.value?.family
+  if (!f) return ''
+  return f.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+})
+const translatedStatement = computed(() => {
+  const r = route.value
+  if (!r || !r.family) return ''
+  const params = r.parameters ?? {}
+  const paramLines = Object.entries(params).map(
+    ([k, v]) => `  ${k} = ${JSON.stringify(v)}`,
+  )
+  return [
+    `family: ${r.family}`,
+    ...paramLines,
+  ].join('\n')
+})
+
 // Validation report from stage 3. When validation found a problem
 // (oracle disagreement, infeasible CQM, missing constraints) it goes
 // here — the gate surfaces it as advisory so the user can decide
@@ -111,6 +136,59 @@ function fmt(obj: any): string {
       verdict below; click Approve to continue to the solvers, or
       Cancel to discard.
     </v-card-subtitle>
+
+    <!-- Structured translation — visible representation of what the
+         classifier extracted from the user's prose. Only shown when the
+         hardcoded route fired (or, for the LLM-fallback route, when the
+         classifier at least identified a family). Rendered as a
+         monospace textbox so the user can compare their input to what
+         the pipeline actually acted on. -->
+    <v-card
+      v-if="route && (routeIsHardcoded || route.family)"
+      variant="tonal"
+      class="pa-3 mb-3"
+      :color="routeIsHardcoded ? 'success' : 'info'"
+    >
+      <div class="d-flex align-center mb-2">
+        <v-icon
+          :icon="routeIsHardcoded ? 'mdi-check-decagram' : 'mdi-translate'"
+          size="small"
+          class="mr-2"
+        />
+        <div class="text-subtitle-2 flex-grow-1">
+          Problem statement (translated) — {{ familyLabel }}
+        </div>
+        <v-chip
+          size="x-small"
+          :color="routeIsHardcoded ? 'success' : 'grey'"
+          variant="flat"
+        >
+          {{ routeIsHardcoded ? 'hardcoded route' : 'LLM CQM (fallback)' }}
+        </v-chip>
+      </div>
+      <div class="text-caption text-medium-emphasis mb-2">
+        <span v-if="routeIsHardcoded">
+          The classifier recognized this as
+          <strong>{{ familyLabel }}</strong>
+          (confidence {{ (route.confidence * 100).toFixed(0) }}%) and the
+          deterministic formulator emitted the CQM below — coefficients
+          are exact by construction.
+        </span>
+        <span v-else>
+          The classifier saw hints of {{ familyLabel }} but at
+          {{ (route.confidence * 100).toFixed(0) }}% confidence, below
+          the routing threshold. Falling back to the LLM.
+        </span>
+      </div>
+      <pre class="translation-text">{{ translatedStatement }}</pre>
+      <div
+        v-if="route.reasoning"
+        class="text-caption text-medium-emphasis mt-2"
+      >
+        <v-icon icon="mdi-comment-quote-outline" size="x-small" class="mr-1" />
+        <em>{{ route.reasoning }}</em>
+      </div>
+    </v-card>
 
     <!-- Preflight summary card -->
     <v-card variant="tonal" class="pa-3 mb-3">
@@ -368,6 +446,16 @@ function fmt(obj: any): string {
 .footprint-note {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 0.6rem;
+  line-height: 1.4;
+}
+.translation-text {
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 6px;
+  padding: 0.65rem 0.8rem;
+  font-family: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
   line-height: 1.4;
 }
 </style>

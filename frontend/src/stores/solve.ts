@@ -84,6 +84,24 @@ export interface Job {
       note: string
     } | null
   } | null
+  /** How stage 1 produced this CQM (2026-07-02 routing layer):
+   *   route="hardcoded"       — classifier confidently matched a
+   *     known family; the deterministic formulator emitted the CQM.
+   *   route="llm"             — classifier ran but didn't confidently
+   *     match; fell back to LLM CQM emission.
+   *   route="llm_no_classifier" — classifier call failed or the
+   *     provider doesn't implement one; used LLM CQM emission.
+   * ``family`` and ``parameters`` show the structured translation the
+   * classifier extracted from the user's prose (empty on the pure-LLM
+   * routes). ``null`` on jobs that predate the routing layer. */
+  formulation_route?: {
+    route: 'hardcoded' | 'llm' | 'llm_no_classifier'
+    family: string
+    confidence: number
+    reasoning: string
+    classifier_tokens: number
+    parameters?: Record<string, any>
+  } | null
   solver_results?: {
     solvers: Record<string, SolverResult>
     primary: string | null

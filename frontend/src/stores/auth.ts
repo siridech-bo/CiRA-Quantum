@@ -59,5 +59,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, bootstrapped, checkAuth, login, signup, logout }
+  async function changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    await api.post('/api/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
+  }
+
+  return {
+    user, bootstrapped,
+    checkAuth, login, signup, logout, changePassword,
+  }
 })

@@ -4,8 +4,6 @@ import {
   type NavigationGuardWithThis,
   type RouteRecordRaw,
 } from 'vue-router'
-import LoginPage from '@/views/LoginPage.vue'
-import SignupPage from '@/views/SignupPage.vue'
 import MainApp from '@/views/MainApp.vue'
 import LandingPage from '@/views/LandingPage.vue'
 import JobDetailPage from '@/views/JobDetailPage.vue'
@@ -27,6 +25,7 @@ import QmlBenchmarkRecordPage from '@/views/QmlBenchmarkRecordPage.vue'
 import QldpcLandingPage from '@/views/QldpcLandingPage.vue'
 import QldpcLearnPage from '@/views/QldpcLearnPage.vue'
 import QldpcCodeFamilyDetailPage from '@/views/QldpcCodeFamilyDetailPage.vue'
+import SettingsPage from '@/views/SettingsPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -38,14 +37,23 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
-  { path: '/login', component: LoginPage, meta: { requiresGuest: true } },
-  { path: '/signup', component: SignupPage, meta: { requiresGuest: true } },
+  // Single-login policy — auth lives only on ``/``. These legacy paths
+  // stay in the routing table so old bookmarks and external links keep
+  // working, but they redirect to the landing page with a query flag
+  // that auto-opens the appropriate AuthDialog mode.
+  { path: '/login', redirect: { path: '/', query: { auth: 'login' } } },
+  { path: '/signup', redirect: { path: '/', query: { auth: 'signup' } } },
   // Public landing page — Phase 5D. Doubles as the entry point for
   // unauthenticated visitors.
   { path: '/', component: LandingPage },
   // The solve app moved here in Phase 5D so the landing page can own /.
   { path: '/solve', component: MainApp, meta: { requiresAuth: true } },
   { path: '/jobs/:id', component: JobDetailPage, meta: { requiresAuth: true } },
+  // Central account/settings page — API keys + change password. The
+  // API keys tab was previously inside MainApp; centralising it here
+  // matches the platform's single-user model where credentials apply
+  // across every module (Optimization, QML, qLDPC).
+  { path: '/settings', component: SettingsPage, meta: { requiresAuth: true } },
   { path: '/templates', component: TemplateGalleryPage, meta: { requiresAuth: true } },
   // Phase 5C — public Benchmark dashboard (no auth required).
   { path: '/benchmarks', component: BenchmarkDashboardPage },
@@ -109,7 +117,12 @@ const guard: NavigationGuardWithThis<undefined> = async (to) => {
   }
 
   if (to.meta.requiresAuth && !auth.user) {
-    return { path: '/login', query: { redirect: to.fullPath } }
+    // Single-login policy — every protected route bounces back to
+    // ``/``, where the landing page's AuthDialog opens automatically
+    // (see LandingPage.vue's watcher on the ``auth`` query param).
+    // ``redirect`` remembers where the user was headed so we can
+    // continue there after they authenticate.
+    return { path: '/', query: { auth: 'login', redirect: to.fullPath } }
   }
   if (to.meta.requiresGuest && auth.user) {
     return { path: '/' }

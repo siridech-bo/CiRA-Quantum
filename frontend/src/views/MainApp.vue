@@ -9,7 +9,6 @@ import ResultDisplay from '@/components/ResultDisplay.vue'
 import MultiSolverResultDisplay from '@/components/MultiSolverResultDisplay.vue'
 import ApprovalPanel from '@/components/ApprovalPanel.vue'
 import JobHistory from '@/components/JobHistory.vue'
-import ApiKeyManager from '@/components/ApiKeyManager.vue'
 import TemplateMatchBadge from '@/components/TemplateMatchBadge.vue'
 import CiraLogo from '@/components/CiraLogo.vue'
 
@@ -17,7 +16,11 @@ const auth = useAuthStore()
 const solve = useSolveStore()
 const router = useRouter()
 
-const tab = ref<'solve' | 'history' | 'keys'>('solve')
+// API Keys used to live as a tab in this window; it moved to the
+// central /settings surface in 2026-07-02 so credentials that apply
+// across every module (Optimization / QML / qLDPC) live in one
+// canonical place. The tab list here is intentionally down to two.
+const tab = ref<'solve' | 'history'>('solve')
 
 const hasResult = computed(
   () => solve.currentJob && solve.currentJob.status === 'complete',
@@ -77,27 +80,62 @@ onMounted(() => {
     >
       Benchmarks
     </v-btn>
-    <v-btn
-      v-if="auth.user?.role === 'admin'"
-      variant="text"
-      prepend-icon="mdi-shield-account"
-      class="mr-2"
-      @click="router.push('/admin')"
-    >
-      Admin
-    </v-btn>
-    <span class="text-body-2 mr-4" v-if="auth.user">
-      Signed in as <strong>{{ auth.user.display_name }}</strong>
-      <v-chip
-        v-if="auth.user.role === 'admin'"
-        size="x-small"
-        color="accent"
-        class="ml-2"
-      >
-        admin
-      </v-chip>
-    </span>
-    <v-btn variant="outlined" @click="logout">Log out</v-btn>
+    <!-- The user menu below owns Settings, Admin (if allowed), and Log
+         out. This app bar previously carried them as separate buttons;
+         collapsing them into a single avatar-triggered menu matches
+         the landing-page pattern and keeps the top bar readable. -->
+    <v-menu v-if="auth.user">
+      <template #activator="{ props: act }">
+        <v-btn
+          variant="text"
+          icon
+          v-bind="act"
+          class="ml-2"
+          :aria-label="`Signed in as ${auth.user.display_name}`"
+        >
+          <v-avatar size="34" color="primary" variant="tonal">
+            <span class="text-body-2 font-weight-bold">
+              {{ auth.user.display_name?.[0]?.toUpperCase() || 'U' }}
+            </span>
+          </v-avatar>
+        </v-btn>
+      </template>
+      <v-list density="compact" min-width="220">
+        <v-list-item>
+          <v-list-item-title>
+            {{ auth.user.display_name }}
+            <v-chip
+              v-if="auth.user.role === 'admin'"
+              size="x-small"
+              color="accent"
+              class="ml-1"
+            >admin</v-chip>
+          </v-list-item-title>
+          <v-list-item-subtitle>@{{ auth.user.username }}</v-list-item-subtitle>
+        </v-list-item>
+        <v-divider />
+        <v-list-item
+          prepend-icon="mdi-cog-outline"
+          @click="router.push('/settings')"
+        >
+          <v-list-item-title>Settings</v-list-item-title>
+        </v-list-item>
+        <v-list-item
+          v-if="auth.user.role === 'admin'"
+          prepend-icon="mdi-shield-account"
+          @click="router.push('/admin')"
+        >
+          <v-list-item-title>Admin</v-list-item-title>
+        </v-list-item>
+        <v-divider />
+        <v-list-item
+          prepend-icon="mdi-logout"
+          @click="logout"
+        >
+          <v-list-item-title>Log out</v-list-item-title>
+        </v-list-item>
+      </v-list>
+    </v-menu>
   </v-app-bar>
 
   <v-main>
@@ -139,9 +177,6 @@ onMounted(() => {
         </v-tab>
         <v-tab value="history">
           <v-icon icon="mdi-history" start /> History
-        </v-tab>
-        <v-tab value="keys">
-          <v-icon icon="mdi-key" start /> API Keys
         </v-tab>
       </v-tabs>
 
@@ -202,10 +237,6 @@ onMounted(() => {
           <JobHistory />
         </v-window-item>
 
-        <!-- Keys -->
-        <v-window-item value="keys">
-          <ApiKeyManager />
-        </v-window-item>
       </v-window>
     </v-container>
   </v-main>

@@ -1,5 +1,5 @@
 {
-  "$comment": "Four worked examples used as few-shot turns by every provider. Each entry is one {problem, cqm_json} pair. The CQM JSON values are taken verbatim from tests/instances/ \u2014 they are already schema-valid under cqm_v1.json. Update both places together if you change a fixture. The Max-Cut example is intentionally encoded in the NATURAL unconstrained binary form (no edge-indicator variables, no linearization constraints) to anchor the model toward QAOA-friendly encodings; without this anchor the LLMs reliably emit a 13-variable / 28-constraint form that lowers to 69+ qubits and gets skipped by every QAOA tier.",
+  "$comment": "Five worked examples used as few-shot turns by every provider. Each entry is one {problem, cqm_json} pair. The CQM JSON values are taken verbatim from tests/instances/ \u2014 they are already schema-valid under cqm_v1.json. Update both places together if you change a fixture. The Max-Cut and Number Partitioning examples are intentionally encoded in the NATURAL unconstrained form (no indicator/auxiliary variables, no linearization constraints) to anchor the model toward QAOA-friendly encodings; without them the LLMs reliably emit inflated forms (Max-Cut \u2192 13-variable / 28-constraint / 69-qubit; Number Partitioning \u2192 9-variable / 2-constraint / 25-qubit) that get skipped by every QAOA tier. Number Partitioning uses the ``objective.offset`` field so the perfect-partition optimum reads as 0 despite the shifted quadratic body (see docs on objective.offset in cqm_v1.json).",
   "examples": [
     {
       "problem": "I have a graph with 4 nodes labeled 0,1,2,3 and edges (0,1), (0,2), (1,3), (2,3). Partition the nodes into two groups to maximize the number of edges that cross between groups.",
@@ -47,6 +47,58 @@
         "test_instance": {
           "description": "Optimum cut value = 4. Bipartition {0, 3} vs {1, 2} crosses every edge.",
           "expected_optimum": 4
+        }
+      }
+    },
+    {
+      "problem": "I have a set of 4 positive numbers: [3, 1, 2, 4]. Split them into two groups so the absolute difference between the two group sums is as small as possible. Tell me which numbers go in each group.",
+      "cqm_json": {
+        "version": "1",
+        "description": "Number Partitioning on [3, 1, 2, 4]. Natural unconstrained binary encoding: each x_i ∈ {0,1} marks the side (0 = group A, 1 = group B). Let S = sum of all numbers = 10. The signed imbalance is (S - 2·Σ n_i·x_i); the squared imbalance expands to a quadratic form over x_i with linear coefficient 4·n_i·(n_i − S) and off-diagonal quadratic coefficient 8·n_i·n_j, plus a constant term S² = 100 kept as ``objective.offset`` so the perfect-partition optimum reads as 0. NO auxiliary variables (no sum_A, sum_B, d, or absolute-value linearizations). NO constraints. Lowered BQM has exactly N qubits where N is the number count — ideal for QAOA and annealers.",
+        "variables": [
+          {
+            "name": "x_0",
+            "type": "binary",
+            "description": "Number 0 (value 3): 0 = group A, 1 = group B"
+          },
+          {
+            "name": "x_1",
+            "type": "binary",
+            "description": "Number 1 (value 1): 0 = group A, 1 = group B"
+          },
+          {
+            "name": "x_2",
+            "type": "binary",
+            "description": "Number 2 (value 2): 0 = group A, 1 = group B"
+          },
+          {
+            "name": "x_3",
+            "type": "binary",
+            "description": "Number 3 (value 4): 0 = group A, 1 = group B"
+          }
+        ],
+        "objective": {
+          "sense": "minimize",
+          "linear": {
+            "x_0": -84,
+            "x_1": -36,
+            "x_2": -64,
+            "x_3": -96
+          },
+          "quadratic": {
+            "x_0*x_1": 24,
+            "x_0*x_2": 48,
+            "x_0*x_3": 96,
+            "x_1*x_2": 16,
+            "x_1*x_3": 32,
+            "x_2*x_3": 64
+          },
+          "offset": 100
+        },
+        "constraints": [],
+        "test_instance": {
+          "description": "Optimum squared-imbalance = 0. Perfect split: Group A = {3, 2} (sum 5), Group B = {1, 4} (sum 5). Any bit-swap of both sides is equivalent.",
+          "expected_optimum": 0
         }
       }
     },

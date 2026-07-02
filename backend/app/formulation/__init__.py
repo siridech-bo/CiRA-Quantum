@@ -14,6 +14,7 @@ matching provider instance.
 from __future__ import annotations
 
 from app.formulation.base import (
+    ClassificationResult,
     FormulationError,
     FormulationProvider,
     FormulationResult,
@@ -25,6 +26,7 @@ from app.formulation.base import (
 )
 
 __all__ = [
+    "ClassificationResult",
     "FormulationError",
     "FormulationProvider",
     "FormulationResult",

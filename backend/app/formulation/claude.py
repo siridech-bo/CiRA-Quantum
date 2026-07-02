@@ -23,12 +23,18 @@ from pathlib import Path
 import httpx
 
 from app.formulation.base import (
+    ClassificationResult,
     FormulationError,
     FormulationProvider,
     FormulationResult,
     extract_json_object,
     register_provider,
     validate_cqm_json,
+)
+from app.formulation.classifier_prompt import (
+    build_classifier_system_prompt,
+    build_classifier_user_message,
+    parse_classifier_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,6 +151,64 @@ class ClaudeFormulationProvider(FormulationProvider):
             extras={"input_tokens": usage.get("input_tokens"),
                     "output_tokens": usage.get("output_tokens")},
         )
+
+    async def classify_problem(
+        self,
+        problem_statement: str,
+        api_key: str,
+        timeout: int = 30,
+    ) -> ClassificationResult | None:
+        """Route a problem statement to a hardcoded family or ``None``.
+
+        Uses the same Sonnet model as ``formulate`` but with the
+        classifier system prompt and no few-shot examples — the schemas
+        embedded in the system prompt carry enough information for the
+        model to extract clean parameters. Best-effort: returns
+        ``None`` on any HTTP/network/parse failure so the orchestrator
+        can fall back to the LLM CQM-emission path.
+        """
+        if not api_key:
+            return None
+
+        payload = {
+            "model": self.model,
+            "max_tokens": 800,
+            "temperature": 0.0,
+            "system": build_classifier_system_prompt(),
+            "messages": [
+                {
+                    "role": "user",
+                    "content": build_classifier_user_message(problem_statement),
+                }
+            ],
+        }
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": CLAUDE_API_VERSION,
+            "content-type": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    CLAUDE_API_URL, json=payload, headers=headers,
+                )
+        except httpx.HTTPError:
+            return None
+
+        if response.status_code != 200:
+            return None
+
+        body = response.json()
+        text = _join_content_text(body.get("content", []))
+        usage = body.get("usage", {}) or {}
+        tokens_used = int(usage.get("input_tokens", 0)) + int(usage.get("output_tokens", 0))
+        model = body.get("model", self.model)
+
+        try:
+            return parse_classifier_response(text, tokens_used, model)
+        except FormulationError:
+            return None
 
     async def summarize_solution(
         self,

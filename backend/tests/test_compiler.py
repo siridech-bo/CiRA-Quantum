@@ -112,3 +112,102 @@ def test_variable_registry_preserves_descriptions(knapsack_5item_cqm_json):
     # Every variable in the JSON appears in the registry
     declared = {v["name"] for v in knapsack_5item_cqm_json["variables"]}
     assert set(registry.keys()) == declared
+
+
+def test_objective_offset_is_applied_and_maximize_flips_sign():
+    """The optional ``objective.offset`` field lets natural-form
+    encodings whose quadratic body is shifted (e.g. number
+    partitioning's squared-imbalance form has an implicit -S² constant)
+    report the user-facing optimum as 0. Behavior:
+
+    - Absent = no-op (offset stays at 0).
+    - Present under ``sense="minimize"`` = added directly.
+    - Present under ``sense="maximize"`` = sign-flipped along with the
+      linear/quadratic coefficients, so the semantics ("this value is
+      the constant contribution to the objective in user units")
+      survive the internal minimize-negation convention.
+
+    Regression guard for the number-partitioning few-shot anchor —
+    without offset support the natural form would report -S² at the
+    perfect-partition optimum and the validator's Layer A would treat
+    it as a mismatch against the template's expected_optimum=0.
+    """
+    # Absent = no-op.
+    cqm, _reg, _sense = compile_cqm_json({
+        "version": "1",
+        "variables": [{"name": "x", "type": "binary"}],
+        "objective": {"sense": "minimize", "linear": {"x": 1}, "quadratic": {}},
+        "constraints": [],
+    })
+    assert cqm.objective.offset == 0.0
+
+    # Minimize + offset = added directly.
+    cqm, _reg, _sense = compile_cqm_json({
+        "version": "1",
+        "variables": [{"name": "x", "type": "binary"}],
+        "objective": {
+            "sense": "minimize",
+            "linear": {"x": -1},
+            "quadratic": {},
+            "offset": 42,
+        },
+        "constraints": [],
+    })
+    assert cqm.objective.offset == 42.0
+    # Optimum at x=1: -1 + 42 = 41
+    assert cqm.objective.energy({"x": 1}) == 41
+
+    # Maximize + offset = sign-flipped (matches the linear/quadratic
+    # convention so the internal minimize form is a faithful negation
+    # of the user-facing maximize form).
+    cqm, _reg, _sense = compile_cqm_json({
+        "version": "1",
+        "variables": [{"name": "x", "type": "binary"}],
+        "objective": {
+            "sense": "maximize",
+            "linear": {"x": 3},
+            "quadratic": {},
+            "offset": 5,
+        },
+        "constraints": [],
+    })
+    # Internally negated: linear becomes -3, offset becomes -5. So at
+    # x=1 the internal (minimize) energy is -3 + -5 = -8. The
+    # user-facing max value at x=1 is 3 + 5 = 8 = -(-8).
+    assert cqm.objective.offset == -5.0
+    assert cqm.objective.energy({"x": 1}) == -8
+
+
+def test_natural_form_number_partitioning_hits_zero_at_perfect_split():
+    """The Number Partitioning few-shot example in ``examples.json``
+    encodes the [3, 1, 2, 4] instance in the natural unconstrained form
+    with ``offset=S²=100`` so both perfect-partition assignments
+    ({3,2} vs {1,4} and its bit-flipped mirror) evaluate to 0. This
+    test compiles the example straight out of the file and evaluates
+    it — proving the anchor's math is correct end-to-end so a
+    contributor who tweaks the example without knowing the S²
+    accounting doesn't silently break the few-shot."""
+    import json
+    from pathlib import Path
+
+    examples_path = (
+        Path(__file__).parent.parent
+        / "app" / "formulation" / "prompts" / "examples.json"
+    )
+    data = json.loads(examples_path.read_text(encoding="utf-8"))
+    # Find the Number Partitioning example by its problem statement.
+    np_example = next(
+        e for e in data["examples"]
+        if "positive numbers" in e["problem"].lower()
+    )
+    cqm, _reg, sense = compile_cqm_json(np_example["cqm_json"])
+    assert sense == "minimize"
+    assert len(cqm.variables) == 4      # exactly one qubit per number
+    assert len(cqm.constraints) == 0    # unconstrained — the anchor's whole point
+
+    # Both perfect partitions evaluate to 0.
+    assert cqm.objective.energy({"x_0": 0, "x_1": 1, "x_2": 0, "x_3": 1}) == 0
+    assert cqm.objective.energy({"x_0": 1, "x_1": 0, "x_2": 1, "x_3": 0}) == 0
+    # Trivial all-in-one-group assignments evaluate to S² = 100.
+    assert cqm.objective.energy({"x_0": 0, "x_1": 0, "x_2": 0, "x_3": 0}) == 100
+    assert cqm.objective.energy({"x_0": 1, "x_1": 1, "x_2": 1, "x_3": 1}) == 100

@@ -26,6 +26,7 @@ for a Redis-backed RQ worker with the same public interface.
 from __future__ import annotations
 
 import json
+import os
 import time
 from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
@@ -34,7 +35,15 @@ from typing import Any
 
 import dimod
 
-from app.formulation import get_provider
+from app.formulation import (
+    FormulationError,
+    FormulationResult,
+    get_provider,
+)
+from app.formulation.hardcoded import (
+    HardcodedFormulationError,
+    formulate as formulate_hardcoded,
+)
 from app.optimization.compiler import compile_cqm_json
 from app.optimization.interpreter import interpret_solution
 from app.optimization.validation import validate_cqm
@@ -57,6 +66,23 @@ _SOLVER_WALLCLOCK_TIMEOUT_S: dict[str, float] = {
     "qaoa_ibmq": 900.0,
 }
 _DEFAULT_SOLVER_TIMEOUT_S: float = 30.0
+
+
+def _hardcoded_routing_enabled() -> bool:
+    """Read the ``ENABLE_HARDCODED_ROUTING`` feature flag.
+
+    Default: on. Set to ``0``/``false``/``no`` to force the legacy
+    LLM-emits-CQM path. Useful for A/B comparisons, for isolating
+    classifier regressions during dev, or for shipping a build without
+    the extra classifier network call when the deployment target is
+    strictly freeform-problem territory.
+    """
+    return os.environ.get("ENABLE_HARDCODED_ROUTING", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
 
 
 def _classify_solver_failure(exc: BaseException) -> tuple[str, str]:
@@ -416,6 +442,140 @@ class Orchestrator:
 
         return results
 
+    async def _formulate_with_routing(
+        self,
+        *,
+        provider: Any,
+        problem_statement: str,
+        api_key: str,
+    ) -> tuple[FormulationResult, dict[str, Any]]:
+        """Route stage 1 to the deterministic hardcoded formulators when
+        the classifier is confident; otherwise fall back to the LLM
+        CQM-emission path.
+
+        Returns ``(FormulationResult, route_meta)``. The route metadata
+        is a small JSON-serializable dict persisted on the job row and
+        surfaced by the approval panel:
+
+            {
+              "route": "hardcoded" | "llm" | "llm_no_classifier",
+              "family": "max_cut" | ...,
+              "confidence": 0.94,
+              "reasoning": "classifier's one-liner",
+              "classifier_tokens": 512,
+            }
+
+        Contract: this method NEVER raises. Classifier failures, hardcoded-
+        formulator validation errors, and everything in between all fall
+        through to ``provider.formulate`` so a free-form problem still
+        works even when the routing layer misbehaves. The only exception
+        that propagates is a genuine ``provider.formulate`` failure —
+        which is exactly what the outer stage-1 error path already
+        handles.
+
+        Feature-flagged via ``ENABLE_HARDCODED_ROUTING`` (default: on).
+        Set to ``0`` to force the legacy LLM-only path for A/B
+        comparisons or when the classifier's extra cost isn't wanted.
+        """
+        if not _hardcoded_routing_enabled():
+            result = await provider.formulate(problem_statement, api_key)
+            return result, {
+                "route": "llm",
+                "family": "",
+                "confidence": 0.0,
+                "reasoning": "routing disabled via ENABLE_HARDCODED_ROUTING=0",
+                "classifier_tokens": 0,
+            }
+
+        # Attempt classification. `classify_problem` is best-effort:
+        # returns None on network/HTTP/parse failure; returns a
+        # ClassificationResult with family="" on a confident non-match.
+        # Providers not derived from ``FormulationProvider`` (test stubs,
+        # third-party integrations that predate this method) don't have
+        # ``classify_problem`` at all — treat them as "classifier
+        # unavailable" and route straight to the LLM path.
+        classify_fn = getattr(provider, "classify_problem", None)
+        if classify_fn is None:
+            result = await provider.formulate(problem_statement, api_key)
+            return result, {
+                "route": "llm_no_classifier",
+                "family": "",
+                "confidence": 0.0,
+                "reasoning": "provider does not implement classify_problem",
+                "classifier_tokens": 0,
+            }
+
+        classification = await classify_fn(problem_statement, api_key)
+
+        if classification is None:
+            # Classifier unavailable — go straight to the LLM path.
+            result = await provider.formulate(problem_statement, api_key)
+            return result, {
+                "route": "llm_no_classifier",
+                "family": "",
+                "confidence": 0.0,
+                "reasoning": "classifier call failed; used LLM CQM emission",
+                "classifier_tokens": 0,
+            }
+
+        if classification.is_confident:
+            # Classifier matched a known family with high confidence.
+            # Try the hardcoded formulator. Its schema check may still
+            # reject bad parameters, in which case we fall back to the
+            # LLM path rather than surfacing a routing bug to the user.
+            try:
+                cqm_json = formulate_hardcoded(
+                    classification.family, classification.parameters,
+                )
+                registry = {
+                    v["name"]: v.get("description", "")
+                    for v in cqm_json.get("variables", [])
+                }
+                synthesized = FormulationResult(
+                    cqm_json=cqm_json,
+                    variable_registry=registry,
+                    raw_llm_output=classification.raw_llm_output,
+                    tokens_used=classification.tokens_used,
+                    model=classification.model,
+                    extras={
+                        "route": "hardcoded",
+                        "family": classification.family,
+                        "confidence": classification.confidence,
+                    },
+                )
+                return synthesized, {
+                    "route": "hardcoded",
+                    "family": classification.family,
+                    "confidence": classification.confidence,
+                    "reasoning": classification.reasoning,
+                    "classifier_tokens": classification.tokens_used,
+                    # Structured translation — surfaced to the approval
+                    # panel so the user can see what the classifier
+                    # actually extracted from their prose. Only useful
+                    # here on the hardcoded route (LLM fallbacks don't
+                    # feed these params into any formulator).
+                    "parameters": classification.parameters,
+                }
+            except HardcodedFormulationError:
+                # Params didn't validate against the formulator's own
+                # semantic checks (e.g. negative numbers for
+                # number_partitioning). Fall back to LLM.
+                pass
+
+        # Low confidence, empty family, or hardcoded formulator refused
+        # the params — use the LLM path.
+        result = await provider.formulate(problem_statement, api_key)
+        return result, {
+            "route": "llm",
+            "family": classification.family,
+            "confidence": classification.confidence,
+            "reasoning": (
+                classification.reasoning
+                or "classifier not confident; used LLM CQM emission"
+            ),
+            "classifier_tokens": classification.tokens_used,
+        }
+
     async def run(
         self,
         *,
@@ -459,13 +619,18 @@ class Orchestrator:
             update_job(job_id, status="formulating")
 
             provider = self.provider_resolver(provider_name)
-            formulation = await provider.formulate(problem_statement, api_key)
-
-            update_job(
-                job_id,
-                cqm_json=json.dumps(formulation.cqm_json),
-                variable_registry=json.dumps(formulation.variable_registry),
+            formulation, route = await self._formulate_with_routing(
+                provider=provider,
+                problem_statement=problem_statement,
+                api_key=api_key,
             )
+
+            update_fields: dict[str, Any] = {
+                "cqm_json": json.dumps(formulation.cqm_json),
+                "variable_registry": json.dumps(formulation.variable_registry),
+                "formulation_route": json.dumps(route),
+            }
+            update_job(job_id, **update_fields)
 
             # ---- Stage 2: compile -------------------------------------------
             event_bus.emit(job_id, "compiling")

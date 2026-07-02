@@ -149,6 +149,15 @@ def init_db() -> None:
         if "plain_english_solution" not in existing_columns:
             cursor.execute("ALTER TABLE jobs ADD COLUMN plain_english_solution TEXT")
 
+        # 2026-07-02 formulation routing — records how the CQM was
+        # produced so the approval UI can chip it as "hardcoded" vs
+        # "LLM CQM emission" and the audit trail preserves the
+        # classifier decision that steered the request. JSON-encoded
+        # payload: ``{route, family, confidence, reasoning}``. NULL
+        # for jobs that predate the routing layer or that opted out.
+        if "formulation_route" not in existing_columns:
+            cursor.execute("ALTER TABLE jobs ADD COLUMN formulation_route TEXT")
+
         # QML-6: per-provider state on QPU runs (e.g. Origin's
         # sample_index — which test point we evaluated). IBM ignores it
         # because it batches the whole test set. Idempotent ALTER so

@@ -19,12 +19,18 @@ from pathlib import Path
 import httpx
 
 from app.formulation.base import (
+    ClassificationResult,
     FormulationError,
     FormulationProvider,
     FormulationResult,
     extract_json_object,
     register_provider,
     validate_cqm_json,
+)
+from app.formulation.classifier_prompt import (
+    build_classifier_system_prompt,
+    build_classifier_user_message,
+    parse_classifier_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -140,6 +146,69 @@ class OpenAIFormulationProvider(FormulationProvider):
             extras={"prompt_tokens": usage.get("prompt_tokens"),
                     "completion_tokens": usage.get("completion_tokens")},
         )
+
+    async def classify_problem(
+        self,
+        problem_statement: str,
+        api_key: str,
+        timeout: int = 30,
+    ) -> ClassificationResult | None:
+        """Route a problem statement to a hardcoded family or ``None``.
+
+        Uses the same GPT-5-mini model as ``formulate`` with the
+        classifier system prompt. ``response_format`` is set to
+        ``json_object`` — OpenAI reliably honors it on this endpoint,
+        avoiding the "wrapped in prose" failure mode. Best-effort:
+        returns ``None`` on any HTTP/network/parse failure so the
+        orchestrator can fall back to the LLM CQM-emission path.
+        """
+        if not api_key:
+            return None
+
+        payload = {
+            "model": self.model,
+            "max_tokens": 800,
+            "temperature": 0.0,
+            "messages": [
+                {"role": "system", "content": build_classifier_system_prompt()},
+                {
+                    "role": "user",
+                    "content": build_classifier_user_message(problem_statement),
+                },
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        headers = {
+            "authorization": f"Bearer {api_key}",
+            "content-type": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    OPENAI_API_URL, json=payload, headers=headers,
+                )
+        except httpx.HTTPError:
+            return None
+
+        if response.status_code != 200:
+            return None
+
+        body = response.json()
+        choices = body.get("choices", [])
+        if not choices:
+            return None
+        text = (choices[0].get("message", {}).get("content", "") or "")
+        usage = body.get("usage", {}) or {}
+        tokens_used = int(usage.get("total_tokens", 0)) or (
+            int(usage.get("prompt_tokens", 0)) + int(usage.get("completion_tokens", 0))
+        )
+        model = body.get("model", self.model)
+
+        try:
+            return parse_classifier_response(text, tokens_used, model)
+        except FormulationError:
+            return None
 
     async def summarize_solution(
         self,

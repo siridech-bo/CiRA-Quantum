@@ -414,6 +414,11 @@ def _public_job(job: dict[str, Any] | None) -> dict[str, Any] | None:
         "cqm_json", "variable_registry", "validation_report", "solution",
         "solver_results", "solvers_requested", "preflight",
         "solver_params_overrides",
+        # Formulation route audit trail: {route, family, confidence,
+        # reasoning}. Written by the orchestrator's stage-1 routing
+        # branch. NULL for pre-routing jobs — the frontend must handle
+        # that shape.
+        "formulation_route",
         # NB: plain_english_solution is a plain string, not JSON —
         # json.loads would happily parse a string with a numeric-only
         # value and mangle it. The try/except in _public_job's loop

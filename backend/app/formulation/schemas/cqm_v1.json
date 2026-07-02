@@ -87,6 +87,10 @@
           "type": "object",
           "additionalProperties": { "type": "number" },
           "description": "Map from \"u*v\" string keys (a single * delimiter, no spaces) to coefficients. Empty object is allowed."
+        },
+        "offset": {
+          "type": "number",
+          "description": "Optional constant term added to the objective. Useful for natural-form encodings whose raw quadratic body is shifted from the user-facing target (e.g. number partitioning's squared-imbalance form has an implicit -S² constant that makes the perfect-partition optimum read as 0 when this offset is set to +S²). Absent = 0."
         }
       }
     },
