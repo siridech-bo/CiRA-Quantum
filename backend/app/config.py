@@ -21,7 +21,15 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
-DATABASE_PATH = str(DATA_DIR / "app.db")
+
+# ``CIRA_DB_PATH`` override lets the NSSM service on Windows point the
+# SQLite file at a host-managed data directory outside the repo
+# checkout — e.g. ``D:\data\cira-quantum\app.db`` — so ``git pull``
+# never touches user state and a redeploy doesn't wipe BYOK keys /
+# job history. Tests use the same knob to run against a tmp file
+# without shipping the dev DB back into the fixture. Defaults to the
+# in-repo ``backend/data/app.db`` for local dev.
+DATABASE_PATH = os.environ.get("CIRA_DB_PATH") or str(DATA_DIR / "app.db")
 
 # ---- Session ----
 

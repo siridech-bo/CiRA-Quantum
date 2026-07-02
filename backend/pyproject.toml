@@ -29,6 +29,12 @@ dependencies = [
     # dimod.Sampler adapters. Both are CQM-native.
     "ortools>=9.10,<10.0",
     "highspy>=1.7,<2.0",
+    # Production WSGI server. Cross-platform (works on Windows where
+    # gunicorn's fork model can't) and thread-pool-based, so SSE
+    # streams and long-lived LLM/QPU calls behave correctly. Dev still
+    # runs Flask's built-in server via ``python run.py``; the NSSM
+    # service on quantum.cira-core.com invokes waitress directly.
+    "waitress>=3.0,<4.0",
 ]
 
 [project.optional-dependencies]

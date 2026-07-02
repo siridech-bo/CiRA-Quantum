@@ -1,0 +1,73 @@
+# cloudflared config addition — adds quantum.cira-core.com to the
+# existing oculus-prod tunnel on .110.
+#
+# Full path on .110: C:\Users\viset\.cloudflared\config.yml
+#
+# DO NOT copy this file over the existing config — the operator's file
+# already has the tunnel + credentials-file + oculus.cira-core.com
+# ingress rule. Just merge the new ingress rule below into the
+# existing ``ingress:`` list, BEFORE the catch-all ``service:
+# http_status:404`` entry.
+#
+# Full file after the merge should look like:
+#
+#     tunnel: 94fc52c7-e33b-4f0d-b174-ae18cf2888ff
+#     credentials-file: C:\Users\viset\.cloudflared\94fc52c7-e33b-4f0d-b174-ae18cf2888ff.json
+#
+#     ingress:
+#       - hostname: oculus.cira-core.com
+#         service: http://localhost:5008
+#         originRequest:
+#           noTLSVerify: true
+#           connectTimeout: 30s
+#
+#       # NEW — added 2026-07-02 for CiRA Quantum:
+#       - hostname: quantum.cira-core.com
+#         service: http://localhost:5209
+#         originRequest:
+#           noTLSVerify: true
+#           connectTimeout: 300s   # long-running LLM + QPU cloud calls
+#           # keepAliveTimeout defaults to 1h30m which is fine for our
+#           # SSE streams (typical pipeline max is a few minutes).
+#
+#       - service: http_status:404
+#
+# ---- Steps after editing the config file --------------------------
+#
+# 1. Register the DNS route so quantum.cira-core.com resolves to the
+#    tunnel (only needs to run once):
+#
+#        cloudflared tunnel route dns oculus-prod quantum.cira-core.com
+#
+#    (``oculus-prod`` is the tunnel name — we're intentionally
+#    reusing the existing tunnel per the "option (a)" recommendation
+#    from the ops handoff, so no second tunnel gets spun up.)
+#
+# 2. Restart the cloudflared Windows service so the new ingress rule
+#    takes effect:
+#
+#        Restart-Service Cloudflared
+#
+# 3. Verify from off-LAN (a phone hotspot works, or curl from any
+#    non-.110 machine):
+#
+#        curl -s https://quantum.cira-core.com/api/health
+#
+#    Expected response:
+#
+#        {"fts5":"available","sqlite_vec":"loaded","status":"ok","version":"0.1.0"}
+#
+# ---- Why connectTimeout: 300s (vs oculus's 30s) --------------------
+#
+# The connectTimeout controls how long cloudflared waits for the TCP
+# connection from the tunnel to the local origin (127.0.0.1:5209) to
+# ESTABLISH before giving up. It does NOT limit how long an established
+# SSE stream can stay open — that's controlled by keepAliveTimeout
+# (default 1h30m, plenty).
+#
+# We bump it above the 30s default because on cold-boot or after an
+# NSSM service restart, waitress can take up to 60s to finish loading
+# pyqpanda3 + qiskit + the four hardcoded formulator families + the
+# dimod solver samplers. During that boot window, cloudflared attempts
+# to connect and would 502 with the 30s cap. 300s is generous — if
+# boot takes that long, something else is wrong anyway.
