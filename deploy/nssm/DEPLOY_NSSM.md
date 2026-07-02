@@ -1,48 +1,33 @@
-# CiRA Quantum — Deploy to `.110` via NSSM + Cloudflare Tunnel
+# CiRA Quantum — Deploy to `.110` via NSSM-wrapped Docker
 
-Target: `quantum.cira-core.com` served from `.110` (Windows dev box),
-same pattern as `oculus.cira-core.com`. Single-box deploy, no Docker,
-native Python 3.12 + `waitress` WSGI server + NSSM Windows service +
-Cloudflare Tunnel ingress rule added to the existing `oculus-prod`
-tunnel.
+Target: `quantum.cira-core.com` served from `.110` via Docker Desktop
++ NSSM Windows service + Cloudflare Tunnel ingress rule added to the
+existing `oculus-prod` tunnel. **All Python deps, the built Vue SPA,
+and the pyqpanda3 / qiskit toolchain are baked into a single Docker
+image** — the host just runs `docker run` via NSSM.
 
-Everything in this runbook is self-contained — an operator with admin
-PowerShell on `.110` can go from the repo already checked out at
-`D:\CiRA Quantum\` to `curl https://quantum.cira-core.com/api/health`
-returning `200` by following the ten steps below in order. Estimated
-total time: **~1 hour** end-to-end, most of which is the first
-`pip install` and the frontend build.
-
-We deliberately keep the repo where it already lives (`D:\CiRA Quantum\`
-— matches the Oculus pattern of `D:\CiRA Oculus\`) rather than moving
-it to `D:\services\cira-quantum\`. Same-directory dev-and-prod is
-what the operator uses for Oculus and it works fine; the discipline
-that keeps them separate is:
-
-- **`.env` is never committed** (secrets stay only on `.110`).
-- **The SQLite DB lives outside the repo** at `D:\data\cira-quantum\app.db`
-  via `CIRA_DB_PATH` so `git pull` never touches it.
-- **Log files live outside the repo** at `D:\logs\cira-quantum\`.
-
-Dev work continues in the same directory; `git pull` + service restart
-is the redeploy loop.
+Estimated total time: **~30 min** end-to-end (image build if not
+already done + service install + tunnel config).
 
 ## Paths (single source of truth)
 
 | Role           | Path                                        |
 |----------------|---------------------------------------------|
-| Code (repo)    | `D:\CiRA Quantum`                  |
-| SQLite DB      | `D:\data\cira-quantum\app.db`               |
+| Code (repo)    | `D:\CiRA Quantum` (same as dev)             |
+| Image name     | `cira-quantum-backend:local`                |
+| Container name | `cira-quantum`                              |
+| SQLite DB      | `D:\data\cira-quantum\app.db` (mounted at `/app/data/` inside container) |
 | Log files      | `D:\logs\cira-quantum\svc.out.log` / `.err.log` |
-| Service `.env` | `D:\CiRA Quantum\.env`             |
-| Port           | `5209` (deliberately non-adjacent to Oculus's 5008) |
+| Service `.env` | `D:\CiRA Quantum\.env` (loaded via `--env-file`) |
+| Port           | `5209` (host-side; container listens on same) |
 | Service name   | `CiraQuantumSvc`                            |
 | Tunnel         | reuses existing `oculus-prod` (single tunnel, two ingress rules) |
 
-## 1. Confirm the repo is up to date
+The repo stays where it lives at `D:\CiRA Quantum\` (matches Oculus's
+`D:\CiRA Oculus\` pattern). Nothing gets moved to `D:\services\...` —
+`git pull` is the redeploy trigger.
 
-The repo is already at `D:\CiRA Quantum\` on `.110`. Just make sure
-it's on `main` with the latest commits:
+## 1. Confirm the repo is up to date
 
 ```powershell
 cd "D:\CiRA Quantum"
@@ -50,52 +35,51 @@ git checkout main
 git pull
 ```
 
-(The quotes around the path are because of the space in `CiRA Quantum`
-— every command below that references it uses the same convention.)
+## 2. Confirm Docker Desktop is running
 
-## 2. Create data + log directories
-
-```powershell
-mkdir D:\data\cira-quantum -Force
-mkdir D:\logs\cira-quantum -Force
-```
-
-These live outside the repo so `git pull` and service reinstalls never
-touch user state (BYOK-encrypted API keys, job history, admin
-password).
-
-## 3. Create the Python venv and install deps
+Docker Desktop's systray icon should be green (running). If not, start
+it and wait for the WSL2 backend to initialize (~30 s on cold boot).
 
 ```powershell
-cd "D:\CiRA Quantum\backend"
-python -m venv "D:\CiRA Quantum\venv"
-& "D:\CiRA Quantum\venv\Scripts\Activate.ps1"
-
-# Base app + the two extras we need in prod. Skip [classical-extras]
-# and [gpu] — those pull torch + CUDA and we don't ship GPU SA.
-pip install -e ".[quantum,ibm-quantum]"
-
-# Verify:
-python -c "from app import create_app; app = create_app(); print('OK, routes:', len(list(app.url_map.iter_rules())))"
+docker info --format '{{.ServerVersion}}'
 ```
 
-Expected output: `OK, routes: 63`.
+Should print a version number, no errors. If it errors with "cannot
+connect to Docker daemon," Docker Desktop isn't running yet.
 
-## 4. Build the frontend
+## 3. Build (or refresh) the container image
+
+Only needs to run when `pyproject.toml`, the frontend, or the
+`deploy/Dockerfile` itself changes. Otherwise skip — the image on
+disk from the last build is still valid.
 
 ```powershell
-cd "D:\CiRA Quantum\frontend"
-npm ci
-npm run build
+cd "D:\CiRA Quantum"
+docker build -f deploy/Dockerfile -t cira-quantum-backend:local .
 ```
 
-Output lands at `D:\CiRA Quantum\frontend\dist\`. Verify:
+First build: ~10 min (pyqpanda3 wheel compile + Node build stage).
+Subsequent builds cache aggressively — usually ~30 s if only backend
+Python changed, ~2 min if the frontend changed.
+
+Verify:
 
 ```powershell
-Test-Path "D:\CiRA Quantum\frontend\dist\index.html"
+docker images cira-quantum-backend:local
 ```
 
-Should print `True`.
+Should show a single image around 2.5 GB uncompressed.
+
+## 4. Create data + log directories
+
+```powershell
+New-Item -ItemType Directory -Path 'D:\data\cira-quantum' -Force
+New-Item -ItemType Directory -Path 'D:\logs\cira-quantum' -Force
+```
+
+Data and logs live outside the container so `docker rm` / image
+rebuilds never touch user state (BYOK-encrypted keys, job history,
+admin password).
 
 ## 5. Write the `.env` file
 
@@ -118,27 +102,39 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 # at first login.
 ```
 
+**Important:** in `.env`, `CIRA_DB_PATH` must be **`/app/data/app.db`**
+(Linux path — that's inside the container where the host volume is
+mounted). The template already has this. Do NOT change it to
+`D:\data\cira-quantum\app.db` — that's a host path and won't work
+inside the container.
+
 ⚠️ Do NOT commit the populated `.env`. It stays only on `.110`.
 
 ## 6. Manual smoke test (before touching NSSM)
 
+Run the container directly to confirm it comes up:
+
 ```powershell
-cd "D:\CiRA Quantum\backend"
-& "D:\CiRA Quantum\venv\Scripts\python.exe" -m waitress `
-    --host=0.0.0.0 --port=5209 --threads=16 --call app:create_app
+docker run --rm --name cira-quantum-smoke `
+    -p 5209:5209 `
+    --env-file "D:\CiRA Quantum\.env" `
+    -v "D:\data\cira-quantum:/app/data" `
+    cira-quantum-backend:local
 ```
 
-From a second PowerShell window:
+Wait ~30 s for boot (pyqpanda3 + qiskit imports take a moment on
+first run), then from a second PowerShell window:
 
 ```powershell
 curl http://127.0.0.1:5209/api/health
-curl http://127.0.0.1:5209/           # should return the SPA index.html
+curl http://127.0.0.1:5209/       # should return the SPA index.html
 ```
 
 Expected first response:
 `{"fts5":"available","sqlite_vec":"loaded","status":"ok","version":"0.1.0"}`
 
-Ctrl+C the manual waitress process before moving on.
+Ctrl+C the manual run before moving on. `--rm` removes the container
+automatically on exit.
 
 ## 7. Install the NSSM service
 
@@ -151,12 +147,17 @@ cd "D:\CiRA Quantum"
 
 The script:
 
+- Preflight-checks NSSM, Docker CLI, Docker daemon, and the image.
 - Stops + removes any prior `CiraQuantumSvc` (idempotent).
-- Installs the service pointing at the venv's `waitress` module.
+- Removes any dangling container by name (defensive).
+- Installs the service to run `docker run --rm ... cira-quantum-backend:local`.
 - Configures NSSM restart policy (5 s delay, 60 s throttle) matching Oculus.
 - Configures NSSM log rotation (10 MB per file, online rotation).
-- Sets `AppStopMethod* = 15 s` so in-flight SSE streams drain cleanly.
-- Starts the service and prints its status + a health-probe result.
+- Sets `AppStopMethod* = 15 s` so `docker stop`'s SIGTERM has time to
+  drain in-flight SSE streams before the SIGKILL.
+- Depends on `com.docker.service` so NSSM waits for Docker Desktop
+  before starting the container at boot.
+- Starts the service and polls `/api/health` for up to 45 s.
 
 Expected end of script output:
 
@@ -184,7 +185,7 @@ Then register the DNS route (only once):
 cloudflared tunnel route dns oculus-prod quantum.cira-core.com
 ```
 
-And restart the tunnel service so the new rule takes effect:
+Restart the tunnel service so the new rule takes effect:
 
 ```powershell
 Restart-Service Cloudflared
@@ -220,67 +221,75 @@ Log into UptimeRobot, add a new monitor:
 |---------------------------|-----------------------------------------------------|
 | View service status       | `Get-Service CiraQuantumSvc`                        |
 | Start / stop / restart    | `Start-Service CiraQuantumSvc` / `Stop-…` / `Restart-…` |
-| Tail stdout log           | `Get-Content -Wait D:\logs\cira-quantum\svc.out.log` |
-| Tail stderr log           | `Get-Content -Wait D:\logs\cira-quantum\svc.err.log` |
-| Redeploy after `git pull` | `Restart-Service CiraQuantumSvc`                    |
-| Rebuild frontend          | `cd "D:\CiRA Quantum\frontend"; npm ci; npm run build; Restart-Service CiraQuantumSvc` |
+| Tail service log          | `Get-Content -Wait D:\logs\cira-quantum\svc.out.log` |
+| Tail container log        | `docker logs -f cira-quantum` |
+| Enter running container   | `docker exec -it cira-quantum bash` |
+| Redeploy after code change (see below for details) | rebuild image + `Restart-Service CiraQuantumSvc` |
 | Rotate secrets            | edit `.env` → `Restart-Service CiraQuantumSvc`      |
 | Manual DB backup          | `Copy-Item D:\data\cira-quantum\app.db D:\backups\cira-quantum\app.db.$(Get-Date -Format 'yyyyMMdd-HHmmss').bak` |
 
 ## Redeploy on code change
 
-Small-app-only change (no dep changes, no schema change):
+Backend Python only:
 
 ```powershell
 cd "D:\CiRA Quantum"
 git pull
+docker build -f deploy/Dockerfile -t cira-quantum-backend:local .
 Restart-Service CiraQuantumSvc
 ```
 
-Deps changed (`pyproject.toml` touched):
+Frontend only (rebuild is still needed because the SPA is baked into
+the image — that's the tradeoff of the "one deployable" pattern):
 
 ```powershell
 cd "D:\CiRA Quantum"
 git pull
-& "D:\CiRA Quantum\venv\Scripts\Activate.ps1"
-pip install -e ".[quantum,ibm-quantum]"
+docker build -f deploy/Dockerfile -t cira-quantum-backend:local .
 Restart-Service CiraQuantumSvc
 ```
 
-Frontend changed:
-
-```powershell
-cd "D:\CiRA Quantum\frontend"
-git pull   # if not already pulled above
-npm ci     # only when package-lock.json changes
-npm run build
-Restart-Service CiraQuantumSvc
-```
+The Docker builder caches aggressively — a frontend-only change
+finishes rebuilding in ~2 min, backend-only change in ~30 s.
 
 ## Rollback
 
-Rollback = `git checkout <prior_commit>` + rebuild + restart. There's
-no automated rollback — one-box deploys and SQLite make that
-inherently manual. If a deploy corrupts the DB (unlikely — schema is
-idempotent), the recovery path is:
+Rollback = check out the prior commit + rebuild + restart:
 
 ```powershell
-Stop-Service CiraQuantumSvc
-Copy-Item D:\backups\cira-quantum\app.db.<latest>.bak D:\data\cira-quantum\app.db -Force
-Start-Service CiraQuantumSvc
+cd "D:\CiRA Quantum"
+git checkout <prior_commit_sha>
+docker build -f deploy/Dockerfile -t cira-quantum-backend:local .
+Restart-Service CiraQuantumSvc
 ```
 
-Set up an hourly scheduled task that runs the manual-backup command
-above once the service is stable enough that we care about data loss.
+Or, if you want the old image back without a rebuild, tag the current
+one before every deploy:
+
+```powershell
+docker tag cira-quantum-backend:local cira-quantum-backend:$(git rev-parse --short HEAD)
+```
+
+Then rollback becomes:
+
+```powershell
+docker tag cira-quantum-backend:<prior_sha> cira-quantum-backend:local
+Restart-Service CiraQuantumSvc
+```
 
 ## Known constraints
 
 - **HiGHS solver skips registration at boot** — glibc symbol mismatch
-  in the `highspy` wheel on some Python 3.12 installations. Non-blocker:
+  in the `highspy` wheel on Debian trixie's slim base. Non-blocker:
   CPSAT remains as the exact classical solver, and the benchmarking
   registry's try/except catches the failure gracefully. Watch
-  `svc.err.log` for `Failed to register HiGHSSampler` — expected line,
-  not an incident.
+  `docker logs cira-quantum` for `Failed to register HiGHSSampler` —
+  expected line, not an incident.
+
+- **Docker Desktop dependency.** The NSSM service depends on
+  `com.docker.service`. If Docker Desktop is not running, the service
+  will fail to start at boot until Docker is up. On `.110` where
+  Docker Desktop autostarts, this is fine.
 
 - **No warm standby.** `.110` is a single failure domain. If it goes
   down, we lose availability until it comes back. Acceptable at
@@ -288,16 +297,20 @@ above once the service is stable enough that we care about data loss.
 
 - **Home upstream bandwidth is the cap on concurrent SSE streams.**
   Cloudflare Tunnel holds one long-lived TCP connection per streaming
-  client back through the home upload link. Not a bottleneck now;
-  worth watching if user growth spikes.
+  client back through the home upload link. Not a bottleneck now.
 
-## Where the other deploy files live
+## Path A (native Python + NSSM) reference
 
-The `deploy/` folder in the repo also contains:
+The pre-Docker deploy path — venv + waitress + NSSM without Docker —
+is still viable but retired in favor of the containerized approach
+above. If for any reason Docker Desktop stops working on `.110`, the
+fallback path is:
 
-- `Dockerfile`, `wrangler.toml`, `gunicorn_conf.py`, `DEPLOY.md`,
-  `migrations/0001_initial_schema.sql`
+1. Create `D:\CiRA Quantum\venv`, `pip install -e ".[quantum,ibm-quantum]"`.
+2. `cd frontend; npm ci; npm run build`.
+3. Rewrite `install_quantum_service.ps1` to invoke
+   `& "D:\CiRA Quantum\venv\Scripts\python.exe" -m waitress --host=0.0.0.0 --port=5209 --threads=16 --call app:create_app`.
+4. Same NSSM `set` commands otherwise.
 
-Those are the Cloudflare Containers + D1 deploy path — **not used by
-this NSSM deploy**. They stay in the repo as future-migration
-scaffolding for if/when a Cloudflare-hosted redeploy makes sense.
+Deferred — no reason to prepare for a Docker-Desktop failure that
+hasn't happened yet.

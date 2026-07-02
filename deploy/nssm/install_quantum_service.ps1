@@ -1,50 +1,77 @@
 # install_quantum_service.ps1 — install CiRA Quantum as an NSSM
-# Windows service on .110, matching the Oculus pattern.
+# Windows service on .110, wrapping the pre-built Docker image.
 #
-# Adapted from the operator's D:\tmp\install_oculus_service_v2.ps1
-# with two changes:
-#   1. Waitress instead of Flask-dev-server / gunicorn (gunicorn is
-#      Unix-only; waitress is Windows-native, pure-Python, thread-pool
-#      based — safe for our SSE streams).
-#   2. AppStopMethod* bumped to 15 s so in-flight SSE streams get a
-#      chance to close cleanly on ``nssm stop`` / ``sc stop``.
+# Path B (Docker-in-NSSM). All Python deps + the built Vue SPA + the
+# pyqpanda3/qiskit/dimod toolchain are baked into the container image
+# ``cira-quantum-backend:local`` (see deploy/Dockerfile). This script
+# creates a Windows service that, when started, runs the container in
+# the foreground; NSSM's restart policy handles container crashes the
+# same way it would handle a python.exe crash.
+#
+# Why NSSM + Docker (vs docker-desktop autostart) — because Docker
+# Desktop's own service model doesn't give us NSSM's rotate/log/exit
+# policies. Wrapping ``docker run`` in NSSM keeps all the operator
+# muscle memory (``Get-Service`` / ``Restart-Service`` / log files at
+# a known path) while getting the "everything's in the container"
+# simplicity.
 #
 # Run from an elevated PowerShell (Administrator) on .110 after the
 # preflight steps in deploy/nssm/DEPLOY_NSSM.md are complete:
-#   1. repo cloned to $workdir
-#   2. venv created under $workdir\venv and deps installed
-#   3. frontend built (``npm run build`` in frontend/)
-#   4. .env file written under $workdir with real secrets
-#   5. data + log directories exist ($datadir, log dir)
+#   1. Docker Desktop is running (systray icon healthy).
+#   2. Image ``cira-quantum-backend:local`` exists (``docker images``).
+#   3. .env file written at D:\CiRA Quantum\.env with real secrets.
+#   4. Data + log directories exist.
 #
-# Idempotent: stopping + removing an existing service before install
-# so ``iwr | iex`` re-runs work cleanly during ops iterations.
+# Idempotent: any prior CiraQuantumSvc gets stopped + removed before
+# install, and any prior container gets removed too — so ``iwr | iex``
+# re-runs work cleanly during ops iterations.
 
 $ErrorActionPreference = 'Stop'
 
 # ---- Path configuration -----------------------------------------------
 # All configurable in one block so an operator can retarget to a
-# different drive / venv / port without hunting through the script.
+# different drive / image / port without hunting through the script.
 
-$svc      = 'CiraQuantumSvc'
-$workdir  = 'D:\CiRA Quantum'
-$datadir  = 'D:\data\cira-quantum'
-$logdir   = 'D:\logs\cira-quantum'
-$port     = 5209                            # deliberately non-adjacent to Oculus (5008) to prevent collisions
-$spa_dir  = "$workdir\frontend\dist"
-$env_file = "$workdir\.env"
+$svc         = 'CiraQuantumSvc'
+$image       = 'cira-quantum-backend:local'
+$container   = 'cira-quantum'
+$port        = 5209
+$datadir     = 'D:\data\cira-quantum'
+$logdir      = 'D:\logs\cira-quantum'
+$env_file    = 'D:\CiRA Quantum\.env'
 
 # NSSM location — matches Oculus's install path. Winget places it here.
 $nssm = 'C:\Users\viset\AppData\Local\Microsoft\WinGet\Packages\NSSM.NSSM_Microsoft.Winget.Source_8wekyb3d8bbwe\nssm-2.24-101-g897c7ad\win64\nssm.exe'
 
-# Python interpreter: venv under the service directory (cleaner than
-# Oculus's system-Python pattern; each service owns its own dep tree).
-$python = "$workdir\venv\Scripts\python.exe"
+# Docker CLI. Docker Desktop installs it here on Windows; if the
+# operator installed via a different route (Chocolatey, standalone
+# CLI), override this line.
+$docker = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
 
-# Waitress invocation — bind on all interfaces, thread-pool sized for
-# SSE + long LLM/QPU calls, expose the WSGI callable via --call so
-# our create_app() factory is invoked at boot.
-$appargs = "-m waitress --host=0.0.0.0 --port=$port --threads=16 --call app:create_app"
+# Docker run arguments. NSSM will pass these to docker.exe verbatim.
+#   --rm                : remove the container on exit — NSSM restart
+#                         recreates it anyway, so we don't want a pile
+#                         of "Exited" containers accumulating.
+#   --name              : predictable name so ``docker exec`` / ``docker logs``
+#                         work without having to look up the id.
+#   -p 5209:5209        : bind container's 5209 to host's 5209.
+#   --env-file          : load prod secrets from D:\CiRA Quantum\.env
+#                         (never baked into the image).
+#   -v host:container   : mount the host data dir at /app/data so the
+#                         SQLite file, BYOK-encrypted keys, and job
+#                         history survive container/image rebuilds.
+#                         The CIRA_DB_PATH env var (set inside .env)
+#                         must point at /app/data/app.db for this to
+#                         work.
+$appargs = @(
+    'run',
+    '--rm',
+    '--name', $container,
+    '-p', "$($port):$($port)",
+    '--env-file', $env_file,
+    '-v', "$($datadir):/app/data",
+    $image
+) -join ' '
 
 $logout = "$logdir\svc.out.log"
 $logerr = "$logdir\svc.err.log"
@@ -54,14 +81,30 @@ $logerr = "$logdir\svc.err.log"
 if (-not (Test-Path $nssm)) {
     throw "NSSM not found at $nssm. Install via ``winget install NSSM.NSSM`` first."
 }
-if (-not (Test-Path $python)) {
-    throw "Python interpreter not found at $python. Create the venv per DEPLOY_NSSM.md step 3 first."
+if (-not (Test-Path $docker)) {
+    throw "Docker CLI not found at $docker. Is Docker Desktop installed and running?"
 }
+
+# Docker daemon must be up — a ``docker info`` call is the cheapest
+# way to check. If the daemon isn't reachable, the service would
+# install fine but fail immediately on start.
+try {
+    & $docker info --format '{{.ServerVersion}}' 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "docker info exit code $LASTEXITCODE" }
+} catch {
+    throw "Docker daemon not reachable. Start Docker Desktop and wait for the systray icon to go green, then re-run this script."
+}
+
+# Image must exist. Building it here would blow past the "1 hour
+# ops-only" deploy budget, so we require the operator to have built
+# it separately (see DEPLOY_NSSM.md step 3).
+& $docker image inspect $image 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Docker image '$image' not found. Build it with ``docker build -f deploy/Dockerfile -t $image .`` from the repo root, then re-run."
+}
+
 if (-not (Test-Path $env_file)) {
-    Write-Warning ".env not found at $env_file — service will start but the pipeline will fail at first LLM call. Create it before starting."
-}
-if (-not (Test-Path $spa_dir)) {
-    Write-Warning "Frontend build not found at $spa_dir — the / route will fail. Run ``npm run build`` in frontend/ before starting."
+    Write-Warning ".env not found at $env_file — service will start but the pipeline will fail at first LLM call. Create it before proceeding (see DEPLOY_NSSM.md step 4)."
 }
 
 # ---- Ensure host paths exist -----------------------------------------
@@ -70,20 +113,24 @@ New-Item -ItemType Directory -Path $datadir -Force | Out-Null
 New-Item -ItemType Directory -Path $logdir  -Force | Out-Null
 
 # ---- Idempotent removal ---------------------------------------------
-# Stop + remove an existing service if present so a re-run of this
-# script upgrades cleanly. ``2>&1 | Out-Null`` swallows the "service
-# not found" noise on a fresh install.
+# Stop + remove any existing service AND any dangling container so a
+# re-run cleanly upgrades. The ``2>&1 | Out-Null`` swallows the
+# "not found" noise on fresh installs.
 
 & $nssm stop   $svc 2>&1 | Out-Null
 Start-Sleep -Seconds 2
 & $nssm remove $svc confirm 2>&1 | Out-Null
 
+# If the container is still up from a prior run (e.g. NSSM was
+# force-killed without stopping the container), remove it too.
+& $docker rm -f $container 2>&1 | Out-Null
+
 # ---- Install ----------------------------------------------------------
 
-& $nssm install $svc $python $appargs
-& $nssm set $svc AppDirectory     $workdir
-& $nssm set $svc DisplayName      'CiRA Quantum Backend'
-& $nssm set $svc Description      'CiRA Quantum optimization pipeline. Serves quantum.cira-core.com via Cloudflare Tunnel.'
+& $nssm install $svc $docker $appargs
+& $nssm set $svc AppDirectory     'C:\'
+& $nssm set $svc DisplayName      'CiRA Quantum Backend (Docker)'
+& $nssm set $svc Description      'CiRA Quantum optimization pipeline. Wraps docker run for cira-quantum-backend:local; serves quantum.cira-core.com via Cloudflare Tunnel.'
 
 # I/O
 & $nssm set $svc AppStdout        $logout
@@ -101,38 +148,59 @@ Start-Sleep -Seconds 2
 & $nssm set $svc AppRestartDelay  5000
 & $nssm set $svc AppThrottle      60000
 
-# Graceful drain for SSE — give in-flight streams up to 15 s to close
-# cleanly on service stop. NEW vs Oculus; Oculus doesn't have SSE.
+# Graceful drain: give the container 15 s to receive SIGTERM (docker
+# stop sends it) and drain in-flight SSE streams before docker kill
+# (SIGKILL) fires. NSSM's own AppStop* controls how it signals the
+# docker.exe process, which forwards SIGTERM to the container's PID 1.
 & $nssm set $svc AppStopMethodConsole 15000
 & $nssm set $svc AppStopMethodWindow  15000
 & $nssm set $svc AppStopMethodThreads 15000
 
-# Start-at-boot + Tcpip dependency (matches Oculus).
+# Start-at-boot + Tcpip + Docker service dependencies. Docker Desktop
+# on Windows registers its daemon as ``com.docker.service``; we depend
+# on it so NSSM waits until docker is up before starting the container.
 & $nssm set $svc Start            SERVICE_AUTO_START
-& $nssm set $svc DependOnService  Tcpip
+& $nssm set $svc DependOnService  Tcpip com.docker.service
 
 # ---- Start + verify ---------------------------------------------------
 
 & $nssm start $svc
-Start-Sleep -Seconds 6
+
+# Give the container time to boot — ~30 s for pyqpanda3 + qiskit + the
+# hardcoded formulator registrations to complete on first run.
+Write-Host "Waiting up to 45s for the container to come healthy..." -ForegroundColor Cyan
+$ready = $false
+for ($i = 0; $i -lt 15; $i++) {
+    Start-Sleep -Seconds 3
+    try {
+        $r = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/health" -UseBasicParsing -TimeoutSec 3
+        if ($r.StatusCode -eq 200) {
+            $ready = $true
+            break
+        }
+    } catch {
+        # Not up yet — normal during the boot window.
+    }
+}
 
 Write-Host ""
 Write-Host "----- Service status -----" -ForegroundColor Cyan
 Get-Service $svc | Format-Table Name, Status, StartType -AutoSize
 
 Write-Host "----- Health probe -----" -ForegroundColor Cyan
-try {
-    $r = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/health" -UseBasicParsing -TimeoutSec 5
+if ($ready) {
+    $r = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/health" -UseBasicParsing -TimeoutSec 3
     Write-Host ("Health check: HTTP {0}" -f $r.StatusCode) -ForegroundColor Green
     Write-Host $r.Content
-} catch {
-    Write-Warning "Health probe failed: $_"
-    Write-Warning "Check the service log at $logerr for the failure reason."
+} else {
+    Write-Warning "Health probe never returned 200 in 45s. Check container logs:"
+    Write-Warning "  docker logs $container"
+    Write-Warning "Service log at $logerr"
 }
 
 Write-Host ""
 Write-Host "Next steps:"
-Write-Host "  1. Add the cira-quantum ingress rule to cloudflared config"
+Write-Host "  1. Add the quantum.cira-core.com ingress rule to cloudflared config"
 Write-Host "     (see deploy\nssm\cloudflared_ingress.yml)"
 Write-Host "  2. Register the DNS route:"
 Write-Host "       cloudflared tunnel route dns oculus-prod quantum.cira-core.com"

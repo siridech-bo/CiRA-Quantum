@@ -27,8 +27,13 @@ __pycache__
 htmlcov
 .tox
 
-# ---- Node / frontend build artifacts (backend image doesn't need them)
-frontend
+# ---- Node build artifacts we DO NOT want in the build context.
+# The frontend source (frontend/*.vue, package.json, vite.config.ts) IS
+# needed by the frontend-builder stage — leaving that included. Only
+# the local install caches and any pre-existing dist/ are excluded so
+# the build stage does a clean install every time.
+frontend/node_modules
+frontend/dist
 node_modules
 
 # ---- Dev-only data + logs -----------------------------------------
