@@ -90,16 +90,23 @@ WORKDIR /build
 COPY backend/pyproject.toml backend/requirements.txt* ./
 COPY backend/README.md ./
 
-# Install the base app + the two extras we need in production:
+# Install the base app + the four extras we need in production:
 #   quantum      — pyqpanda3 for local + Origin QAOA
 #   ibm-quantum  — qiskit runtime for the IBMQ tier
+#   qml          — PennyLane + scikit-learn + matplotlib for the QML
+#                  training stack. Without this the QML routes light up
+#                  a "Training stack not installed" banner in the UI.
+#   qldpc        — qldpc + networkx + sympy for the qLDPC code family
+#                  gallery. Same "would show a banner otherwise" story.
 #
 # We deliberately DO NOT install:
-#   [dev]        — pytest/ruff/fakeredis; not needed in prod
-#   [queue]      — Redis-RQ; opt-in via USE_REDIS_QUEUE at runtime
-#   [qml]        — heavy (PennyLane + scikit-learn + matplotlib);
-#                  the QML app can install this in a separate image later
-#   [qldpc]      — heavy; same reasoning as qml
+#   [dev]              — pytest/ruff/fakeredis; not needed in prod
+#   [queue]            — Redis-RQ; opt-in via USE_REDIS_QUEUE at runtime
+#   [classical-extras] — simulated_bifurcation → pulls torch + full
+#                        CUDA toolkit (~4 GB), and CPSAT beats it on
+#                        the sizes we ship. Orchestrator classifies
+#                        the missing solver as "skipped" cleanly.
+#   [gpu]              — triton for GPU SA. Same story as SB.
 #
 # torch is NOT installed because we removed the GPU SA solver from the
 # production lineup. If you re-enable it later, add a separate stage
@@ -107,7 +114,7 @@ COPY backend/README.md ./
 COPY backend/ ./backend/
 
 RUN pip wheel --wheel-dir /wheels \
-        "./backend[quantum,ibm-quantum]" \
+        "./backend[quantum,ibm-quantum,qml,qldpc]" \
         gunicorn
 
 # ---- Stage 3: runtime -----------------------------------------------
@@ -148,7 +155,7 @@ WORKDIR /app
 # so the runtime image stays small and cold-start-friendly.
 COPY --from=builder /wheels /wheels
 RUN pip install --no-index --find-links=/wheels \
-        cira-quantum-backend[quantum,ibm-quantum] \
+        cira-quantum-backend[quantum,ibm-quantum,qml,qldpc] \
         gunicorn \
     && rm -rf /wheels
 
@@ -181,8 +188,11 @@ RUN pip uninstall -y \
         mypy \
         mypy_extensions \
         astroid \
-        ast-serialize \
-        dill
+        ast-serialize
+# NB: ``dill`` was in this uninstall list originally (it looked like
+# pyqpanda_alg dev tooling) but qiskit's passmanager imports it at
+# runtime, so removing it silently disables the IBMQ tier. Kept
+# installed as of 2026-07-02 after the QML rollout caught the bug.
 
 COPY --chown=cira:cira backend/ /app/backend/
 COPY --chown=cira:cira deploy/gunicorn_conf.py /app/gunicorn_conf.py
