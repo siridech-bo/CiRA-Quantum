@@ -38,7 +38,15 @@ $container   = 'cira-quantum'
 $port        = 5209
 $datadir     = 'D:\data\cira-quantum'
 $logdir      = 'D:\logs\cira-quantum'
-$env_file    = 'D:\CiRA Quantum\.env'
+# .env lives at D:\data\cira-quantum\.env — alongside the SQLite DB
+# rather than in the git checkout. Two wins over the earlier
+# ``D:\CiRA Quantum\.env`` convention:
+#   * No space in the path, so NSSM's AppParameters can pass it to
+#     docker.exe without embedded-quote escaping.
+#   * The data + secrets live together outside the repo, so a
+#     ``git clone`` on a fresh box (or ``rm -rf`` of the repo) can't
+#     accidentally touch either.
+$env_file    = 'D:\data\cira-quantum\.env'
 
 # NSSM location — matches Oculus's install path. Winget places it here.
 $nssm = 'C:\Users\viset\AppData\Local\Microsoft\WinGet\Packages\NSSM.NSSM_Microsoft.Winget.Source_8wekyb3d8bbwe\nssm-2.24-101-g897c7ad\win64\nssm.exe'
@@ -79,32 +87,31 @@ $logerr = "$logdir\svc.err.log"
 # ---- Preflight checks -------------------------------------------------
 
 if (-not (Test-Path $nssm)) {
-    throw "NSSM not found at $nssm. Install via ``winget install NSSM.NSSM`` first."
+    throw "NSSM not found at $nssm. Install via 'winget install NSSM.NSSM' first."
 }
 if (-not (Test-Path $docker)) {
     throw "Docker CLI not found at $docker. Is Docker Desktop installed and running?"
 }
 
-# Docker daemon must be up — a ``docker info`` call is the cheapest
-# way to check. If the daemon isn't reachable, the service would
-# install fine but fail immediately on start.
-try {
-    & $docker info --format '{{.ServerVersion}}' 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "docker info exit code $LASTEXITCODE" }
-} catch {
+# Docker daemon must be up. If the daemon isn't reachable, the
+# service would install fine but fail immediately on start. We use
+# ``docker version`` (no --format flag) because certain Go-template
+# braces in --format make the outer PowerShell parser choke.
+& $docker version 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
     throw "Docker daemon not reachable. Start Docker Desktop and wait for the systray icon to go green, then re-run this script."
 }
 
 # Image must exist. Building it here would blow past the "1 hour
 # ops-only" deploy budget, so we require the operator to have built
 # it separately (see DEPLOY_NSSM.md step 3).
-& $docker image inspect $image 2>&1 | Out-Null
+& $docker image inspect $image 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    throw "Docker image '$image' not found. Build it with ``docker build -f deploy/Dockerfile -t $image .`` from the repo root, then re-run."
+    throw "Docker image '$image' not found. Build it with: docker build -f deploy/Dockerfile -t $image .  from the repo root, then re-run."
 }
 
 if (-not (Test-Path $env_file)) {
-    Write-Warning ".env not found at $env_file — service will start but the pipeline will fail at first LLM call. Create it before proceeding (see DEPLOY_NSSM.md step 4)."
+    Write-Warning ".env not found at $env_file - service will start but the pipeline will fail at first LLM call. Create it before proceeding (see DEPLOY_NSSM.md step 4)."
 }
 
 # ---- Ensure host paths exist -----------------------------------------
@@ -114,16 +121,22 @@ New-Item -ItemType Directory -Path $logdir  -Force | Out-Null
 
 # ---- Idempotent removal ---------------------------------------------
 # Stop + remove any existing service AND any dangling container so a
-# re-run cleanly upgrades. The ``2>&1 | Out-Null`` swallows the
-# "not found" noise on fresh installs.
+# re-run cleanly upgrades. We expect these to fail on the first
+# install ("Can't open service!" from nssm, "No such container" from
+# docker) — Windows PowerShell 5.1 wraps native stderr in an
+# ErrorRecord regardless of redirection, so we wrap in try/catch
+# with $ErrorActionPreference briefly relaxed instead of fighting it.
 
-& $nssm stop   $svc 2>&1 | Out-Null
+$saved_eap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try { & $nssm stop   $svc 2>&1 | Out-Null } catch { }
 Start-Sleep -Seconds 2
-& $nssm remove $svc confirm 2>&1 | Out-Null
+try { & $nssm remove $svc confirm 2>&1 | Out-Null } catch { }
 
 # If the container is still up from a prior run (e.g. NSSM was
 # force-killed without stopping the container), remove it too.
-& $docker rm -f $container 2>&1 | Out-Null
+try { & $docker rm -f $container 2>&1 | Out-Null } catch { }
+$ErrorActionPreference = $saved_eap
 
 # ---- Install ----------------------------------------------------------
 

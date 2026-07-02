@@ -18,10 +18,19 @@ already done + service install + tunnel config).
 | Container name | `cira-quantum`                              |
 | SQLite DB      | `D:\data\cira-quantum\app.db` (mounted at `/app/data/` inside container) |
 | Log files      | `D:\logs\cira-quantum\svc.out.log` / `.err.log` |
-| Service `.env` | `D:\CiRA Quantum\.env` (loaded via `--env-file`) |
+| Service `.env` | `D:\data\cira-quantum\.env` (loaded via `--env-file`) |
 | Port           | `5209` (host-side; container listens on same) |
 | Service name   | `CiraQuantumSvc`                            |
 | Tunnel         | reuses existing `oculus-prod` (single tunnel, two ingress rules) |
+
+> **Why `.env` lives at `D:\data\cira-quantum\`, not next to the repo:**
+> NSSM stores the docker-run arguments as one string on the service
+> command line, and unquoted whitespace in the AppParameters breaks
+> Windows argument parsing. Any path with a space (like `D:\CiRA
+> Quantum\.env`) would need embedded literal double-quotes that
+> PowerShell strips at every layer. The `D:\data\cira-quantum\.env`
+> location has no spaces, no quoting drama, and colocates secrets with
+> the DB — reasonable defense-in-depth (one directory to protect).
 
 The repo stays where it lives at `D:\CiRA Quantum\` (matches Oculus's
 `D:\CiRA Oculus\` pattern). Nothing gets moved to `D:\services\...` —
@@ -85,8 +94,8 @@ admin password).
 
 ```powershell
 Copy-Item "D:\CiRA Quantum\deploy\nssm\.env.example" `
-          "D:\CiRA Quantum\.env"
-notepad "D:\CiRA Quantum\.env"
+          "D:\data\cira-quantum\.env"
+notepad "D:\data\cira-quantum\.env"
 ```
 
 Fill in the three `REPLACE_WITH_*` secrets. Generate values with:
@@ -179,17 +188,43 @@ Edit `C:\Users\viset\.cloudflared\config.yml` per the instructions in
 `quantum.cira-core.com` block into the existing `ingress:` list
 BEFORE the `service: http_status:404` catch-all.
 
-Then register the DNS route (only once):
+Register the DNS route (only once):
 
 ```powershell
 cloudflared tunnel route dns oculus-prod quantum.cira-core.com
 ```
 
-Restart the tunnel service so the new rule takes effect:
+**⚠️ Gotcha — cloudflared service `--config` flag.** The Windows
+service runs as `LocalSystem`, whose default config-lookup path is
+`C:\Windows\System32\config\systemprofile\.cloudflared\config.yml`
+(which doesn't exist). If the service's registered binary path is
+just `cloudflared.exe tunnel run oculus-prod` (no `--config`
+flag), the tunnel comes up but silently falls through to the
+`http_status:404` catch-all — every request to
+`quantum.cira-core.com` returns 404 even though the config file is
+sitting right there. The fix is to update the service's binPath so
+it explicitly loads the config from `viset`'s user profile:
 
 ```powershell
-Restart-Service Cloudflared
+# Elevated PowerShell.
+sc.exe config Cloudflared binPath= '"C:\Program Files (x86)\cloudflared\cloudflared.exe" --config C:\Users\viset\.cloudflared\config.yml tunnel run oculus-prod'
+Restart-Service Cloudflared -Force
 ```
+
+**This affects Oculus too** — Oculus was presumably working because
+whatever prior installer added the `--config` flag or the service
+was running under `viset` at some point. If Oculus stays working
+after Quantum goes live, we don't need to touch it; if it breaks,
+apply the same fix pattern.
+
+Verify the ingress:
+
+```powershell
+cloudflared --config 'C:\Users\viset\.cloudflared\config.yml' tunnel ingress rule https://quantum.cira-core.com/api/health
+```
+
+Expected: `Matched rule #1 ... hostname: quantum.cira-core.com,
+service: http://localhost:5209`.
 
 ## 9. Verify from off-LAN
 

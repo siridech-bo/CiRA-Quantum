@@ -250,10 +250,21 @@ class Orchestrator:
             _publish(results)
             try:
                 ident, sampler_cls = get_solver(name)
-            except KeyError as e:
+            except KeyError:
+                # Solver wasn't registered — almost always because an
+                # optional dep isn't installed in this image (e.g.
+                # simulated_bifurcation needs torch, which we exclude
+                # from the prod container; gpu_sa needs the CUDA
+                # runtime, ditto). This is the same shape as the
+                # "over qubit cap" case: the pipeline correctly can't
+                # run it, but nothing broke. Mark as ``skipped`` so
+                # the UI renders a gray chip instead of a red error.
                 results[name] = {
-                    "status": "error",
-                    "error": str(e),
+                    "status": "skipped",
+                    "error": (
+                        f"solver {name!r} not available in this build "
+                        "(optional dependency not installed)"
+                    ),
                     "elapsed_ms": 0,
                 }
                 _publish(results)
