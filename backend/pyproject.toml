@@ -17,8 +17,6 @@ dependencies = [
     "dimod>=0.12,<0.13",
     "dwave-samplers>=1.2,<2.0",
     "numpy>=1.26,<3.0",
-    "triton>=3.0; platform_system != 'Windows'",
-    "triton-windows>=3.0; platform_system == 'Windows'",
     # Phase 3 — formulation provider layer.
     "httpx>=0.27,<1.0",
     "jsonschema>=4.20,<5.0",
@@ -31,12 +29,36 @@ dependencies = [
     # dimod.Sampler adapters. Both are CQM-native.
     "ortools>=9.10,<10.0",
     "highspy>=1.7,<2.0",
-    # Phase 9C — Simulated Bifurcation (Goto et al. 2019), the open
-    # algorithm behind Fujitsu's SQBM+. Wrapped as a dimod.Sampler.
-    "simulated-bifurcation>=2.0,<3.0",
 ]
 
 [project.optional-dependencies]
+# Phase 9C — Simulated Bifurcation (Goto et al. 2019, the open
+# algorithm behind Fujitsu's SQBM+). Wrapped as a dimod.Sampler in
+# ``optimization/simulated_bifurcation_sampler.py`` and registered
+# only in the benchmarking harness (try/except-guarded — the
+# production solve path degrades cleanly when the import fails).
+#
+# Moved out of base deps 2026-07-02 because the transitive dep chain
+# pulls torch + full CUDA toolkit (~4-5 GB), which is dead weight in
+# the Cloudflare Container image. Reinstall via
+# ``pip install ".[classical-extras]"`` for local benchmarking.
+classical-extras = [
+    "simulated-bifurcation>=2.0,<3.0",
+]
+
+# GPU simulated annealing (``optimization/gpu_sa.py``). Requires triton
+# for the ``kernel="jit"`` / ``kernel="compile"`` paths. Moved out of
+# base deps 2026-07-02 because we're not shipping GPU SA in the
+# production image (CPSAT beats it on the instance sizes we actually
+# ship — see backend/tests/test_cpsat_beats_gpu_sa.py). Install for
+# local benchmarking with ``pip install ".[gpu]"``. Note: torch itself
+# is not declared here because it must be installed from the cu128 or
+# cpu wheel index depending on the target — see backend/README.md.
+gpu = [
+    "triton>=3.0; platform_system != 'Windows'",
+    "triton-windows>=3.0; platform_system == 'Windows'",
+]
+
 dev = [
     "pytest>=7.4,<9.0",
     "pytest-asyncio>=0.23,<2.0",
@@ -67,6 +89,14 @@ quantum = [
     "pyqpanda3>=0.3,<1.0",
     "pyqpanda_alg>=2.0,<3.0",
     "sympy>=1.12,<2.0",
+    # pyqpanda_alg's package __init__ eagerly imports its QSVR
+    # submodule, which does ``import sklearn`` at module load time.
+    # Without scikit-learn installed, ``import pyqpanda_alg.QAOA.qaoa``
+    # (used by the qaoa_originqc sampler) fails with ModuleNotFoundError
+    # even though our code never touches QSVR. Upstream should declare
+    # this as a hard dep; until they do, we carry it here so a
+    # ``pip install .[quantum]`` gives you a working Origin QAOA path.
+    "scikit-learn>=1.4,<2.0",
 ]
 
 # Phase 11 — IBM Quantum cloud QAOA via Qiskit Runtime. Optional

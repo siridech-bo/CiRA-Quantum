@@ -1,0 +1,64 @@
+# Keep the build context small so Docker's send-context step doesn't
+# ship the whole repo to the daemon.
+#
+# NB: this file is discovered by ``docker build -f deploy/Dockerfile .``
+# when run from the repo root. Wrangler runs the same command shape.
+
+# ---- VCS + editor -------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- Python caches ------------------------------------------------
+__pycache__
+*.py[cod]
+*.egg-info
+.eggs
+*.egg
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+.tox
+
+# ---- Node / frontend build artifacts (backend image doesn't need them)
+frontend
+node_modules
+
+# ---- Dev-only data + logs -----------------------------------------
+# Local SQLite dev DB — production uses D1, and we absolutely don't
+# want to ship a dev database (with dev users + BYOK keys) into an
+# image that might get pulled or scanned.
+backend/data
+backend/**/*.db
+backend/**/*.log
+
+# ---- Docs and reports ---------------------------------------------
+docs
+*.md
+!backend/README.md
+!deploy/DEPLOY.md
+
+# ---- Local scratch ------------------------------------------------
+tmp
+build
+dist
+.venv
+venv
+env
+
+# ---- Test instances -----------------------------------------------
+# The fixtures under backend/tests/instances/ are useful for tests but
+# waste layer size in a runtime image. Excluded — tests never run in
+# the production container.
+backend/tests
+
+# ---- Everything CiRA-Brain-adjacent (separate product, separate image)
+CiRA?Brain
+CiRA_Brain

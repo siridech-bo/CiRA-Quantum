@@ -1,0 +1,140 @@
+# Cloudflare Containers + Worker dispatcher config for the CiRA
+# Quantum backend.
+#
+# Architecture:
+#
+#     browser ──► cira-core.com (Cloudflare)
+#                    │
+#          ┌─────────┴──────────┐
+#          │                    │
+#     R2 (static SPA)     Worker dispatcher (this config's [top-level])
+#                              │
+#                              ├── forwards /api/*  ──► Container (this config's [containers])
+#                              └── passes everything else through R2 rules
+#
+# The Worker owns:
+#   * CORS + rate limiting at the edge (much cheaper than doing it
+#     inside Flask)
+#   * Cookie forwarding for the session flow
+#   * Fanning /api/health checks so we don't wake the container for
+#     platform pings
+#
+# The Container owns:
+#   * All /api/* routes: auth, solve, jobs, keys, etc.
+#   * Long-lived SSE streams for the pipeline event bus
+#   * Outbound httpx calls to Claude / OpenAI / Origin QC / IBM Q
+#
+# The D1 database owns:
+#   * users / api_keys / jobs / qml_jobs / qml_qpu_runs
+#   * Migrations live in ./migrations, applied via
+#     ``wrangler d1 migrations apply cira-quantum-db``
+#
+# Env-specific secrets (KEY_ENCRYPTION_SECRET, SECRET_KEY, ADMIN
+# password bootstrap, etc.) are set via ``wrangler secret put ...`` —
+# they never appear in this file.
+
+name = "cira-quantum-dispatcher"
+main = "worker/dispatcher.ts"
+compatibility_date = "2026-06-01"
+
+# ---- Container binding ---------------------------------------------
+
+# One container class for the backend. Cloudflare handles scaling per
+# their Containers autoscale rules; we pick a small instance class
+# because the workload is I/O-bound (LLM + QPU cloud calls) rather
+# than CPU-bound.
+[[containers]]
+class_name = "CiraQuantumBackend"
+image = "./Dockerfile"
+instance_type = "standard"   # 1 vCPU / 1 GB RAM at the time of writing
+max_instances = 3            # scales down to 0 when idle
+name = "cira-quantum-backend"
+
+# Env vars visible to the Container's process. NON-SECRET values only;
+# use `wrangler secret put` for anything sensitive. See DEPLOY.md.
+[containers.env]
+PORT = "5009"
+HOST = "0.0.0.0"
+ENABLE_HARDCODED_ROUTING = "1"
+# Real Origin QPU submission — production users have BYOK keys, so
+# enable the code path. The safety net remains at the per-user backend
+# selector UI + the per-request confirmation gate.
+ENABLE_ORIGIN_REAL_HARDWARE = "1"
+# The in-process daemon-thread launcher is fine for a single-container
+# deployment; enable USE_REDIS_QUEUE only when we horizontally scale
+# beyond one container and need multi-worker fan-out.
+USE_REDIS_QUEUE = "0"
+# Session cookie flags — SESSION_COOKIE_SECURE flips to true because
+# the container is only ever reached via HTTPS through the dispatcher.
+SESSION_COOKIE_SECURE = "true"
+# Trust the X-Forwarded-* headers set by the Worker.
+FORWARDED_ALLOW_IPS = "*"
+GUNICORN_WORKERS = "1"
+GUNICORN_THREADS = "16"
+GUNICORN_TIMEOUT = "300"
+
+# Bind the container to a Durable-Object-style routing class in the
+# dispatcher so the Worker can address it by name.
+[[durable_objects.bindings]]
+name = "BACKEND"
+class_name = "CiraQuantumBackend"
+
+# ---- D1 database binding -------------------------------------------
+
+# ``env.DB`` inside the Container's process — access via the D1 HTTP
+# client (see backend/app/db_d1.py in the D1 migration branch).
+[[d1_databases]]
+binding = "DB"
+database_name = "cira-quantum-db"
+database_id = "REPLACE_WITH_ACTUAL_UUID"   # populated after `wrangler d1 create`
+migrations_dir = "./migrations"
+
+# ---- R2 bucket binding (static assets + artifact cache) ------------
+
+# The dispatcher serves the Vue SPA out of R2 via bindings-not-fetch,
+# which sidesteps public-bucket configuration entirely.
+[[r2_buckets]]
+binding = "SPA"
+bucket_name = "cira-core-frontend"
+
+# Optional second bucket for QAOA angle caches, training checkpoints,
+# and (eventually) trained-VQC weights. Kept separate from the SPA
+# bucket so lifecycle rules can differ (SPA never expires; artifact
+# cache tiered to Glacier after 90 days).
+[[r2_buckets]]
+binding = "ARTIFACTS"
+bucket_name = "cira-core-artifacts"
+
+# ---- Routes --------------------------------------------------------
+
+# Dispatcher owns the whole hostname; the Worker code decides whether
+# to serve from R2 (static asset) or forward to the Container (any
+# /api/* path).
+routes = [
+    { pattern = "cira-core.com/*", zone_name = "cira-core.com" },
+    { pattern = "www.cira-core.com/*", zone_name = "cira-core.com" },
+]
+
+# ---- Observability -------------------------------------------------
+
+[observability]
+enabled = true
+
+[observability.logs]
+head_sampling_rate = 1.0    # keep everything in dev / early prod
+
+# ---- Placement -----------------------------------------------------
+
+# ``smart`` lets Cloudflare pick the region closest to the origin
+# services the Container mostly talks to. Given our outbound is
+# Anthropic (us-east) + OpenAI (us-east) + Origin QC (cn) + IBM
+# Quantum (multi-region), smart placement usually lands in a US
+# east-coast POP which minimizes the LLM round-trips. If Origin QC
+# rejects US-origin requests during rollout, override to APAC:
+#
+#     [placement]
+#     mode = "smart"
+#     hint = "apac"
+#
+[placement]
+mode = "smart"
