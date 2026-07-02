@@ -1,8 +1,15 @@
 # Keep the build context small so Docker's send-context step doesn't
 # ship the whole repo to the daemon.
 #
-# NB: this file is discovered by ``docker build -f deploy/Dockerfile .``
-# when run from the repo root. Wrangler runs the same command shape.
+# ⚠️ THIS FILE MUST LIVE AT THE REPO ROOT, NOT UNDER deploy/.
+# Docker reads .dockerignore only from the build CONTEXT root — which
+# is the repo root when we invoke ``docker build -f deploy/Dockerfile .``.
+# Putting it at deploy/.dockerignore silently disables it, which
+# shipped 2026-07-02 as a bug: the dev SQLite DB with encrypted BYOK
+# keys got baked into the image. Fixed by moving the file here; don't
+# put it back.
+#
+# Wrangler and any future CI runs the same command shape.
 
 # ---- VCS + editor -------------------------------------------------
 .git
