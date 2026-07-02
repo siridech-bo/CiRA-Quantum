@@ -6,33 +6,52 @@ native Python 3.12 + `waitress` WSGI server + NSSM Windows service +
 Cloudflare Tunnel ingress rule added to the existing `oculus-prod`
 tunnel.
 
-Everything in this runbook is self-contained — a fresh operator with
-admin PowerShell on `.110` can go from `git clone` to
-`curl https://quantum.cira-core.com/api/health` returning `200` by
-following the ten steps below in order. Estimated total time: **~1 hour**
-end-to-end, most of which is the first `pip install` and the frontend
-build.
+Everything in this runbook is self-contained — an operator with admin
+PowerShell on `.110` can go from the repo already checked out at
+`D:\CiRA Quantum\` to `curl https://quantum.cira-core.com/api/health`
+returning `200` by following the ten steps below in order. Estimated
+total time: **~1 hour** end-to-end, most of which is the first
+`pip install` and the frontend build.
+
+We deliberately keep the repo where it already lives (`D:\CiRA Quantum\`
+— matches the Oculus pattern of `D:\CiRA Oculus\`) rather than moving
+it to `D:\services\cira-quantum\`. Same-directory dev-and-prod is
+what the operator uses for Oculus and it works fine; the discipline
+that keeps them separate is:
+
+- **`.env` is never committed** (secrets stay only on `.110`).
+- **The SQLite DB lives outside the repo** at `D:\data\cira-quantum\app.db`
+  via `CIRA_DB_PATH` so `git pull` never touches it.
+- **Log files live outside the repo** at `D:\logs\cira-quantum\`.
+
+Dev work continues in the same directory; `git pull` + service restart
+is the redeploy loop.
 
 ## Paths (single source of truth)
 
 | Role           | Path                                        |
 |----------------|---------------------------------------------|
-| Code (repo)    | `D:\services\cira-quantum`                  |
+| Code (repo)    | `D:\CiRA Quantum`                  |
 | SQLite DB      | `D:\data\cira-quantum\app.db`               |
 | Log files      | `D:\logs\cira-quantum\svc.out.log` / `.err.log` |
-| Service `.env` | `D:\services\cira-quantum\.env`             |
+| Service `.env` | `D:\CiRA Quantum\.env`             |
 | Port           | `5209` (deliberately non-adjacent to Oculus's 5008) |
 | Service name   | `CiraQuantumSvc`                            |
 | Tunnel         | reuses existing `oculus-prod` (single tunnel, two ingress rules) |
 
-## 1. Clone the repo
+## 1. Confirm the repo is up to date
+
+The repo is already at `D:\CiRA Quantum\` on `.110`. Just make sure
+it's on `main` with the latest commits:
 
 ```powershell
-mkdir D:\services -Force
-cd D:\services
-git clone https://github.com/siridech-bo/CiRA-Quantum.git cira-quantum
-cd cira-quantum
+cd "D:\CiRA Quantum"
+git checkout main
+git pull
 ```
+
+(The quotes around the path are because of the space in `CiRA Quantum`
+— every command below that references it uses the same convention.)
 
 ## 2. Create data + log directories
 
@@ -48,9 +67,9 @@ password).
 ## 3. Create the Python venv and install deps
 
 ```powershell
-cd D:\services\cira-quantum\backend
-python -m venv D:\services\cira-quantum\venv
-D:\services\cira-quantum\venv\Scripts\Activate.ps1
+cd "D:\CiRA Quantum\backend"
+python -m venv "D:\CiRA Quantum\venv"
+& "D:\CiRA Quantum\venv\Scripts\Activate.ps1"
 
 # Base app + the two extras we need in prod. Skip [classical-extras]
 # and [gpu] — those pull torch + CUDA and we don't ship GPU SA.
@@ -65,15 +84,15 @@ Expected output: `OK, routes: 63`.
 ## 4. Build the frontend
 
 ```powershell
-cd D:\services\cira-quantum\frontend
+cd "D:\CiRA Quantum\frontend"
 npm ci
 npm run build
 ```
 
-Output lands at `D:\services\cira-quantum\frontend\dist\`. Verify:
+Output lands at `D:\CiRA Quantum\frontend\dist\`. Verify:
 
 ```powershell
-Test-Path D:\services\cira-quantum\frontend\dist\index.html
+Test-Path "D:\CiRA Quantum\frontend\dist\index.html"
 ```
 
 Should print `True`.
@@ -81,9 +100,9 @@ Should print `True`.
 ## 5. Write the `.env` file
 
 ```powershell
-Copy-Item D:\services\cira-quantum\deploy\nssm\.env.example `
-          D:\services\cira-quantum\.env
-notepad D:\services\cira-quantum\.env
+Copy-Item "D:\CiRA Quantum\deploy\nssm\.env.example" `
+          "D:\CiRA Quantum\.env"
+notepad "D:\CiRA Quantum\.env"
 ```
 
 Fill in the three `REPLACE_WITH_*` secrets. Generate values with:
@@ -104,8 +123,8 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 ## 6. Manual smoke test (before touching NSSM)
 
 ```powershell
-cd D:\services\cira-quantum\backend
-D:\services\cira-quantum\venv\Scripts\python.exe -m waitress `
+cd "D:\CiRA Quantum\backend"
+& "D:\CiRA Quantum\venv\Scripts\python.exe" -m waitress `
     --host=0.0.0.0 --port=5209 --threads=16 --call app:create_app
 ```
 
@@ -126,7 +145,7 @@ Ctrl+C the manual waitress process before moving on.
 Elevated PowerShell (Run as Administrator):
 
 ```powershell
-cd D:\services\cira-quantum
+cd "D:\CiRA Quantum"
 .\deploy\nssm\install_quantum_service.ps1
 ```
 
@@ -204,7 +223,7 @@ Log into UptimeRobot, add a new monitor:
 | Tail stdout log           | `Get-Content -Wait D:\logs\cira-quantum\svc.out.log` |
 | Tail stderr log           | `Get-Content -Wait D:\logs\cira-quantum\svc.err.log` |
 | Redeploy after `git pull` | `Restart-Service CiraQuantumSvc`                    |
-| Rebuild frontend          | `cd D:\services\cira-quantum\frontend; npm ci; npm run build; Restart-Service CiraQuantumSvc` |
+| Rebuild frontend          | `cd "D:\CiRA Quantum\frontend"; npm ci; npm run build; Restart-Service CiraQuantumSvc` |
 | Rotate secrets            | edit `.env` → `Restart-Service CiraQuantumSvc`      |
 | Manual DB backup          | `Copy-Item D:\data\cira-quantum\app.db D:\backups\cira-quantum\app.db.$(Get-Date -Format 'yyyyMMdd-HHmmss').bak` |
 
@@ -213,7 +232,7 @@ Log into UptimeRobot, add a new monitor:
 Small-app-only change (no dep changes, no schema change):
 
 ```powershell
-cd D:\services\cira-quantum
+cd "D:\CiRA Quantum"
 git pull
 Restart-Service CiraQuantumSvc
 ```
@@ -221,9 +240,9 @@ Restart-Service CiraQuantumSvc
 Deps changed (`pyproject.toml` touched):
 
 ```powershell
-cd D:\services\cira-quantum
+cd "D:\CiRA Quantum"
 git pull
-D:\services\cira-quantum\venv\Scripts\Activate.ps1
+& "D:\CiRA Quantum\venv\Scripts\Activate.ps1"
 pip install -e ".[quantum,ibm-quantum]"
 Restart-Service CiraQuantumSvc
 ```
@@ -231,7 +250,7 @@ Restart-Service CiraQuantumSvc
 Frontend changed:
 
 ```powershell
-cd D:\services\cira-quantum\frontend
+cd "D:\CiRA Quantum\frontend"
 git pull   # if not already pulled above
 npm ci     # only when package-lock.json changes
 npm run build

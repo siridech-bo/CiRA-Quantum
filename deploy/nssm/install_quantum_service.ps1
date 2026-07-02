@@ -27,7 +27,7 @@ $ErrorActionPreference = 'Stop'
 # different drive / venv / port without hunting through the script.
 
 $svc      = 'CiraQuantumSvc'
-$workdir  = 'D:\services\cira-quantum'
+$workdir  = 'D:\CiRA Quantum'
 $datadir  = 'D:\data\cira-quantum'
 $logdir   = 'D:\logs\cira-quantum'
 $port     = 5209                            # deliberately non-adjacent to Oculus (5008) to prevent collisions
