@@ -150,6 +150,30 @@ qldpc = [
     "networkx>=3.0,<4",
 ]
 
+# Quantum Reservoir Computing simulator (``app/qrc``). Implements
+# docs/QRC_Simulation_Plan.md — an N-qubit NMR reservoir simulator built
+# on QuTiP 5's Lindblad solver, with a JAX/GPU data layer for the larger
+# systems in the scaling study. Torch (already a base dep via the cu128
+# wheel) drives the ridge readout, so it's not repeated here. The two
+# feature extras — PyWavelets (wavelet features) and antropy (entropy
+# features) — are optional at runtime: features.py degrades gracefully
+# when they're absent, but they're included here so a full
+# ``pip install ".[qrc]"`` reproduces the multi-modal results.
+#
+# qutip-jax is the GPU backend (SimConfig.backend="jax"); it pulls jax.
+# On Windows GPU jax wheels are limited, so the numpy backend (default)
+# is the supported path there and jax degrades to CPU automatically.
+qrc = [
+    "qutip>=5.0,<6.0",
+    "qutip-jax>=0.1,<1.0",
+    "scipy>=1.11,<2.0",
+    "pandas>=2.0,<3.0",
+    "scikit-learn>=1.4,<2.0",
+    "matplotlib>=3.8,<4.0",
+    "PyWavelets>=1.5,<2.0",
+    "antropy>=0.1,<1.0",
+]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
@@ -172,6 +196,9 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "slow: long-running tests (e.g. QRC multi-qubit scaling sweeps)",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]

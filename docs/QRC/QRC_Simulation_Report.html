@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QRC on Simulated NMR Spin Networks — N-Qubit Scaling Study</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1a1a1a; --muted:#5a6472; --rule:#e2e6ec;
+    --accent:#2563eb; --accent2:#dc2626; --code-bg:#f5f7fa; --card:#f8fafc;
+    --th:#eef2f7;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1216; --fg:#e6e9ee; --muted:#9aa4b2; --rule:#2a3038;
+      --accent:#6ea8fe; --accent2:#f87171; --code-bg:#161b22; --card:#151a21; --th:#1b222c;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px;margin:0 auto;padding:48px 24px 96px}
+  h1{font-size:1.9rem;line-height:1.25;margin:.2em 0 .1em}
+  h2{font-size:1.35rem;margin:2.2em 0 .5em;padding-bottom:.25em;border-bottom:1px solid var(--rule)}
+  h3{font-size:1.08rem;margin:1.6em 0 .4em}
+  h4{font-size:1rem;margin:1.2em 0 .3em;color:var(--muted)}
+  p,li{color:var(--fg)}
+  .sub{color:var(--muted);font-size:1.05rem}
+  .meta{color:var(--muted);font-size:.92rem;margin:.6em 0 0}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  code{background:var(--code-bg);padding:.12em .35em;border-radius:4px;
+    font:.86em ui-monospace,SFMono-Regular,Consolas,monospace}
+  pre{background:var(--code-bg);padding:14px 16px;border-radius:8px;overflow-x:auto;
+    border:1px solid var(--rule)}
+  pre code{background:none;padding:0}
+  .abstract{background:var(--card);border:1px solid var(--rule);border-radius:10px;
+    padding:18px 22px;margin:1.5em 0}
+  table{border-collapse:collapse;width:100%;margin:1.2em 0;font-size:.92rem;display:block;overflow-x:auto}
+  th,td{border:1px solid var(--rule);padding:7px 10px;text-align:left}
+  th{background:var(--th);font-weight:600}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  figure{margin:1.5em 0;text-align:center}
+  figure img{max-width:100%;height:auto;border:1px solid var(--rule);border-radius:8px;background:#fff}
+  figcaption{color:var(--muted);font-size:.88rem;margin-top:.5em}
+  blockquote{border-left:3px solid var(--accent);margin:1em 0;padding:.2em 1em;color:var(--muted)}
+  .win-esn{color:var(--accent2);font-weight:600}
+  .win-qrc{color:var(--accent);font-weight:600}
+  .tag{display:inline-block;background:var(--accent);color:#fff;font-size:.72rem;
+    padding:2px 8px;border-radius:999px;vertical-align:middle;margin-left:6px}
+  hr{border:none;border-top:1px solid var(--rule);margin:2.4em 0}
+  .toc{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 22px}
+  .toc ol{margin:.3em 0;padding-left:1.3em}
+  .callout{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);
+    border-radius:8px;padding:12px 18px;margin:1.2em 0}
+  .kpi{display:flex;gap:14px;flex-wrap:wrap;margin:1.2em 0}
+  .kpi div{flex:1 1 160px;background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px}
+  .kpi b{display:block;font-size:1.5rem;color:var(--accent)}
+  .kpi span{color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Quantum Reservoir Computing on Simulated NMR Spin Networks</h1>
+<p class="sub">An N-Qubit Scaling Study (3–9 qubits) with GPU-Accelerated Lindblad Dynamics</p>
+<p class="meta">CiRA CORE AI Center — Quantum Module · Prepared for Assoc. Prof. Siridech Boonsang,
+Dean, Faculty of Information Technology, KMITL · Internal technical report / publication draft · 2026-07-26</p>
+
+<div class="kpi">
+  <div><b>3→9</b><span>qubits swept, one variable</span></div>
+  <div><b>28×</b><span>GPU speedup at N=9</span></div>
+  <div><b>~5×</b><span>QRC NARMA gain, N=3→9</span></div>
+  <div><b>0/7</b><span>QRC wins vs classical ESN</span></div>
+</div>
+
+<div class="abstract">
+<p><strong>Abstract.</strong> We present a complete, validated simulator for Quantum Reservoir
+Computing (QRC) on NMR spin networks and a rigorous scaling study across <strong>N = 3 … 9
+qubits</strong>. The simulator implements the open-system (Lindblad) dynamics essential to
+reservoir computing — dissipation, not coherent evolution alone, produces the <em>fading
+memory</em> QRC depends on — and is generic in qubit number so hardware size can be measured
+directly. Four evolution backends are cross-validated to ≲10⁻³. The naïve dense-superoperator
+method hits a 4ᴺ memory wall (≈550 GB at N=9); an exact sparse Krylov exponential removes it and
+a GPU (CUDA) implementation accelerates it ≈28×, cutting a full N=9 point from ~1.75 h to ~4 min.
+<strong>Findings:</strong> QRC task accuracy improves ~5× with qubit count (NARMA-2 NMSE
+0.25→0.048), but memory capacity does not scale (peaks at N=4, saturates ~6–7) and a size-matched
+classical Echo State Network beats the QRC on NARMA at every size (0/7). The study demonstrates
+that more qubits help the quantum reservoir, but does <em>not</em> demonstrate quantum advantage
+over a classical reservoir in this baseline configuration.</p>
+</div>
+
+<div class="toc">
+<strong>Contents</strong>
+<ol>
+<li>Introduction and Motivation</li>
+<li>System Model</li>
+<li>The QRC Pipeline</li>
+<li>Implementation and Numerical Methods</li>
+<li>Validation</li>
+<li>Scaling Study Results (N=3–9)</li>
+<li>Discussion</li>
+<li>Limitations</li>
+<li>Future Work</li>
+<li>Reproducibility</li>
+<li>Conclusion</li>
+</ol>
+</div>
+
+<h2>1. Introduction and Motivation</h2>
+<h3>1.1 Background</h3>
+<p>Reservoir computing processes temporal signals by driving them into a fixed nonlinear dynamical
+system and training only a linear readout on its state. <strong>Quantum</strong> Reservoir
+Computing uses a quantum system as the reservoir. NMR spin ensembles are a natural substrate:
+well-characterised Hamiltonians (chemical shifts + J-couplings), RF-pulse input encoding, and —
+crucially — relaxation (T₁, T₂) that supplies the fading memory reservoir computing requires.</p>
+<p>This work supports the CiRA Quantum programme on the <strong>SPINQ Gemini Lab</strong>, a
+3-qubit (¹H/³¹P/¹⁹F) NMR device, and is informed by four reference papers, chiefly
+<strong>Hou et al. 2026 (PRL 136, 120602)</strong>, a 9-spin liquid-state NMR QRC experiment.</p>
+<h3>1.2 The question this report answers</h3>
+<blockquote>As the number of spins N grows from 3 to 9, holding everything else fixed, do the
+reservoir's <em>memory capacity</em> and <em>task accuracy</em> improve — and does the quantum
+reservoir outperform a classical reservoir of comparable size?</blockquote>
+<h3>1.3 Contributions</h3>
+<ol>
+<li>A <strong>qubit-number-generic</strong> QRC simulator on QuTiP 5, implementing the Lindblad equation.</li>
+<li>Four cross-validated <strong>evolution backends</strong>, incl. an exact sparse-Krylov method and a
+<strong>GPU implementation</strong> that makes N=9 practical.</li>
+<li>A methodologically careful <strong>N=3→9 scaling study</strong> with a classical ESN baseline, plus
+documentation of non-obvious pitfalls.</li>
+<li>An honest assessment of what the simulation does and does not establish.</li>
+</ol>
+
+<h2>2. System Model</h2>
+<h3>2.1 Hamiltonian</h3>
+<p>N spin-½ nuclei in the weak-coupling NMR regime; rotating-frame Hamiltonian (rad s⁻¹):</p>
+<pre><code>H = Σ_i π ν_i σ_z^(i)  +  Σ_{i&lt;j} (π/2) J_ij σ_z^(i) σ_z^(j)</code></pre>
+<p>with chemical-shift offsets ν_i (Hz) and scalar couplings J_ij (Hz) — the standard Ising ("ZZ")
+coupling of liquid-state NMR. The <code>spinq3</code> preset encodes real SPINQ parameters; for the
+sweep, <code>generic_nqubit(N)</code> generates a plausible N-spin molecule (shifts spread ±120 Hz,
+chain-decaying couplings). The 120 Hz spread is deliberate (see §5.3.2).</p>
+<h3>2.2 Open-system dynamics: the Lindblad master equation <span class="tag">central</span></h3>
+<p>The single most important modelling choice is to evolve the <strong>density matrix</strong> under
+the Lindblad equation, not the state vector under Schrödinger:</p>
+<pre><code>dρ/dt = −i[H,ρ] + Σ_k ( L_k ρ L_k† − ½{L_k†L_k, ρ} )</code></pre>
+<p>per spin: T₁ amplitude damping <code>L = √(1/T₁)·σ₋</code>, and T₂ pure dephasing
+<code>L = √(γ_φ/2)·σ_z</code> with <code>γ_φ = 1/T₂ − 1/(2T₁)</code>.</p>
+<div class="callout"><strong>Why this matters.</strong> A pure-Hamiltonian simulation has no
+forgetting mechanism — perfect memory forever — and cannot reproduce QRC. Dissipation is the
+resource that erases old inputs and creates <em>fading memory</em> (Hou et al.: "T₁ relaxation plays
+a pivotal role in ensuring QRC performance"). The simulator always integrates the full Lindblad
+equation, and the fading-memory test (§5.1) is the make-or-break gate.</div>
+<h3>2.3 Initial state</h3>
+<p>Thermal-like product state ρ₀ = ⊗_i (I + ε σ_z)/2, ε = 0.05 (high-temperature NMR limit); ε only
+scales signal amplitude.</p>
+
+<h2>3. The QRC Pipeline</h2>
+<p>Each input step k follows the six-step framework: <strong>(1) encode</strong> sₖ∈[0,1] as an RF
+pulse ρ→UρU† (default θ=arcsin√s; seven functions + multi-nucleus + phase-amplitude available);
+<strong>(2) evolve</strong> under Lindblad for τ (30 ms); <strong>(3) temporal-multiplex</strong> —
+sample at V virtual nodes within τ; <strong>(4) read observables</strong> ⟨σₓ,σ_y,σ_z⟩ per qubit per
+node; <strong>(5) optional multi-modal features</strong> (spectral/wavelet/entropy from the FID);
+<strong>(6) train a linear readout</strong> (ridge, k-fold CV). The reservoir state persists across
+steps — that persistence, made to fade by dissipation, is the memory.</p>
+<h3>3.1 The readout must include the transverse components</h3>
+<p>Because H commutes with every σ_z, <strong>⟨σ_z⟩ is frozen under coherent evolution</strong> and
+relaxes only on the T₁ timescale (~5 s ≫ τ). The computation lives in the transverse components
+⟨σₓ⟩, ⟨σ_y⟩ (physically the free-induction-decay signal); the default readout uses all three axes.</p>
+<h3>3.2 Tasks and metrics</h3>
+<ul>
+<li><strong>Memory capacity (MC):</strong> for each delay d, reconstruct uₖ₋d; MC = Σ_d corr². Correct
+fading memory ⇒ corr²≈1 at d=0 decaying smoothly to 0.</li>
+<li><strong>NARMA-2:</strong> nonlinear autoregressive benchmark; metric NMSE (lower better).</li>
+<li><strong>Classical ESN baseline:</strong> leaky Echo State Network, reservoir size matched to the
+quantum readout dimension (3·N·V) for a fair comparison.</li>
+</ul>
+
+<h2>4. Implementation and Numerical Methods</h2>
+<h3>4.1 Software architecture</h3>
+<p>A self-contained package (<code>backend/app/qrc/</code>) mirroring the existing
+<code>qml</code>/<code>qldpc</code> modules: <code>config, system, encoding, evolution, features,
+training, tasks, benchmarks, utils, main</code>. QuTiP is optional and imported lazily.</p>
+<h3>4.2 Evolution backends and the 4ᴺ wall</h3>
+<table>
+<thead><tr><th>backend</th><th>method</th><th>memory</th><th>limit</th></tr></thead>
+<tbody>
+<tr><td><code>propagator</code></td><td>dense superoperator exp(t·L), reused</td><td><strong>4ᴺ dense</strong></td><td>0.27 GB@N6, 4.3 GB@N7, <strong>550 GB@N9</strong>; ~13 min build @N6</td></tr>
+<tr><td><code>mesolve</code></td><td>QuTiP adaptive ODE on ρ</td><td>2ᴺ×2ᴺ</td><td><strong>stiffness</strong> — stalled &gt;60 min at N=8</td></tr>
+<tr><td><code>action</code> (CPU)</td><td>exact sparse Krylov exp(t·L)·vec</td><td>sparse (~0.001%)</td><td>~6.5 s/step @N9</td></tr>
+<tr><td><code>gpu</code></td><td>Taylor+substep exp(t·L), sparse CUDA matvecs</td><td>sparse on GPU</td><td><strong>~0.23 s/step @N9</strong></td></tr>
+</tbody>
+</table>
+<p>The dense superoperator is unnecessary: the Liouvillian is ~0.0012% dense at N=9 (851 967 nnz of
+262 144²), so the <em>action</em> exp(t·L)·vec is computed by Krylov methods without forming the
+exponential — removing the memory wall entirely.</p>
+<h3>4.3 GPU acceleration (matrix-free sparse Krylov exponential)</h3>
+<p>A sparse complex64 matvec on the RTX 5070 Ti costs <strong>0.063 ms</strong> at N=9, and the state
+is only ~4 MB. We compute exp(τ·L)·v by sub-stepping with a fixed-order (K=18) Taylor series so
+‖(τ/M)·L‖ ≲ 1, using only sparse CUDA matvecs; observables via a precomputed sparse row-vector
+product. The whole reservoir loop stays on the GPU. <strong>Measured: ≈28× over CPU</strong>
+(0.231 vs 6.5 s/step at N=9), matching the exact path to relative 2×10⁻³.</p>
+<div class="callout">The plan recommended <code>qutip-jax</code> for GPU, but <strong>jax has no CUDA
+wheels on Windows</strong> (<code>jax.devices()</code> → CPU only), so that route silently runs on CPU.
+The <code>gpu</code> backend uses <strong>torch</strong> CUDA instead, which sees the card.</div>
+<h3>4.4 Training and readout</h3>
+<p>Closed-form ridge on GPU (torch): <code>w = (XᵀX + λI)⁻¹Xᵀy</code>, bias unregularised, k-fold CV
+over a log-spaced λ grid, with a washout period discarded before fitting.</p>
+
+<h2>5. Validation</h2>
+<h3>5.1 The fading-memory gate</h3>
+<p>For the SPINQ 3-qubit preset the gate passes cleanly — corr²(0)=0.96 decaying smoothly to ≈0 by
+d≈12–15 (Fig. 2). corr²=1 forever ⇒ missing dissipation; corr²=0 immediately ⇒ over-damped/wrong
+Hamiltonian. The observed smooth decay confirms the Lindblad dynamics are captured correctly.</p>
+<figure><img src="figures/fig2_fading_memory.png" alt="Fading memory curves">
+<figcaption>Figure 2. corr² vs delay for representative N — the fading-memory signature.</figcaption></figure>
+<h3>5.2 Cross-backend agreement</h3>
+<p>The four backends agree to 3–4 sig. figs. (e.g. N=4 memory capacity: propagator 7.9028, action
+7.9039, mesolve 7.9019; N=5 GPU vs action identical to 4 dp). Dense-exact, sparse-exact, adaptive
+ODE and GPU-Taylor all converging is strong evidence of correctness; enforced in the test suite.</p>
+<h3>5.3 Methodological pitfalls uncovered</h3>
+<p>Running the physics (not trusting the code to "look right") exposed four general traps:</p>
+<h4>5.3.1 The σ_z-only readout is degenerate</h4>
+<p>H commutes with every σ_z ⇒ ⟨σ_z⟩ frozen; a σ_z-only readout collapsed corr²(0) to 0.45. Reading
+transverse σₓ, σ_y (the FID) restored it to 0.92. <em>For Ising-coupled NMR, read transverse.</em></p>
+<h4>5.3.2 Chemical-shift aliasing</h4>
+<p>Transverse magnetisation precesses at the shift frequency, sampled at V/τ. Shifts above the Nyquist
+(V/2τ ≈ 133 Hz at V=8, τ=30 ms) alias and destroy recall. A ±300 Hz generic molecule failed the gate;
+capping the spread at 120 Hz fixed it. <em>Shift spread and (V,τ) are coupled constraints.</em></p>
+<h4>5.3.3 Training-set confound in MC</h4>
+<p>MC is bounded by min(n_features, n_train), with n_features = 3·N·V. A fixed small n_train starves the
+metric past a critical N (at V=10, N=5 already has 150 features = 150 samples). An initial n_train=150
+sweep showed a spurious MC decline. The reported sweep uses <strong>n_train=350 &gt; 3·N·V at all N</strong>.
+<em>For scaling studies, training size must dominate the readout dimension.</em></p>
+<h4>5.3.4 Solver stiffness &amp; the packaging trap</h4>
+<p>The adaptive ODE stalled past N=7 due to the ~5000× fast/slow timescale separation; and a
+non-editable install silently shadowed source edits until <code>pip install -e</code> was used. Both are
+guarded in the test suite / history.</p>
+
+<h2>6. Scaling Study Results (N = 3 … 9)</h2>
+<p><strong>Config.</strong> Generic N-spin molecule; τ=30 ms; V=8; encoding arcsin√s; readout
+⟨σₓ,σ_y,σ_z⟩; ridge 3-fold CV; washout 100, n_train 350, n_test 120 (n_train &gt; 3·N·V ≤ 216 at all N);
+delays 0–25; seed 42. Backend <code>gpu</code> for N≥6, <code>propagator</code> for N≤5. Total ≈13 min.</p>
+<table>
+<thead><tr><th class="num">N</th><th class="num">dim</th><th class="num">Memory capacity</th>
+<th class="num">QRC NARMA-2 NMSE</th><th class="num">ESN NARMA-2 NMSE</th><th>winner</th><th class="num">time (min)</th></tr></thead>
+<tbody>
+<tr><td class="num">3</td><td class="num">8</td><td class="num">6.11</td><td class="num">2.51×10⁻¹</td><td class="num">4.60×10⁻²</td><td class="win-esn">ESN</td><td class="num">0.1</td></tr>
+<tr><td class="num">4</td><td class="num">16</td><td class="num"><strong>7.93</strong></td><td class="num">2.05×10⁻¹</td><td class="num">2.71×10⁻²</td><td class="win-esn">ESN</td><td class="num">0.1</td></tr>
+<tr><td class="num">5</td><td class="num">32</td><td class="num">7.17</td><td class="num">1.14×10⁻¹</td><td class="num">7.71×10⁻²</td><td class="win-esn">ESN</td><td class="num">0.9</td></tr>
+<tr><td class="num">6</td><td class="num">64</td><td class="num">7.08</td><td class="num">1.15×10⁻¹</td><td class="num">5.26×10⁻²</td><td class="win-esn">ESN</td><td class="num">1.8</td></tr>
+<tr><td class="num">7</td><td class="num">128</td><td class="num">6.22</td><td class="num">5.93×10⁻²</td><td class="num">9.38×10⁻³</td><td class="win-esn">ESN</td><td class="num">2.3</td></tr>
+<tr><td class="num">8</td><td class="num">256</td><td class="num">6.09</td><td class="num">5.75×10⁻²</td><td class="num">4.18×10⁻²</td><td class="win-esn">ESN</td><td class="num">3.8</td></tr>
+<tr><td class="num">9</td><td class="num">512</td><td class="num">6.11</td><td class="num"><strong>4.81×10⁻²</strong></td><td class="num">1.61×10⁻²</td><td class="win-esn">ESN</td><td class="num">4.1</td></tr>
+</tbody>
+</table>
+<figure><img src="figures/fig1_scaling.png" alt="Scaling results">
+<figcaption>Figure 1. (a) Memory capacity peaks at N=4 and saturates ~6–7. (b) QRC NARMA error falls
+~5× with N, but the size-matched classical ESN is lower at every N.</figcaption></figure>
+<h3>6.1 Memory capacity does not scale</h3>
+<p>MC peaks at N=4 (7.93) and saturates near 6–7. This is not the training-set artifact of §5.3.3
+(n_train comfortably exceeds the feature count here) — it is a genuine property of this
+molecule/parameter regime.</p>
+<h3>6.2 Task accuracy improves with N</h3>
+<p>QRC NARMA-2 NMSE falls ~5× from 0.25 (N=3) to 0.048 (N=9). On the task, more qubits make the
+quantum reservoir better.</p>
+<h3>6.3 But the classical ESN wins at every size</h3>
+<p>A size-matched ESN is lower at all seven sizes (0/7 QRC wins), and the gap does not close with N.
+With this baseline configuration there is <strong>no quantum advantage over a classical reservoir</strong>.</p>
+<h3>6.4 Compute performance</h3>
+<figure><img src="figures/fig3_timings.png" alt="Timings">
+<figcaption>Figure 3. Per-point wall time; the GPU backend keeps N=7–9 to minutes vs ~1.75 h/point on
+CPU at N=9.</figcaption></figure>
+
+<h2>7. Discussion</h2>
+<h3>7.1 Does adding qubits help?</h3>
+<p><strong>For the quantum reservoir's own task: yes</strong> — NARMA improves ~5× from N=3 to 9.
+<strong>For memory capacity, and for beating classical: no</strong> — MC saturates by N≈4 and the ESN
+is uniformly better.</p>
+<h3>7.2 Why memory capacity saturates</h3>
+<p>MC is bounded by the number of independent, readable observables. With a fixed transverse readout
+(3·N) and V nodes, and shifts capped at Nyquist, added spins become spectrally crowded and contribute
+correlated rather than independent information; the accessible memory is dominated by the multiplexing
+structure and relaxation timescales, unchanged as N grows.</p>
+<h3>7.3 Why the QRC loses to the ESN</h3>
+<p>The ESN's tanh nonlinearity and dense recurrence make it a strong classical reservoir; the QRC here
+is limited by a single fixed encoding, Ising-only coupling, and an observable-only readout. This is
+consistent with the QRC literature, where the value proposition is usually a <em>physical</em> substrate
+that computes "for free", not an accuracy win over classical simulation.</p>
+<h3>7.4 Relation to Paper 4 and the physical-substrate argument</h3>
+<p>Hou et al. demonstrate feasibility on real hardware and the role of T₁ as a resource — not a claim of
+beating classical reservoirs in silico. Our results are consistent: the case for NMR-QRC hardware rests
+on physical realisation, and this simulator should be used to engineer encoding/molecule/task toward
+competitive regimes, not as a standalone advantage claim.</p>
+
+<h2>8. Limitations</h2>
+<ul>
+<li><strong>Generic molecule</strong> in the sweep (N is the only variable); not a real species.</li>
+<li><strong>Single encoding/task</strong> in the headline sweep (arcsin√s, NARMA-2); others implemented but unswept.</li>
+<li><strong>Ising (ZZ) coupling only</strong>; no transverse terms.</li>
+<li><strong>fp32 on GPU</strong> (validated to ≲2×10⁻³ vs exact CPU).</li>
+<li><strong>One ESN baseline family</strong> at matched size.</li>
+</ul>
+
+<h2>9. Future Work</h2>
+<p>Each is now a minutes-long experiment thanks to the GPU backend:</p>
+<ol>
+<li><strong>Encoding search</strong> — phase-amplitude, multi-nucleus, and the seven functions, per task.</li>
+<li><strong>Multi-modal features</strong> vs observable-only, to test whether richer features close the ESN gap.</li>
+<li><strong>Real molecules</strong> — exact Paper-4 crotonic acid; the true SPINQ system.</li>
+<li><strong>Task diversity</strong> — tasks rewarding quantum correlations rather than NARMA.</li>
+<li><strong>Coupling topology</strong> — transverse/Heisenberg terms; disorder.</li>
+<li><strong>ML-optimised encoding</strong> via the differentiable path.</li>
+</ol>
+
+<h2>10. Reproducibility</h2>
+<p><strong>Hardware/software.</strong> Windows 11; Python 3.12.10; NVIDIA GeForce RTX 5070 Ti (17 GB);
+torch 2.10.0+cu128 (CUDA); QuTiP 5.3.0; SciPy 1.17.1; NumPy 2.2.6. Seed 42.</p>
+<pre><code>cd backend
+pip install -e ".[qrc]"
+
+# Fading-memory gate on the real SPINQ system (run first):
+python -m app.qrc.main memory --system spinq3
+
+# NARMA-2 on the GPU backend:
+python -m app.qrc.main narma --system spinq3 --evolution gpu
+
+# Full N=3..9 scaling sweep (GPU auto-selected for N>=6):
+python scripts/qrc_scaling_run.py        # ~13 min; writes qrc_scaling_progress.jsonl
+
+# Regenerate figures:
+python scripts/qrc_make_figures.py</code></pre>
+<p><strong>Validation:</strong> <code>pytest tests/test_qrc.py tests/test_qrc_physics.py</code> (14
+tests; physics tests skip without QuTiP/CUDA). <strong>Raw data:</strong>
+<code>backend/qrc_scaling_progress.jsonl</code> (incl. full per-delay MC curves),
+<code>backend/qrc_scaling_results.json</code>.</p>
+
+<h2>11. Conclusion</h2>
+<p>We built and validated a qubit-number-generic QRC simulator with correct open-system physics and a
+GPU backend that makes 9-qubit studies routine (minutes, not hours). Applied to the SPINQ-motivated
+scaling question it gives a clear, honest answer: <strong>adding qubits improves the quantum
+reservoir's task accuracy (~5× on NARMA from N=3 to 9), but memory capacity saturates by N≈4 and a
+size-matched classical ESN wins at every size.</strong> The configuration justifies neither
+over-claiming a quantum advantage nor dismissing the approach — it establishes a validated baseline and
+the fast tooling needed to search, methodically, for the regimes where NMR-QRC hardware earns its keep.</p>
+
+<hr>
+<h3>References</h3>
+<ol>
+<li>K. Nakajima et al., <em>Boosting computational power through spatial multiplexing in QRC</em>, arXiv:1803.04574 (2018).</li>
+<li>S. Benjamin, S. Bose, always-on Heisenberg interaction (2003).</li>
+<li>M. Negoro et al., <em>Machine learning with controllable quantum dynamics of a nuclear spin ensemble</em>, arXiv:1806.10910 (2018).</li>
+<li>Y. Hou et al., <em>High-Accuracy Temporal Prediction via Experimental QRC in Correlated Spins</em>, Phys. Rev. Lett. <strong>136</strong>, 120602 (2026).</li>
+<li>J. R. Johansson et al., QuTiP; QuTiP 5 (arXiv:2412.04705).</li>
+</ol>
+<p class="meta">Report generated from commit history and the automated sweep in <code>backend/scripts/</code>.
+All numbers reproducible from the commands in §10.</p>
+
+</div>
+</body>
+</html>
