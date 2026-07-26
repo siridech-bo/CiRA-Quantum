@@ -94,6 +94,26 @@ def test_memory_capacity_gate():
     assert res.per_delay[max(res.per_delay)] < res.per_delay[0]  # actually fades
 
 
+def test_spectral_feature_on_complex_fid():
+    """Regression: the observables-path spectral block FFTs a *complex* FID.
+    ``np.fft.rfft`` is real-input-only and raises a TypeError on complex, so
+    the block must use the full ``np.fft.fft`` (matching ``from_fid``). Guard
+    that ``extract(..., spectral=True)`` yields finite spectral features."""
+    from app.qrc.encoding import Encoder
+    from app.qrc.features import FeatureConfig, FeatureExtractor
+    from app.qrc.system import QRCSystem
+
+    cfg = _fast_cfg()
+    sysm = QRCSystem(cfg.system, cfg.sim)
+    enc = Encoder(sysm, cfg.encoding)
+    fx = FeatureExtractor(sysm, FeatureConfig(spectral=True, time_domain=True))
+    rho = enc.apply(sysm.rho0, 0.4)
+    states, _ = sysm.multiplex(rho)
+    vals, names = fx.extract(states)
+    assert np.all(np.isfinite(vals))
+    assert any(n.startswith("spec") for n in names)
+
+
 @pytest.mark.slow
 def test_scaling_memory_does_not_shrink_with_qubits():
     """Larger reservoir → at least as much memory capacity (§10.4)."""

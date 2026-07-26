@@ -55,6 +55,7 @@ class Reservoir:
         inputs,
         rho0=None,
         progress: bool = False,
+        progress_cb=None,
     ) -> ReservoirOutput:
         """Drive ``inputs`` through the reservoir.
 
@@ -62,6 +63,10 @@ class Reservoir:
         shape ``(n_steps, n_channels)`` for multi-nucleus parallel
         encoding, where ``n_channels`` must match the encoder's target
         qubit count. Returns a :class:`ReservoirOutput`.
+
+        ``progress_cb``, if given, is called as ``progress_cb(done, total)``
+        after each input step — used by the long-running reproduction runner
+        to emit step-level progress + ETA to its event log.
         """
         arr = np.asarray(inputs, dtype=float)
         if arr.ndim == 1:
@@ -78,19 +83,45 @@ class Reservoir:
         # and per-observable traces (critical at N≥8). The action backend
         # gets an extra turbo: the whole loop stays in vec space (no Qobj
         # density matrices at all), which is what makes N=9 tractable.
-        fast = self.features.is_observables_only
+        fid_mode = self.features.cfg.readout == "fid"
+        fast = (not fid_mode) and self.features.is_observables_only
         which = self.features.cfg.observables
         vec_loop = fast and self.sys.evolution_mode == "action"
         gpu_loop = fast and self.sys.evolution_mode == "gpu"
+        # FID readout on the GPU backend: carry the state forward on the GPU
+        # (reusing the exact Taylor stepper) then acquire the FID per step.
+        fid_gpu = fid_mode and self.sys.evolution_mode == "gpu"
         if fast:
             names = self.features.observable_names()
 
         rho_mat = self.sys.init_mat(rho) if vec_loop else None
-        vec_gpu = self.sys.gpu_init(rho, which=which) if gpu_loop else None
+        vec_gpu = (
+            self.sys.gpu_init(rho, which=which) if (gpu_loop or fid_gpu) else None
+        )
 
         for k in range(n_steps):
             values = seq[k] if seq.shape[1] > 1 else seq[k, 0]
-            if gpu_loop:
+            if fid_gpu:
+                # Reservoir update stays on the GPU; then read out the FID.
+                u_mat = self.encoder.pulse_unitary(values).full()
+                _, vec_gpu = self.sys.step_observables_gpu(
+                    vec_gpu, u_mat, which=which
+                )
+                d = self.sys.dim
+                rho_mat = vec_gpu.reshape(d, d).T.cpu().numpy()
+                fid = self.sys.fid_signal(rho_mat)
+                feats, fnames = self.features.from_fid(fid)
+                if names is None:
+                    names = fnames
+            elif fid_mode:
+                # Reservoir update (encode + free evolution τ), then FID readout.
+                rho = self.encoder.apply(rho, values)
+                _, rho = self.sys.multiplex(rho)
+                fid = self.sys.fid_signal(rho)
+                feats, fnames = self.features.from_fid(fid)
+                if names is None:
+                    names = fnames
+            elif gpu_loop:
                 u_mat = self.encoder.pulse_unitary(values).full()
                 feats, vec_gpu = self.sys.step_observables_gpu(
                     vec_gpu, u_mat, which=which
@@ -112,6 +143,8 @@ class Reservoir:
             rows.append(feats)
             if progress and (k % max(1, n_steps // 10) == 0):
                 print(f"  reservoir step {k}/{n_steps}", flush=True)
+            if progress_cb is not None:
+                progress_cb(k + 1, n_steps)
 
         X = np.vstack(rows)
         return ReservoirOutput(

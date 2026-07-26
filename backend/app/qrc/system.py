@@ -93,6 +93,9 @@ class QRCSystem:
         self._obs_rows_cache: dict[tuple, Any] = {}
         # gpu-mode: torch CUDA tensors, lazy.
         self._gpu = None
+        # FID readout: pulse/observable/L_read caches, lazy.
+        self._fid_cache = None
+        self._fid_gpu = None
 
     def _resolve_evolution_mode(self, mode: str) -> str:
         """Pick the evolution strategy. ``auto`` uses the exact sparse
@@ -420,6 +423,170 @@ class QRCSystem:
         Vmat = torch.stack(node_vecs, dim=1)          # (dim², V)
         feats = torch.sparse.mm(g["M"], Vmat).real    # (n_obs, V)
         return feats.T.reshape(-1).cpu().numpy(), x
+
+    # -- FID spectral readout (Paper 4, Hou et al. 2026) -----------------
+
+    def _readout_indices(self) -> list[int]:
+        """Spins that are pulsed and detected by the FID readout (plan §2).
+
+        Priority: explicit ``SimConfig.readout_qubits`` → the protons for a
+        multi-nucleus system (labels starting with ``H`` while some spins are
+        not protons, i.e. the crotonic ¹³C/¹H case where carbons are the
+        bath) → otherwise all spins.
+        """
+        ro = self.sim.readout_qubits
+        if ro:
+            return list(ro)
+        protons = [
+            i for i, lbl in enumerate(self.system.labels)
+            if lbl.upper().startswith("H")
+        ]
+        if protons and len(protons) < self.n:
+            return protons
+        return list(range(self.n))
+
+    def _build_readout_hamiltonian(self, readout_set):
+        """Reduced readout Hamiltonian ``H_read`` (plan §2 stiffness trick).
+
+        Identical to :meth:`_build_hamiltonian` except it **omits the
+        chemical-shift σz terms of the non-readout (bath) spins**. Those
+        terms commute with every σz and with the readout transverse
+        operators σ_±, so they leave the readout FID ⟨O_FID⟩(t) exactly
+        unchanged while dominating ‖L‖ (carbon shifts ~7.7 kHz vs proton
+        ~1.2 kHz) — dropping them cuts the exponential cost ~6–8×.
+        """
+        qt = self.qt
+        H = qt.qzero([2] * self.n)
+        nu = self.system.chemical_shifts
+        for i in range(self.n):
+            if i in readout_set:
+                H = H + np.pi * nu[i] * self.sz[i]
+        j = np.asarray(self.system.j_coupling, dtype=float)
+        for i in range(self.n):
+            for k in range(i + 1, self.n):
+                if j[i, k] != 0.0:
+                    H = H + (np.pi / 2.0) * j[i, k] * self.sz[i] * self.sz[k]
+        return H
+
+    def _ensure_fid_cache(self):
+        """Build (once) the FID readout operators: the π/2 readout pulse, the
+        ``O_FID`` row-vector, and the reduced sparse Liouvillian ``L_read``.
+
+        Column-stacking (``order='F'``) is kept throughout to match the
+        ``action`` backend and :meth:`_ensure_obs_rows`:
+        ``⟨O⟩ = vec(O^T)·vec(ρ)``.
+        """
+        if getattr(self, "_fid_cache", None) is not None:
+            return self._fid_cache
+        qt = self.qt
+        readout = self._readout_indices()
+        ro_set = set(readout)
+        # π/2 x-pulse on each readout spin: R_x(θ) = cos(θ/2) I − i sin(θ/2) σx.
+        theta = np.pi / 2.0
+        c, s = np.cos(theta / 2.0), np.sin(theta / 2.0)
+        rx = c * qt.qeye(2) - 1j * s * qt.sigmax()
+        pulse_ops = [rx if i in ro_set else qt.qeye(2) for i in range(self.n)]
+        U = qt.tensor(pulse_ops).full().astype(np.complex128)
+        # O_FID = Σ_{p∈readout} (σ_y^p + i σ_x^p); detect via o = vec(O_FID^T).
+        o_op = qt.qzero([2] * self.n)
+        for p in readout:
+            o_op = o_op + self.sy[p] + 1j * self.sx[p]
+        o = qt.operator_to_vector(o_op.trans()).full().ravel().astype(np.complex128)
+        H_read = self._build_readout_hamiltonian(ro_set)
+        L_read = qt.liouvillian(H_read, self.c_ops).data.as_scipy()
+        L_read = L_read.tocsr().astype(np.complex128)
+        self._fid_cache = {"readout": readout, "U": U, "o": o, "L": L_read}
+        # gpu-mode FID tensors, lazy.
+        self._fid_gpu = None
+        return self._fid_cache
+
+    def fid_signal(self, rho) -> np.ndarray:
+        """Simulated FID S(t) for the readout spins (plan §2, Paper Eq. 4).
+
+        ``S(t) = Tr[ e^{tL_read}(UρU†) · O_FID ]`` sampled at ``fid_points``
+        times spaced by ``fid_dwell``. Returns a length-``fid_points``
+        complex128 array with index 0 = t=0. Uses the reduced ``L_read``
+        (exact — see :meth:`_build_readout_hamiltonian`).
+        """
+        cache = self._ensure_fid_cache()
+        rho_mat = rho.full() if hasattr(rho, "full") else np.asarray(rho)
+        rho_mat = rho_mat.astype(np.complex128, copy=False)
+        U = cache["U"]
+        rho_read = U @ rho_mat @ U.conj().T
+        if self.evolution_mode == "gpu":
+            return self._fid_signal_gpu(rho_read, cache)
+        return self._fid_signal_cpu(rho_read, cache)
+
+    def _fid_signal_cpu(self, rho_read, cache):
+        """CPU FID: exact Krylov action exp(t·L_read)·vec on the sample grid."""
+        from scipy.sparse.linalg import expm_multiply
+
+        n = self.sim.fid_points
+        dwell = self.sim.fid_dwell
+        o = cache["o"]
+        r = rho_read.reshape(-1, order="F")           # column-stacked vec(ρ)
+        if n < 2:
+            return np.asarray([complex(o @ r)], dtype=np.complex128)
+        out = expm_multiply(
+            cache["L"], r, start=0.0, stop=(n - 1) * dwell, num=n, endpoint=True,
+        )
+        sig = out @ o                                 # (n,) complex
+        return np.asarray(sig, dtype=np.complex128)
+
+    def _ensure_fid_gpu(self, cache):
+        """Build (once) the CUDA tensors for the GPU FID path: sparse
+        ``L_read`` (complex64), the ``O_FID`` row-vector, and a Taylor
+        sub-stepping schedule with ‖h·L_read‖ ≲ 1 per dwell interval."""
+        import torch
+        from scipy.sparse.linalg import onenormest
+
+        if getattr(self, "_fid_gpu", None) is not None:
+            return self._fid_gpu
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "evolution_mode='gpu' needs a CUDA-enabled torch build. "
+                "Use 'action' for the exact CPU FID path."
+            )
+        dev = "cuda"
+        L = cache["L"].tocsr().astype(np.complex64)
+        Lt = torch.sparse_csr_tensor(
+            torch.tensor(L.indptr, dtype=torch.int64),
+            torch.tensor(L.indices, dtype=torch.int64),
+            torch.tensor(L.data), size=L.shape, device=dev,
+        )
+        dwell = self.sim.fid_dwell
+        nrm = float(onenormest(dwell * cache["L"]))
+        per = max(1, int(np.ceil(nrm)))               # substeps per dwell, ‖hL‖≲1
+        o = torch.tensor(cache["o"].astype(np.complex64), device=dev)
+        self._fid_gpu = {
+            "torch": torch, "dev": dev, "L": Lt,
+            "per": per, "h": dwell / per, "K": 18, "o": o,
+        }
+        return self._fid_gpu
+
+    def _fid_signal_gpu(self, rho_read, cache):
+        """GPU FID: Taylor + sub-stepping exp(t·L_read) matvecs on CUDA,
+        reusing the same fixed-order series as :meth:`step_observables_gpu`,
+        sampled on the ``fid_points`` × ``fid_dwell`` grid."""
+        g = self._ensure_fid_gpu(cache)
+        torch = g["torch"]
+        n = self.sim.fid_points
+        L, h, K, per, o = g["L"], g["h"], g["K"], g["per"], g["o"]
+        x = torch.tensor(
+            rho_read.reshape(-1, order="F").astype(np.complex64), device=g["dev"]
+        )
+        sig = torch.empty(n, dtype=torch.complex64, device=g["dev"])
+        sig[0] = (o * x).sum()
+        for t in range(1, n):
+            for _ in range(per):
+                term = x
+                acc = x
+                for k in range(1, K + 1):
+                    term = (h / k) * torch.mv(L, term)
+                    acc = acc + term
+                x = acc
+            sig[t] = (o * x).sum()
+        return sig.cpu().numpy().astype(np.complex128)
 
     def multiplex(self, rho):
         """Evolve ``rho`` one step and return

@@ -39,9 +39,11 @@ from app.qrc.tasks import (
     delayed_targets,
     memory_task,
     narma_sequence,
+    narma_sequence_sine,
+    nmse_paper,
 )
 from app.qrc.training import evaluate, train_readout
-from app.qrc.utils import squared_correlation
+from app.qrc.utils import nmse, r2_score, squared_correlation
 
 # ---------------------------------------------------------------------------
 # Reservoir assembly
@@ -147,23 +149,66 @@ def run_narma(
     order: int = 2,
     n_steps: int | None = None,
     feature_cfg: FeatureConfig | None = None,
+    input_kind: str = "uniform",
+    progress_cb=None,
 ) -> NarmaResult:
+    """Drive a NARMA-``order`` task through the reservoir and score it.
+
+    ``input_kind`` selects the driving signal: ``"uniform"`` (classic
+    i.i.d. NARMA, unchanged default) or ``"sine"`` (Paper-4 multi-tone
+    input via :func:`narma_sequence_sine`). The returned metrics bundle
+    adds ``nmse_paper`` (Σ(y-ŷ)²/Σy²) alongside the standard metrics.
+    ``progress_cb(done,total)`` is forwarded to the reservoir loop for
+    step-level progress on long runs.
+    """
     tr_cfg = cfg.training
     if n_steps is None:
         n_steps = tr_cfg.washout + tr_cfg.n_train + tr_cfg.n_test
     res = build_reservoir(cfg, feature_cfg)
-    u, y = narma_sequence(n_steps, order, seed=cfg.sim.seed)
-    out = res.run(u)
+    if input_kind == "sine":
+        u, y = narma_sequence_sine(n_steps, order, seed=cfg.sim.seed)
+    else:
+        u, y = narma_sequence(n_steps, order, seed=cfg.sim.seed)
+    out = res.run(u, progress_cb=progress_cb)
     Xtr, ytr, Xte, yte = _split(
         out.X, y, tr_cfg.washout, tr_cfg.n_train, tr_cfg.n_test
     )
     model = train_readout(Xtr, ytr, tr_cfg)
-    return NarmaResult(order=order, metrics=evaluate(model, Xte, yte), n_qubits=out.n_qubits)
+    metrics = evaluate(model, Xte, yte)
+    metrics["nmse_paper"] = nmse_paper(yte, model.predict(Xte))
+    return NarmaResult(order=order, metrics=metrics, n_qubits=out.n_qubits)
 
 
 # ---------------------------------------------------------------------------
 # Classical ESN baseline (plan §10.2)
 # ---------------------------------------------------------------------------
+
+
+def _spectral_radius(W: np.ndarray, method: str, seed: int, iters: int = 200) -> float:
+    """Largest-magnitude eigenvalue of ``W``.
+
+    ``"exact"`` uses a full eigendecomposition (accurate, but O(n³) and
+    memory-heavy — impractical past a few thousand units). ``"power"``
+    uses power iteration, which returns the dominant magnitude in O(iters·n²)
+    with no extra memory — good enough to scale a random reservoir and the
+    only feasible option for the ESN(5000/10000) sweep sizes.
+    """
+    if method == "power":
+        rng = np.random.default_rng(seed)
+        v = rng.standard_normal(W.shape[0])
+        nrm = np.linalg.norm(v)
+        if nrm == 0:
+            return 0.0
+        v /= nrm
+        lam = 0.0
+        for _ in range(iters):
+            w = W @ v
+            lam = float(np.linalg.norm(w))
+            if lam == 0.0:
+                return 0.0
+            v = w / lam
+        return lam
+    return float(np.max(np.abs(np.linalg.eigvals(W))))
 
 
 def esn_baseline(
@@ -174,19 +219,23 @@ def esn_baseline(
     leak: float = 1.0,
     tr_cfg: TrainingConfig | None = None,
     seed: int = 0,
+    radius_method: str = "exact",
 ) -> dict:
     """A standard leaky-integrator Echo State Network for comparison.
 
     Not quantum — a plain classical reservoir with a random recurrent
     matrix scaled to ``spectral_radius``. Gives the yardstick Paper 4
-    compares its QRC against ("QRC beats an ESN of size N").
+    compares its QRC against ("QRC beats an ESN of size N"). The returned
+    metrics bundle adds ``nmse_paper`` (Σ(y-ŷ)²/Σy²). Set
+    ``radius_method="power"`` for large reservoirs where a full eig is
+    infeasible (see :func:`esn_sweep`).
     """
     tr_cfg = tr_cfg or TrainingConfig()
     rng = np.random.default_rng(seed)
     n = len(u)
     Win = rng.uniform(-0.5, 0.5, size=(n_reservoir, 1))
     W = rng.uniform(-0.5, 0.5, size=(n_reservoir, n_reservoir))
-    radius = np.max(np.abs(np.linalg.eigvals(W)))
+    radius = _spectral_radius(W, radius_method, seed)
     if radius > 0:
         W *= spectral_radius / radius
 
@@ -199,7 +248,73 @@ def esn_baseline(
 
     Xtr, ytr, Xte, yte = _split(X, y, tr_cfg.washout, tr_cfg.n_train, tr_cfg.n_test)
     model = train_readout(Xtr, ytr, tr_cfg)
-    return evaluate(model, Xte, yte)
+    metrics = evaluate(model, Xte, yte)
+    metrics["nmse_paper"] = nmse_paper(yte, model.predict(Xte))
+    metrics["n_reservoir"] = n_reservoir
+    return metrics
+
+
+def esn_sweep(
+    u: np.ndarray,
+    y: np.ndarray,
+    sizes: tuple[int, ...] = (500, 1000, 5000, 10000),
+    tr_cfg: TrainingConfig | None = None,
+    seed: int = 0,
+) -> dict[int, dict]:
+    """Run :func:`esn_baseline` at several reservoir sizes (plan §4).
+
+    Returns ``{size: metrics}``. Large sizes automatically switch to the
+    power-iteration spectral-radius estimate (a full eig at N=10000 is
+    infeasible); the ≤2000 sizes keep the exact eig.
+    """
+    tr_cfg = tr_cfg or TrainingConfig()
+    out: dict[int, dict] = {}
+    for n_res in sizes:
+        method = "exact" if n_res <= 2000 else "power"
+        out[int(n_res)] = esn_baseline(
+            u, y, n_reservoir=int(n_res), tr_cfg=tr_cfg, seed=seed,
+            radius_method=method,
+        )
+    return out
+
+
+def svr_readout(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    C: float = 10.0,
+    gamma: str | float = "scale",
+    epsilon: float = 1e-4,
+) -> dict | None:
+    """Optional RBF-SVR nonlinear readout ("QRC+RBF", plan §4).
+
+    Z-score standardises the design matrix on the train split (matching
+    the paper's preprocessing) and fits an RBF-kernel SVR. Returns the
+    standard metric bundle plus ``nmse_paper``, or ``None`` if scikit-learn
+    isn't installed (guarded, per the optional-dependency pattern).
+    """
+    try:
+        from sklearn.svm import SVR
+    except ImportError:
+        return None
+
+    mu = X_train.mean(axis=0)
+    sigma = X_train.std(axis=0)
+    sigma[sigma == 0] = 1.0
+    Xtr = (X_train - mu) / sigma
+    Xte = (X_test - mu) / sigma
+
+    model = SVR(kernel="rbf", C=C, gamma=gamma, epsilon=epsilon)
+    model.fit(Xtr, np.asarray(y_train, dtype=float).ravel())
+    pred = model.predict(Xte)
+    return {
+        "r2": r2_score(y_test, pred),
+        "corr2": squared_correlation(y_test, pred),
+        "nmse": nmse(y_test, pred),
+        "nmse_paper": nmse_paper(y_test, pred),
+        "readout": "rbf_svr",
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -123,6 +123,14 @@ class SimConfig:
     # scales signal amplitude, not the qualitative memory behavior.
     init_polarization: float = 0.05
     seed: int = 42
+    # FID readout (Paper 4, Hou et al. 2026). The spectral readout acquires a
+    # free-induction-decay after a π/2 readout pulse: ``fid_points`` complex
+    # samples spaced by ``fid_dwell`` seconds. ``readout_qubits`` restricts
+    # which spins are pulsed / detected (empty → all; for crotonic the FID
+    # code defaults to the protons and treats the carbons as a bath).
+    fid_points: int = 2048
+    fid_dwell: float = 3e-4               # s (0.3 ms → Nyquist 1667 Hz)
+    readout_qubits: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -287,9 +295,62 @@ def crotonic_acid_like() -> SystemConfig:
     return cfg
 
 
+def crotonic_acid_paper4() -> SystemConfig:
+    """Exact 9-spin ¹³C crotonic acid from Hou et al. 2026 (PRL 136, 120602),
+    SM Table II — the faithful Paper-4 reproduction system (plan §1).
+
+    Order ``[C1,C2,C3,C4,H1,H2,H3,H4,H5]`` (indices 0–8). H3/H4/H5 are the
+    magnetically-equivalent methyl protons (same ν/T1/T2, zero intra-methyl
+    J). Readout is the protons (indices 4–8); the carbons (0–3) are an
+    inaccessible bath. Chemical shifts are rotating-frame offsets in Hz; T₂\\*
+    is converted from ms to seconds. Every number is transcribed from the
+    published table so QA can verify against §1.
+    """
+    # Chemical shifts (Hz). Methyl (H3,H4,H5) share one offset.
+    shifts = [-7749.7, 5430.1, 2699.9, 7673.7, 985.9, 520.3, -1081.5, -1081.5, -1081.5]
+    # T1 (s). Methyl protons share T1 = 2.2 s.
+    t1 = [5.9, 4.9, 5.6, 27.5, 3.2, 3.4, 2.2, 2.2, 2.2]
+    # T2* (ms → s). Methyl protons share 320 ms.
+    t2_star_ms = [212.0, 231.0, 208.0, 241.0, 203.0, 332.0, 320.0, 320.0, 320.0]
+    t2 = [ms * 1e-3 for ms in t2_star_ms]
+
+    # Symmetric J-coupling matrix (Hz). Index map:
+    #   C1=0, C2=1, C3=2, C4=3, H1=4, H2=5, methyl H3=6, H4=7, H5=8.
+    methyl = (6, 7, 8)
+    pairs: dict[tuple[int, int], float] = {
+        (0, 1): 40.8, (1, 2): 69.5, (0, 2): 1.6,
+        (0, 3): 8.5, (1, 3): 1.4, (2, 3): 71.0,
+        (0, 4): 4.0, (1, 4): 155.6, (2, 4): -1.8, (3, 4): 6.5,
+        (0, 5): 6.6, (1, 5): -0.7, (2, 5): 162.9, (3, 5): 3.3,
+        (4, 5): 15.8,
+    }
+    # X–methyl couplings apply to each equivalent methyl proton.
+    methyl_couplings = {0: 128.0, 1: -7.1, 2: 6.6, 3: -0.9, 4: 6.9, 5: -1.7}
+    for other, jval in methyl_couplings.items():
+        for m in methyl:
+            pairs[(other, m)] = jval
+    # Intra-methyl couplings are zero (magnetically equivalent) — left at 0.
+
+    n = 9
+    j = np.zeros((n, n))
+    for (a, b), val in pairs.items():
+        j[a, b] = j[b, a] = val
+
+    return SystemConfig(
+        n_qubits=n,
+        chemical_shifts=shifts,
+        j_coupling=j.tolist(),
+        t1=t1,
+        t2=t2,
+        labels=["C1", "C2", "C3", "C4", "H1", "H2", "H3", "H4", "H5"],
+        larmor_mhz=[100.6273] * 4 + [400.2118] * 5,
+    )
+
+
 SYSTEM_PRESETS = {
     "spinq3": spinq_3qubit,
     "crotonic9": crotonic_acid_like,
+    "crotonic9_paper4": crotonic_acid_paper4,
 }
 
 

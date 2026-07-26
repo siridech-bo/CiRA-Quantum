@@ -47,6 +47,93 @@ def narma_sequence(n: int, order: int, seed: int = 0) -> tuple[np.ndarray, np.nd
     return u, y
 
 
+def narma_input_sine(n: int, seed: int = 0) -> np.ndarray:
+    """Superposition-of-sines NARMA driving input, normalized to ``[0, 1]``.
+
+    Paper 4 drives NARMA with a smooth multi-tone signal rather than the
+    classic i.i.d. uniform noise. We sum a few incommensurate sinusoids
+    (non-harmonic periods so the composite doesn't repeat over the
+    sequence) with seeded phases, then min-max scale to ``[0, 1]`` — the
+    reservoir's input domain. Deterministic given ``seed``.
+    """
+    rng = np.random.default_rng(seed)
+    k = np.arange(n, dtype=float)
+    periods = (20.0, 33.0, 51.0)          # incommensurate → quasi-periodic
+    phases = rng.uniform(0.0, 2.0 * np.pi, size=len(periods))
+    s = np.zeros(n)
+    for p, ph in zip(periods, phases, strict=True):
+        s += np.sin(2.0 * np.pi * k / p + ph)
+    s -= s.min()
+    peak = s.max()
+    if peak > 0:
+        s /= peak
+    return s
+
+
+def narma_sequence_sine(
+    n: int, order: int, seed: int = 0
+) -> tuple[np.ndarray, np.ndarray]:
+    """Paper-Eq.2 NARMA target driven by the sine input (plan §4).
+
+    Uses the standard NARMA-``order`` recurrence
+    ``y_{k+1} = α y_k + β y_k Σ_{i} y_{k-i} + γ s_{k-n+1} s_k + δ`` with
+    ``α=.3, β=.05, γ=1.5, δ=.1``; order 2 keeps the classic quadratic
+    variant. The sine input from :func:`narma_input_sine` is rescaled to
+    ``[0, 0.5]`` before entering the recurrence — the usual NARMA stability
+    range. The returned input is that same ``[0, 0.5]`` sequence so it
+    matches the target exactly when driven through the reservoir.
+
+    For ``order >= 10`` an outer ``tanh`` saturates the recurrence
+    (Rodan & Tiňo 2011; the standard NARMA-10/20 form). Without it the
+    higher-order sum term ``β y_k Σ y_{k-i}`` grows without bound and the
+    target overflows — the ``tanh`` keeps it in ``(-1, 1)`` while
+    preserving the nonlinear-memory character of the task.
+    """
+    s = narma_input_sine(n, seed=seed) * 0.5
+    y = np.zeros(n)
+    saturate = order >= 10
+    if order == 2:
+        for k in range(1, n - 1):
+            y[k + 1] = (
+                0.4 * y[k]
+                + 0.4 * y[k] * y[k - 1]
+                + 0.6 * s[k] ** 3
+                + 0.1
+            )
+    else:
+        m = order
+        for k in range(m - 1, n - 1):
+            val = (
+                0.3 * y[k]
+                + 0.05 * y[k] * np.sum(y[k - m + 1 : k + 1])
+                + 1.5 * s[k - m + 1] * s[k]
+                + 0.1
+            )
+            y[k + 1] = np.tanh(val) if saturate else val
+    return s, y
+
+
+# ---------------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------------
+
+
+def nmse_paper(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Paper-4 NARMA error: ``Σ(y-ŷ)² / Σy²``.
+
+    Unlike :func:`app.qrc.utils.nmse` (which normalizes by the *variance*
+    of the target), Paper 4 normalizes the squared error by the target's
+    raw second moment ``Σy²``. Both are reported for NARMA so results are
+    comparable to the paper's Table I as well as to the QRC literature.
+    """
+    y_true = np.asarray(y_true, dtype=float).ravel()
+    y_pred = np.asarray(y_pred, dtype=float).ravel()
+    denom = float(np.sum(y_true**2))
+    if denom == 0.0:
+        return float(np.sum((y_true - y_pred) ** 2))
+    return float(np.sum((y_true - y_pred) ** 2) / denom)
+
+
 # ---------------------------------------------------------------------------
 # Memory capacity — plan §5.5 / §10.3  (THE fading-memory test)
 # ---------------------------------------------------------------------------

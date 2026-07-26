@@ -27,6 +27,7 @@ design matrix stays consistent within a run.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
@@ -49,6 +50,19 @@ class FeatureConfig:
     wavelet: bool = False
     wavelet_scales: int = 4
     nonlinear: bool = False
+    # -- Paper-4 FID readout (plan §0 / §3) ------------------------------
+    # ``"observables"`` keeps the standard ⟨σ_a⟩ multiplexed readout;
+    # ``"fid"`` switches the reservoir loop (Coder A, evolution.py) to
+    # feed each step's FID signal through :meth:`FeatureExtractor.from_fid`.
+    readout: Literal["observables", "fid"] = "observables"
+    # Number of fixed spectral-peak bins read from the FID magnitude
+    # spectrum (Paper 4 uses 653). The peak *positions* are set once (on
+    # the first call) and cached so the design matrix stays consistent.
+    n_peaks: int = 653
+    # When True, append the real and imaginary parts at the cached bins to
+    # the magnitude features (richer, but larger). Default magnitude-only
+    # for the faithful reproduction.
+    fid_complex: bool = False
 
 
 class FeatureExtractor:
@@ -57,14 +71,20 @@ class FeatureExtractor:
         self.qt = qrc_system.qt
         self.cfg = cfg
         self.n = qrc_system.n
+        # Cached FID peak-bin positions (set on the first ``from_fid`` call).
+        self._peak_bins: np.ndarray | None = None
 
     @property
     def is_observables_only(self) -> bool:
-        """True when no FID-derived modality is requested, so the fast
-        vectorized-observable path (:meth:`QRCSystem.multiplex_observables`)
-        can be used instead of building Qobj states."""
+        """True when the standard ⟨σ_a⟩ readout with no FID-derived
+        modality is requested, so the fast vectorized-observable path
+        (:meth:`QRCSystem.multiplex_observables`) can be used instead of
+        building Qobj states. FID readout (``readout=="fid"``) or any
+        multimodal toggle takes the slow state-building path."""
         c = self.cfg
-        return not (c.spectral or c.time_domain or c.wavelet or c.nonlinear)
+        return c.readout == "observables" and not (
+            c.spectral or c.time_domain or c.wavelet or c.nonlinear
+        )
 
     def observable_names(self) -> list[str]:
         """Feature names for the observables-only fast path (matches the
@@ -101,7 +121,11 @@ class FeatureExtractor:
         return vals, names
 
     def _spectral(self, fid):
-        spec = np.abs(np.fft.rfft(fid))
+        # The FID is a *complex* quadrature signal, so use the full ``fft``
+        # (``rfft`` is real-input only and raises a TypeError on complex);
+        # this matches :meth:`from_fid`. Peak selection over the magnitude
+        # is unchanged.
+        spec = np.abs(np.fft.fft(fid))
         k = min(self.cfg.spectral_peaks, spec.size)
         idx = np.argsort(spec)[::-1][:k]
         idx_sorted = np.sort(idx)
@@ -164,6 +188,80 @@ class FeatureExtractor:
         arr = np.asarray(vals, dtype=float)
         arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
         return arr, names
+
+    # -- FID readout (plan §3, Paper-4-style 653-peak spectrum) ----------
+
+    def _select_peak_bins(self, mag: np.ndarray) -> None:
+        """Choose and cache the ``n_peaks`` largest-magnitude bin indices.
+
+        Called once (on the first :meth:`from_fid`). The peak *positions*
+        are fixed by the (time-invariant) Hamiltonian, so caching them
+        keeps the design matrix consistent across every reservoir step.
+        Indices are stored sorted (ascending frequency) for a stable,
+        deterministic feature order.
+        """
+        k = min(self.cfg.n_peaks, mag.size)
+        idx = np.argsort(mag)[::-1][:k]
+        self._peak_bins = np.sort(idx)
+
+    def _gather_bins(self, arr: np.ndarray, prefix: str) -> tuple[np.ndarray, list[str]]:
+        """Sample ``arr`` at the cached bins, padding to ``n_peaks`` with
+        zeros. Out-of-range bins (shorter spectrum than at cache time)
+        also read as zero, so the vector length is always ``n_peaks``."""
+        bins = self._peak_bins
+        n_peaks = self.cfg.n_peaks
+        vals = np.zeros(n_peaks, dtype=float)
+        if bins is not None and bins.size:
+            mask = bins < arr.size
+            vals[: bins.size][mask] = arr[bins[mask]]
+        names = [f"fid_{prefix}_p{i}" for i in range(n_peaks)]
+        return vals, names
+
+    def from_fid(self, fid: np.ndarray) -> tuple[np.ndarray, list[str]]:
+        """Feature vector + names from one step's complex FID (plan §3).
+
+        rfft → magnitude spectrum; feature = magnitude at the cached peak
+        bins (selected/cached on the first call). With ``fid_complex`` the
+        real and imaginary parts at those bins are appended. When the
+        ``time_domain``/``wavelet``/``nonlinear`` toggles are on, those
+        multimodal descriptors are computed on the FID time series and
+        appended (Tier B). Deterministic, stable-length, stable-named.
+        """
+        fid = np.asarray(fid)
+        # Deviation from plan §3's literal ``rfft``: the FID is a *complex*
+        # quadrature NMR signal (§0 contract, complex128), whose two-sided
+        # spectrum is not conjugate-symmetric, so ``rfft`` (real-input only,
+        # and a TypeError on complex in current NumPy) would be wrong. The
+        # full ``fft`` is the correct transform; peak selection over its
+        # magnitude is unchanged. For a real input the two agree up to the
+        # mirrored half.
+        spec = np.fft.fft(fid)
+        mag = np.abs(spec)
+        if self._peak_bins is None:
+            self._select_peak_bins(mag)
+
+        vals, names = self._gather_bins(mag, "mag")
+        vecs, nms = [vals], list(names)
+
+        if self.cfg.fid_complex:
+            rv, rn = self._gather_bins(np.real(spec), "re")
+            iv, inm = self._gather_bins(np.imag(spec), "im")
+            vecs += [rv, iv]
+            nms += rn + inm
+
+        def add(vec, nm):
+            if vec.size:
+                vecs.append(vec)
+                nms.extend(nm)
+
+        if self.cfg.time_domain:
+            add(*self._time_domain(fid))
+        if self.cfg.wavelet:
+            add(*self._wavelet(fid))
+        if self.cfg.nonlinear:
+            add(*self._nonlinear(fid))
+
+        return np.concatenate(vecs), nms
 
     # -- public ----------------------------------------------------------
 

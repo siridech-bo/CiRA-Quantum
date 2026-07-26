@@ -174,6 +174,25 @@ qrc = [
     "antropy>=0.1,<1.0",
 ]
 
+# Independent NMR cross-validation (``app/qrc/validate_sleepy.py`` +
+# ``tests/test_qrc_sleepy.py``). SLEEPY is an NMR-specialised Liouville-space
+# engine (Nature Comms 2025, CPU-only); we use it to confirm our QuTiP FID /
+# relaxation physics on a small two-proton subsystem (plan
+# docs/QRC/QRC_Reproduction_Plan.md §5). Guarded everywhere — the package
+# imports and all other tests run without it.
+#
+# Pin note: the plan sketched ``sleepy-nmr>=0.1,<1.0``, but the verified API
+# (set_inter('J', i0=, i1=), Rho('1Hx','1Hp').DetProp(...), rho.I[0]) was
+# confirmed against the current 1.1.x line; <1.0 would resolve to the older
+# 0.1.x API. IPython is added because sleepy-nmr imports it at load time
+# (SLEEPY/plot_tools.py) but does not declare it as a dependency.
+#
+# Install:  pip install ".[validation]"
+validation = [
+    "sleepy-nmr>=1.1,<2.0",
+    "ipython>=8.0,<10.0",
+]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
