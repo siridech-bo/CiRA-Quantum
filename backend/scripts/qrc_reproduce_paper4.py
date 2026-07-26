@@ -27,7 +27,7 @@ from pathlib import Path
 
 from qrc_progress import ProgressLogger
 
-from app.qrc.benchmarks import esn_sweep, run_narma
+from app.qrc.benchmarks import esn_sweep, run_narma_multitask
 from app.qrc.config import (
     QRCConfig,
     SimConfig,
@@ -102,35 +102,39 @@ def run_narma_suite(
     orders=NARMA_ORDERS,
     out_path: Path | None = None,
 ) -> dict[int, dict]:
-    """Run each NARMA order with the sine input + FID readout.
+    """Emulate all NARMA orders from ONE reservoir pass (multitasking).
 
-    Each order is logged (start + finish with NMSE vs paper), gets
-    step-level ETA via a progress callback, and is checkpointed to
-    ``out_path`` as it completes so a crash keeps finished orders."""
-    results: dict[int, dict] = {}
+    The NARMA input is order-independent, so the (expensive) reservoir
+    readout is computed once and a separate ridge readout is fit per order
+    — matching Paper 4's multitasking and ~len(orders)× faster than running
+    the reservoir per order. Step-level ETA covers the single pass; each
+    order's result is logged, and the whole set is checkpointed."""
+    orders = list(orders)
+    log.event("reservoir_start",
+              f"single reservoir pass (sine, FID-{feature_cfg.n_peaks}) "
+              f"for orders {orders} — multitask")
+    t0 = time.time()
+    results, _ = run_narma_multitask(
+        cfg, orders, feature_cfg=feature_cfg, input_kind="sine",
+        progress_cb=_step_cb(log, "reservoir"),
+    )
+    log.event("reservoir_done",
+              f"reservoir pass done in {(time.time()-t0)/60:.1f} min; "
+              f"fitting {len(orders)} readouts")
     for order in orders:
-        log.event("order_start",
-                  f"NARMA{order} (sine, FID-{feature_cfg.n_peaks}) starting")
-        t0 = time.time()
-        res = run_narma(cfg, order=order, feature_cfg=feature_cfg,
-                        input_kind="sine", progress_cb=_step_cb(log, f"NARMA{order}"))
-        results[order] = res.metrics
+        m = results[order]
         paper = PAPER_TABLE_I.get(order, {}).get("best")
         log.result(f"NARMA{order}", {
-            "nmse_paper": res.metrics["nmse_paper"],
-            "r2": res.metrics["r2"],
-            "paper_best": paper,
-            "secs": round(time.time() - t0, 1),
+            "nmse_paper": m["nmse_paper"], "r2": m["r2"], "paper_best": paper,
         })
         log.event(
             "order_done",
-            f"NARMA{order}: NMSE_paper={res.metrics['nmse_paper']:.3e} "
-            f"(paper {paper:.2e}) R2={res.metrics['r2']:.4f} "
-            f"in {(time.time()-t0)/60:.1f} min",
-            order=order, **res.metrics,
+            f"NARMA{order}: NMSE_paper={m['nmse_paper']:.3e} "
+            f"(paper {paper:.2e}) R2={m['r2']:.4f}",
+            order=order, **m,
         )
-        if out_path is not None:      # checkpoint after every order
-            _save(out_path, cfg, feature_cfg, results, {})
+    if out_path is not None:
+        _save(out_path, cfg, feature_cfg, results, {})
     return results
 
 

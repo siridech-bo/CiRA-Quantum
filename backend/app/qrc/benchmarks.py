@@ -179,6 +179,47 @@ def run_narma(
     return NarmaResult(order=order, metrics=metrics, n_qubits=out.n_qubits)
 
 
+def run_narma_multitask(
+    cfg: QRCConfig,
+    orders,
+    n_steps: int | None = None,
+    feature_cfg: FeatureConfig | None = None,
+    input_kind: str = "sine",
+    progress_cb=None,
+) -> tuple[dict[int, dict], int]:
+    """Emulate several NARMA orders from a *single* reservoir pass.
+
+    The NARMA driving input is the same for every order (it depends only on
+    ``n_steps``/``seed``, not the order) — so the reservoir readout matrix X
+    is identical across orders and only the target changes. Paper 4 calls
+    this "multitasking": run the (expensive) reservoir once, then fit a
+    separate ridge readout per order. This is ~len(orders)× cheaper than
+    calling :func:`run_narma` per order, which re-runs the whole reservoir.
+
+    Returns ``({order: metrics}, n_qubits)``.
+    """
+    orders = list(orders)
+    tr_cfg = cfg.training
+    if n_steps is None:
+        n_steps = tr_cfg.washout + tr_cfg.n_train + tr_cfg.n_test
+    seq = narma_sequence_sine if input_kind == "sine" else narma_sequence
+    # Input is order-independent; take it from the first order.
+    u, _ = seq(n_steps, orders[0], seed=cfg.sim.seed)
+    res = build_reservoir(cfg, feature_cfg)
+    out = res.run(u, progress_cb=progress_cb)      # the ONE expensive pass
+    results: dict[int, dict] = {}
+    for order in orders:
+        _, y = seq(n_steps, order, seed=cfg.sim.seed)
+        Xtr, ytr, Xte, yte = _split(
+            out.X, y, tr_cfg.washout, tr_cfg.n_train, tr_cfg.n_test
+        )
+        model = train_readout(Xtr, ytr, tr_cfg)
+        m = evaluate(model, Xte, yte)
+        m["nmse_paper"] = nmse_paper(yte, model.predict(Xte))
+        results[order] = m
+    return results, out.n_qubits
+
+
 # ---------------------------------------------------------------------------
 # Classical ESN baseline (plan §10.2)
 # ---------------------------------------------------------------------------
