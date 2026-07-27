@@ -327,6 +327,7 @@ def svr_readout(
     C: float = 10.0,
     gamma: str | float = "scale",
     epsilon: float = 1e-4,
+    tune: bool = False,
 ) -> dict | None:
     """Optional RBF-SVR nonlinear readout ("QRC+RBF", plan §4).
 
@@ -334,6 +335,10 @@ def svr_readout(
     the paper's preprocessing) and fits an RBF-kernel SVR. Returns the
     standard metric bundle plus ``nmse_paper``, or ``None`` if scikit-learn
     isn't installed (guarded, per the optional-dependency pattern).
+
+    With ``tune=True`` a small cross-validated grid search over ``C`` and
+    ``gamma`` is run (the paper tuned its SVR hyperparameters; scikit-learn
+    defaults underperform, especially on the hard long-horizon forecasts).
     """
     try:
         from sklearn.svm import SVR
@@ -345,9 +350,19 @@ def svr_readout(
     sigma[sigma == 0] = 1.0
     Xtr = (X_train - mu) / sigma
     Xte = (X_test - mu) / sigma
+    ytr = np.asarray(y_train, dtype=float).ravel()
 
-    model = SVR(kernel="rbf", C=C, gamma=gamma, epsilon=epsilon)
-    model.fit(Xtr, np.asarray(y_train, dtype=float).ravel())
+    if tune:
+        from sklearn.model_selection import GridSearchCV
+        grid = {"C": [1.0, 10.0, 100.0, 1000.0],
+                "gamma": ["scale", 1e-3, 1e-2, 1e-1]}
+        search = GridSearchCV(SVR(kernel="rbf", epsilon=epsilon), grid,
+                              cv=3, scoring="r2", n_jobs=-1)
+        search.fit(Xtr, ytr)
+        model = search.best_estimator_
+    else:
+        model = SVR(kernel="rbf", C=C, gamma=gamma, epsilon=epsilon)
+        model.fit(Xtr, ytr)
     pred = model.predict(Xte)
     return {
         "r2": r2_score(y_test, pred),
@@ -583,10 +598,12 @@ def forecast_from_X(
     tr_cfg: TrainingConfig,
     var_names=("temp", "humidity"),
     use_rbf: bool = False,
+    tune_rbf: bool = False,
 ) -> dict:
     """Fit ridge (and optional RBF-SVR) readouts predicting ``weather_norm``
     at each forecast horizon from the reservoir features ``X`` (row k → day
-    k+h). Returns ``{h: {var: {"r2":.., "rbf_r2":..}}}`` on the test block."""
+    k+h). Returns ``{h: {var: {"r2":.., "rbf_r2":..}}}`` on the test block.
+    ``tune_rbf`` cross-validates the SVR C/gamma (recommended)."""
     n_steps = X.shape[0]
     out: dict = {}
     for h in horizons:
@@ -599,7 +616,7 @@ def forecast_from_X(
             model = train_readout(Xtr, ytr, tr_cfg)
             rec = {"r2": r2_score(yte, model.predict(Xte))}
             if use_rbf:
-                rbf = svr_readout(Xtr, ytr, Xte, yte)
+                rbf = svr_readout(Xtr, ytr, Xte, yte, tune=tune_rbf)
                 rec["rbf_r2"] = rbf["r2"] if rbf else None
             per_var[name] = rec
         out[h] = per_var

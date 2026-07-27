@@ -192,6 +192,7 @@ def run_weather(
     horizons=WEATHER_HORIZONS,
     out_path: Path | None = None,
     use_rbf: bool = True,
+    tune_rbf: bool = True,
     run_esn: bool = True,
     max_days: int | None = None,
 ) -> dict:
@@ -219,7 +220,8 @@ def run_weather(
     log.event("reservoir_done",
               f"weather reservoir pass done in {(time.time()-t0)/60:.1f} min; "
               f"fitting {len(horizons)} horizons x 2 vars (+RBF)")
-    qrc = forecast_from_X(X, weather, horizons, tr, use_rbf=use_rbf)
+    qrc = forecast_from_X(X, weather, horizons, tr, use_rbf=use_rbf,
+                          tune_rbf=tune_rbf)
     for h in horizons:
         t = qrc[h]["temp"]
         hu = qrc[h]["humidity"]
