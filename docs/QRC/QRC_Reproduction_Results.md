@@ -27,6 +27,15 @@ and on NARMA-10/15/20 we are **better** than the published experimental numbers 
 since ours is a noise-free simulation while the experiment carries systematic errors
 (cross-correlated relaxation, RF inhomogeneity, drift; acknowledged in the paper).
 
+![NARMA sim vs experiment](figures/fig5_narma_vs_experiment.png)
+
+*Figure: our simulated NARMA NMSE (FID-653) plotted against Hou et al.'s **experimental**
+Table I values on the same log scale — both in the same high-accuracy regime. This is the
+one place the paper tabulates real experimental numbers; the weather comparison (§5) is
+against ESNs computed here under identical conditions, since the paper reports weather skill
+only as a figure. Full experimental settings for every run are in the Supplementary Material
+(`QRC_Manuscript_SI.docx`).*
+
 **The decisive finding:** with observables-only readout the same system gives NMSE ≈ 0.25;
 with the **FID-653 spectral readout** it drops to ≈ 10⁻⁶. The readout — turning ~9 static
 observables into 653 independent time-multiplexed readout functions — was the missing
