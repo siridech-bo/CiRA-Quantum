@@ -27,7 +27,14 @@ from pathlib import Path
 
 from qrc_progress import ProgressLogger
 
-from app.qrc.benchmarks import esn_sweep, run_narma_multitask
+from app.qrc.benchmarks import (
+    esn_sweep,
+    esn_weather_sweep,
+    forecast_from_X,
+    load_weather_series,
+    run_narma_multitask,
+    run_weather_reservoir,
+)
 from app.qrc.config import (
     QRCConfig,
     SimConfig,
@@ -173,14 +180,96 @@ def _save(out: Path, cfg: QRCConfig, feature_cfg: FeatureConfig,
     out.write_text(json.dumps(payload, indent=2, default=float), encoding="utf-8")
 
 
-def run_weather(cfg: QRCConfig, feature_cfg: FeatureConfig, csv_path: str) -> dict:
-    """Weather-forecasting hook (plan §10.2). NARMA is the priority; this
-    stub wires the structure for a follow-up. Splits per §4: 374 washout /
-    600 train / 600 test."""
-    raise NotImplementedError(
-        "Weather reproduction is a follow-up hook; NARMA is the priority. "
-        "Wire load_weather() -> reservoir.run() -> train_readout() here."
-    )
+WEATHER_HORIZONS = (1, 5, 10, 15, 20, 30, 45)
+
+
+def run_weather(
+    cfg: QRCConfig,
+    feature_cfg: FeatureConfig,
+    log: ProgressLogger,
+    train_csv: str,
+    test_csv: str | None,
+    horizons=WEATHER_HORIZONS,
+    out_path: Path | None = None,
+    use_rbf: bool = True,
+    run_esn: bool = True,
+    max_days: int | None = None,
+) -> dict:
+    """Delhi weather forecasting (Paper 4 / plan §10.2) — the quantum-advantage
+    task. Multivariate encoding (temp→protons, humidity→carbons), a single FID
+    reservoir pass, then per-horizon per-variable ridge (+ RBF-SVR) readouts,
+    compared against a multivariate-ESN sweep (500–10000)."""
+    weather, scalers = load_weather_series(train_csv, test_csv)
+    if max_days:
+        weather = weather[:max_days]
+    horizons = list(horizons)
+    tr = cfg.training
+    # Only run the steps the split actually uses (targets need k+h days ahead).
+    n_steps = tr.washout + tr.n_train + tr.n_test
+    if n_steps + max(horizons) > len(weather):
+        raise ValueError(
+            f"weather series too short: need {n_steps}+{max(horizons)} days but "
+            f"have {len(weather)}; lower splits/horizons or raise --max-days")
+    log.event("reservoir_start",
+              f"weather single reservoir pass (FID-{feature_cfg.n_peaks}, "
+              f"{n_steps} days, temp->protons humidity->carbons)")
+    t0 = time.time()
+    X = run_weather_reservoir(cfg, weather, n_steps, feature_cfg=feature_cfg,
+                              progress_cb=_step_cb(log, "weather-reservoir"))
+    log.event("reservoir_done",
+              f"weather reservoir pass done in {(time.time()-t0)/60:.1f} min; "
+              f"fitting {len(horizons)} horizons x 2 vars (+RBF)")
+    qrc = forecast_from_X(X, weather, horizons, tr, use_rbf=use_rbf)
+    for h in horizons:
+        t = qrc[h]["temp"]
+        hu = qrc[h]["humidity"]
+        log.result(f"h={h}", {
+            "temp_R2": t["r2"], "humidity_R2": hu["r2"],
+            "temp_RBF_R2": t.get("rbf_r2"), "humidity_RBF_R2": hu.get("rbf_r2"),
+        })
+        log.event("horizon_done",
+                  f"h={h}: temp R2={t['r2']:.4f} humidity R2={hu['r2']:.4f}"
+                  + (f" (RBF temp {t['rbf_r2']:.4f})" if t.get("rbf_r2") else ""))
+
+    esn = {}
+    if run_esn:
+        log.event("esn_start", "weather ESN sweep (500-10000) starting")
+        esn = esn_weather_sweep(weather[:n_steps + max(horizons)], horizons,
+                                tr_cfg=tr, seed=cfg.sim.seed)
+        log.event("esn_done", f"weather ESN sweep done ({len(esn)} sizes)")
+
+    payload = {
+        "generated_utc": datetime.now(UTC).isoformat(),
+        "repro_hash": cfg.repro_hash(),
+        "task": "weather",
+        "config": {"feature_cfg": asdict(feature_cfg), "sim": asdict(cfg.sim),
+                   "training": asdict(cfg.training), "horizons": horizons},
+        "scalers": scalers,
+        "qrc_weather": {str(h): qrc[h] for h in horizons},
+        "esn_weather": {str(s): {str(h): v for h, v in d.items()}
+                        for s, d in esn.items()},
+    }
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, indent=2, default=float),
+                            encoding="utf-8")
+    return payload
+
+
+def print_weather_table(payload: dict) -> None:
+    qrc = payload["qrc_weather"]
+    esn = payload["esn_weather"]
+    print("\nWeather forecast R² (temperature) — QRC vs ESN")
+    sizes = sorted(esn, key=int)
+    print(f"{'h':>4} | {'QRC':>7} | {'QRC+RBF':>8} | "
+          + " | ".join(f"ESN{s:>6}" for s in sizes))
+    print("-" * (22 + 11 * len(sizes)))
+    for h in sorted(qrc, key=int):
+        t = qrc[h]["temp"]
+        row = f"{h:>4} | {t['r2']:>7.4f} | " \
+              f"{(t.get('rbf_r2') or float('nan')):>8.4f} | "
+        row += " | ".join(f"{esn[s][h]['temp']:>9.4f}" for s in sizes)
+        print(row)
 
 
 def print_narma_table(qrc: dict[int, dict]) -> None:
@@ -212,53 +301,64 @@ def print_esn_table(esn: dict[int, dict]) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Paper-4 NARMA reproduction runner")
-    ap.add_argument("--tau", type=float, default=0.01, help="evolution time (s)")
+    ap = argparse.ArgumentParser(description="Paper-4 reproduction runner (NARMA / weather)")
+    ap.add_argument("--task", choices=["narma", "weather"], default="narma")
+    ap.add_argument("--tau", type=float, default=0.01,
+                    help="evolution time (s); paper uses 0.01 NARMA / 0.03 weather")
     ap.add_argument("--n-peaks", type=int, default=653, help="FID spectral peaks")
     ap.add_argument("--fid-points", type=int, default=2048, help="FID samples/step")
     ap.add_argument("--n-train", type=int, default=400)
     ap.add_argument("--n-test", type=int, default=100)
+    ap.add_argument("--washout", type=int, default=100)
     ap.add_argument("--orders", type=int, nargs="+", default=list(NARMA_ORDERS),
-                    help="NARMA orders to run")
+                    help="NARMA orders (task=narma)")
+    ap.add_argument("--horizons", type=int, nargs="+", default=list(WEATHER_HORIZONS),
+                    help="forecast horizons (task=weather)")
+    ap.add_argument("--weather-train", default="data/weather/DailyDelhiClimateTrain.csv")
+    ap.add_argument("--weather-test", default="data/weather/DailyDelhiClimateTest.csv")
+    ap.add_argument("--max-days", type=int, default=None,
+                    help="cap the weather series length (smoke/reduced runs)")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--no-esn", action="store_true", help="skip the ESN baseline")
-    ap.add_argument(
-        "--out",
-        default="artifacts/qrc_paper4_narma.json",
-        help="JSON output path (checkpointed after every order)",
-    )
-    ap.add_argument(
-        "--run-dir",
-        default="artifacts/paper4_run",
-        help="dir for the live event log + progress.html trace",
-    )
+    ap.add_argument("--out", default=None, help="JSON output path")
+    ap.add_argument("--run-dir", default=None,
+                    help="dir for the live event log + progress.html trace")
     args = ap.parse_args()
 
     cfg = build_config(tau=args.tau, seed=args.seed, fid_points=args.fid_points,
-                       n_train=args.n_train, n_test=args.n_test)
+                       n_train=args.n_train, n_test=args.n_test, washout=args.washout)
     feature_cfg = FeatureConfig(readout="fid", n_peaks=args.n_peaks)
-    out = Path(args.out)
-    orders = tuple(args.orders)
-
-    log = ProgressLogger(run_dir=args.run_dir, title="QRC Paper-4 NARMA reproduction")
-    log.event("config",
-              f"crotonic9 tau={args.tau}s FID-{args.n_peaks} "
-              f"fid_points={cfg.sim.fid_points} n_train={cfg.training.n_train} "
-              f"orders={list(orders)}")
+    run_dir = args.run_dir or f"artifacts/paper4_{args.task}"
+    out = Path(args.out or f"artifacts/qrc_paper4_{args.task}.json")
+    log = ProgressLogger(run_dir=run_dir,
+                         title=f"QRC Paper-4 {args.task.upper()} reproduction")
     try:
-        qrc = run_narma_suite(cfg, feature_cfg, log, orders=orders, out_path=out)
-        esn = {} if args.no_esn else run_esn_baseline(cfg, log)
-        _save(out, cfg, feature_cfg, qrc, esn)
-        print_narma_table(qrc)
-        if esn:
-            print_esn_table(esn)
+        if args.task == "narma":
+            orders = tuple(args.orders)
+            log.event("config", f"crotonic9 tau={args.tau}s FID-{args.n_peaks} "
+                      f"fid_points={cfg.sim.fid_points} n_train={cfg.training.n_train} "
+                      f"orders={list(orders)}")
+            qrc = run_narma_suite(cfg, feature_cfg, log, orders=orders, out_path=out)
+            esn = {} if args.no_esn else run_esn_baseline(cfg, log)
+            _save(out, cfg, feature_cfg, qrc, esn)
+            print_narma_table(qrc)
+            if esn:
+                print_esn_table(esn)
+        else:  # weather
+            log.event("config", f"crotonic9 tau={args.tau}s FID-{args.n_peaks} "
+                      f"fid_points={cfg.sim.fid_points} horizons={list(args.horizons)}")
+            payload = run_weather(cfg, feature_cfg, log, args.weather_train,
+                                  args.weather_test, horizons=tuple(args.horizons),
+                                  out_path=out, use_rbf=not args.no_esn,
+                                  run_esn=not args.no_esn, max_days=args.max_days)
+            print_weather_table(payload)
         log.event("saved", f"results saved to {out.resolve()}")
         log.close("done", "reproduction complete")
     except Exception as exc:                       # keep the log on failure
         log.event("error", f"{type(exc).__name__}: {exc}")
         raise
     print(f"\nSaved results to {out.resolve()}")
-    print(f"Live trace: {(Path(args.run_dir) / 'progress.html').resolve()}")
+    print(f"Live trace: {(Path(run_dir) / 'progress.html').resolve()}")
 
 
 if __name__ == "__main__":

@@ -43,7 +43,7 @@ from app.qrc.tasks import (
     nmse_paper,
 )
 from app.qrc.training import evaluate, train_readout
-from app.qrc.utils import nmse, r2_score, squared_correlation
+from app.qrc.utils import nmse, normalize, r2_score, squared_correlation
 
 # ---------------------------------------------------------------------------
 # Reservoir assembly
@@ -509,3 +509,144 @@ def scaling_study(
                 flush=True,
             )
     return ScalingResult(ns, mcs, nmses, gates, esn_nmses, details)
+
+
+# ---------------------------------------------------------------------------
+# Weather forecasting (plan §10.2 / Paper 4) — the quantum-advantage task
+# ---------------------------------------------------------------------------
+
+
+def load_weather_series(
+    train_csv: str,
+    test_csv: str | None = None,
+    columns=("meantemp", "humidity"),
+):
+    """Load (+ optionally concatenate) the Delhi climate CSV(s) and min-max
+    normalize each column to [0, 1].
+
+    Returns ``(norm, scalers)`` where ``norm`` is ``(n_days, n_vars)`` in
+    [0,1] and ``scalers`` is a list of ``(lo, hi)`` per column for
+    denormalization. Concatenating train+test gives the ~1576-day series
+    the paper's 374/600/600 split needs.
+    """
+    import pandas as pd
+
+    frames = [pd.read_csv(train_csv)]
+    if test_csv:
+        frames.append(pd.read_csv(test_csv))
+    df = pd.concat(frames, ignore_index=True)
+    cols = []
+    scalers = []
+    for c in columns:
+        s, lo, hi = normalize(df[c].to_numpy(dtype=float))
+        cols.append(s)
+        scalers.append((lo, hi))
+    return np.column_stack(cols), scalers
+
+
+def _weather_input(weather_norm, n_steps, n_qubits, proton_idx, carbon_idx):
+    """Build the (n_steps, n_qubits) reservoir drive: temperature (col 0) as a
+    global rotation on the proton spins, humidity (col 1) on the carbon spins
+    (Paper 4's multivariate encoding)."""
+    seq = np.zeros((n_steps, n_qubits))
+    seq[:, proton_idx] = weather_norm[:n_steps, 0:1]      # temp -> protons
+    seq[:, carbon_idx] = weather_norm[:n_steps, 1:2]      # humidity -> carbons
+    return seq
+
+
+def run_weather_reservoir(
+    cfg: QRCConfig,
+    weather_norm: np.ndarray,
+    n_steps: int,
+    feature_cfg: FeatureConfig | None = None,
+    proton_idx=(4, 5, 6, 7, 8),
+    carbon_idx=(0, 1, 2, 3),
+    progress_cb=None,
+) -> np.ndarray:
+    """One reservoir pass over the weather series → readout matrix X.
+
+    The (expensive) FID reservoir is run once; the caller fits cheap
+    per-horizon, per-variable readouts on the returned X (multitasking)."""
+    system = QRCSystem(cfg.system, cfg.sim)
+    encoder = Encoder(system, cfg.encoding)
+    res = Reservoir(system, encoder, feature_cfg)
+    seq = _weather_input(weather_norm, n_steps, system.n,
+                         list(proton_idx), list(carbon_idx))
+    out = res.run(seq, progress_cb=progress_cb)
+    return out.X
+
+
+def forecast_from_X(
+    X: np.ndarray,
+    weather_norm: np.ndarray,
+    horizons,
+    tr_cfg: TrainingConfig,
+    var_names=("temp", "humidity"),
+    use_rbf: bool = False,
+) -> dict:
+    """Fit ridge (and optional RBF-SVR) readouts predicting ``weather_norm``
+    at each forecast horizon from the reservoir features ``X`` (row k → day
+    k+h). Returns ``{h: {var: {"r2":.., "rbf_r2":..}}}`` on the test block."""
+    n_steps = X.shape[0]
+    out: dict = {}
+    for h in horizons:
+        per_var: dict = {}
+        for j, name in enumerate(var_names):
+            y = weather_norm[np.arange(n_steps) + h, j]
+            Xtr, ytr, Xte, yte = _split(
+                X, y, tr_cfg.washout, tr_cfg.n_train, tr_cfg.n_test
+            )
+            model = train_readout(Xtr, ytr, tr_cfg)
+            rec = {"r2": r2_score(yte, model.predict(Xte))}
+            if use_rbf:
+                rbf = svr_readout(Xtr, ytr, Xte, yte)
+                rec["rbf_r2"] = rbf["r2"] if rbf else None
+            per_var[name] = rec
+        out[h] = per_var
+    return out
+
+
+def esn_weather_sweep(
+    weather_norm: np.ndarray,
+    horizons,
+    sizes=(500, 1000, 5000, 10000),
+    tr_cfg: TrainingConfig | None = None,
+    var_names=("temp", "humidity"),
+    seed: int = 0,
+) -> dict:
+    """Classical multivariate-ESN baseline for weather forecasting.
+
+    A leaky ESN driven by the 2-D weather series; per size, fits a ridge
+    readout per variable per horizon. Returns
+    ``{size: {h: {var: r2}}}``. This is the Paper-4 comparison the QRC's
+    advantage claim rests on."""
+    tr_cfg = tr_cfg or TrainingConfig()
+    rng = np.random.default_rng(seed)
+    n_in = weather_norm.shape[1]
+    n_steps = weather_norm.shape[0] - max(horizons)
+    u = weather_norm[:n_steps]
+    result: dict = {}
+    for m in sizes:
+        Win = rng.uniform(-0.5, 0.5, size=(m, n_in))
+        W = rng.uniform(-0.5, 0.5, size=(m, m))
+        radius = _spectral_radius(W, "power" if m > 2000 else "exact", seed)
+        if radius > 0:
+            W *= 0.9 / radius
+        x = np.zeros(m)
+        X = np.zeros((n_steps, m))
+        for k in range(n_steps):
+            x = np.tanh(Win @ u[k] + W @ x)
+            X[k] = x
+        per_h: dict = {}
+        for h in horizons:
+            per_var = {}
+            for j, name in enumerate(var_names):
+                y = weather_norm[np.arange(n_steps) + h, j]
+                Xtr, ytr, Xte, yte = _split(
+                    X, y, tr_cfg.washout, tr_cfg.n_train, tr_cfg.n_test
+                )
+                model = train_readout(Xtr, ytr, tr_cfg)
+                per_var[name] = r2_score(yte, model.predict(Xte))
+            per_h[h] = per_var
+        result[m] = per_h
+    return result
