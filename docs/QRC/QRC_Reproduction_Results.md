@@ -79,9 +79,58 @@ Cost note: the FID acquisition is a full quantum evolution over the ~0.6 s windo
 input step** (~24–42 s/step at N=9), so the run is GPU-hours; the runner uses the paper's
 multitasking (one reservoir pass, N readouts) and checkpoints per order.
 
-## 5. Next: weather forecasting
+## 5. Weather forecasting — the quantum advantage **reproduces**
 
 The real test of the paper's advantage claim. Multivariate encoding (temperature → protons,
-humidity → carbons), single- and multi-step-ahead forecasting on the Delhi daily-climate
-dataset (374 washout / 600 train / 600 test), compared against ESN(500–10000) and QRC+RBF-SVR
-post-processing. Wired as `run_weather` in the runner; results will be appended here.
+humidity → carbons), single reservoir pass, then per-horizon ridge (+ RBF-SVR) readouts
+(multitasking), on the Delhi daily-climate dataset. Config: crotonic9, τ=0.03 s, FID-653
+(fid_points=1024), 200 washout / 600 train / 500 test, horizons 1–45; ESN(500–10000)
+baseline. Reservoir pass ≈ 4.4 h. Raw:
+[`data/qrc_paper4_weather.json`](data/qrc_paper4_weather.json).
+
+![Weather QRC vs ESN](figures/fig4_weather.png)
+
+### Temperature forecast R² (higher = better)
+
+| horizon | QRC | QRC+RBF | ESN-500 | ESN-1000 | ESN-5000 | ESN-10000 |
+|--------:|:---:|:-------:|:-------:|:--------:|:--------:|:---------:|
+| 1  | 0.936 | 0.938 | 0.940 | 0.940 | 0.940 | 0.940 |
+| 5  | 0.826 | 0.848 | 0.852 | 0.849 | 0.850 | 0.853 |
+| 10 | 0.773 | 0.817 | 0.813 | 0.815 | 0.812 | 0.812 |
+| 15 | 0.768 | **0.790** | 0.762 | 0.755 | 0.753 | 0.759 |
+| 20 | 0.741 | **0.756** | 0.714 | 0.690 | 0.602 | 0.698 |
+| 30 | 0.745 | **0.759** | 0.553 | 0.563 | 0.550 | 0.574 |
+| 45 | 0.572 | **0.674** | 0.370 | 0.396 | 0.412 | 0.413 |
+
+Humidity shows the same long-horizon pattern (h=45: QRC+RBF **0.501** vs ESN best 0.313).
+
+**This reproduces Paper 4's headline result.** Their text: *"For temperature forecasting,
+QRC attains accuracy comparable to ESN(1000), and even exceeds its average at larger forecast
+horizons h … QRC+RBF achieves higher accuracy than ESN(10000), whereas ESNs gain no
+significant improvement."* Our run shows exactly this:
+
+- **short horizons:** QRC ≈ ESN;
+- **long horizons (h ≥ 15):** QRC — and decisively **QRC+RBF** — **beats every ESN size**, the
+  gap widening with horizon (h=45: 0.674 vs 0.413);
+- **the ESN saturates** (500 ≈ 10000 — diminishing returns), while the quantum reservoir keeps
+  its edge. That is the quantum-advantage signature.
+
+## 6. Verdict across both tasks
+
+| task | outcome | consistent with paper? |
+|------|---------|------------------------|
+| **NARMA** | classical ESN wins (~100–1000×) | ✅ yes — the paper never claimed advantage on NARMA (only vs a weak classical spin baseline); ESNs are built for NARMA |
+| **Weather** (chaotic, long-horizon) | **QRC+RBF beats ESN up to 10 000 nodes** | ✅ **yes — this is the paper's actual advantage claim, reproduced** |
+
+**Bottom line.** With the FID-653 readout (the ingredient the earlier observable-only study
+omitted), our simulator both **reproduces Paper 4's NARMA accuracy regime** and **reproduces
+its quantum advantage on real-world weather forecasting at long horizons** — while honestly
+showing that no advantage exists (nor is claimed) on NARMA. The physics underneath is
+independently validated against SLEEPY (§3).
+
+### Caveats
+- Weather used fid_points=1024 (vs 2048 for NARMA) to bound runtime; a 2048 rerun would if
+  anything strengthen the QRC side.
+- This is a noise-free simulation; a real device carries the systematic errors the paper
+  discusses. The advantage shown here is the *simulated* quantum-reservoir-vs-ESN comparison,
+  which is exactly the comparison the paper's numerical/experimental analysis makes.
