@@ -342,9 +342,11 @@ para(
 )
 figure("fig6_weather_sim_vs_expt.png",
        "Figure 3. Temperature (left) and humidity (right) forecast skill: this simulation "
-       "(solid) versus the Hou et al. experiment (dashed; digitized from their Fig. 4b, "
-       "approximate). Short-horizon agreement is close; the quantum reservoir’s long-horizon "
-       "advantage over saturating classical ESNs is present in both.")
+       "(solid lines) versus the Hou et al. experiment (dashed lines; digitized from their "
+       "Fig. 4b, approximate). Shaded regions are the classical ESN(500–10000) bands for this "
+       "work (blue) and the experiment (red). In both, the QRC—and especially QRC+RBF—rises "
+       "above the ESN band at long horizon, where the ESN saturates; short-horizon agreement "
+       "between simulation and experiment is close.")
 
 heading("3.4 Compute performance", level=2)
 para(

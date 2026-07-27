@@ -129,7 +129,9 @@ significant improvement."* Our run shows exactly this:
 ![Weather sim vs experiment](figures/fig6_weather_sim_vs_expt.png)
 
 *Figure: our simulation (solid) vs Hou et al.'s experiment (dashed; values digitized from
-Fig 4b, approximate ±0.03), same scale, at our forecast horizons.*
+Fig 4b, approximate ±0.03), same scale, at our forecast horizons. Shaded bands are the
+classical ESN(500–10000) baselines — blue = this work (exact), red = experiment (digitized).
+In both, QRC+RBF sits well above the ESN band at long horizon while the ESN saturates.*
 
 Overlaying the paper's own experimental curves:
 
