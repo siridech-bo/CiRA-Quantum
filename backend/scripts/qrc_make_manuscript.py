@@ -330,6 +330,21 @@ figure("fig4_weather.png",
        "Figure 2. Weather-forecast skill (R²) versus horizon for temperature (left) and "
        "humidity (right). QRC and QRC+RBF match the ESNs at short range and overtake them at "
        "long range, where the ESNs saturate with size.")
+para(
+    "A direct comparison with the experiment (Figure 3; Hou et al. Fig. 4b, values digitized "
+    "and therefore approximate) shows the same qualitative advantage in both simulation and "
+    "experiment, with QRC+RBF the flattest, highest curve. Quantitatively, humidity agrees "
+    "closely across horizons, whereas for temperature our simulation is the more conservative "
+    "estimate at long range (45-day R² ≈ 0.67 simulated vs ≈ 0.82 experimental)—plausibly "
+    "because this run used a reduced FID acquisition (1024 vs 2048 samples) and a smaller test "
+    "split than the experiment. The simulation thus reproduces the advantage without "
+    "overstating it."
+)
+figure("fig6_weather_sim_vs_expt.png",
+       "Figure 3. Temperature (left) and humidity (right) forecast skill: this simulation "
+       "(solid) versus the Hou et al. experiment (dashed; digitized from their Fig. 4b, "
+       "approximate). Short-horizon agreement is close; the quantum reservoir’s long-horizon "
+       "advantage over saturating classical ESNs is present in both.")
 
 heading("3.4 Compute performance", level=2)
 para(

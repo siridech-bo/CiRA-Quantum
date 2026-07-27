@@ -167,13 +167,12 @@ figure("fig5_narma_vs_experiment.png",
        "Figure S1. NARMA NMSE versus order: this work (simulation, FID-653) against the "
        "experimental values of Hou et al. 2026 (Table I). Both occupy the same "
        "high-accuracy regime.")
-para("Note on the weather comparison: Hou et al. report weather-forecasting skill only as "
-     "a figure (their Fig. 4b), without a numerical table, and their raw outputs are "
-     "distributed as large archived files. We therefore compare weather performance "
-     "against classical ESNs computed under identical conditions in this work (main-text "
-     "Table 3 / Fig. 2), which is the same quantum-reservoir-vs-ESN comparison the "
-     "original figure makes; a numerical overlay of their experimental curve is not "
-     "reproduced here to avoid imprecise figure digitisation.", size=10)
+para("Weather comparison with the experiment: Hou et al. report weather skill only as a "
+     "figure (their Fig. 4b), without a numerical table. For the main-text sim-vs-experiment "
+     "overlay (Figure 3) we digitised their QRC and QRC+RBF curves from Fig. 4b at our "
+     "forecast horizons; these values are approximate (±~0.03) and are labelled as such. "
+     "Digitised Paper-4 temperature R² (QRC+RBF): h=1,15,30,45 ≈ 0.92, 0.85, 0.83, 0.82; "
+     "QRC ≈ 0.92, 0.80, 0.72, 0.67. Humidity (QRC+RBF) ≈ 0.72, 0.52, 0.48, 0.47.", size=10)
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
 doc.save(str(OUT))
