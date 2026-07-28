@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-07-28 | **Launched full weather trace-gen** (2048 fid_points, 1474 steps) | 🔵 running `trace-gen-c46c804f` · ETA ~8 h · live bar in UI | — |
 | 2026-07-28 | Deployer handoff doc (`deploy/QRC_DEPLOY.md`) | ✅ in-tree deploy instructions for `quantum.cira-core.com/qrc` | `5c5bfc8`+ |
 | 2026-07-28 | Feature-Lab UI: `/embedding` endpoint + scatter + Exp 1.1/1.2/1.3 charts | ✅ built, 22 tests pass, type-check clean | `fb8127b` |
 | 2026-07-28 | trace-gen live progress (per-step `status.json` + event log) | ✅ verified via `/progress` parser | `34090fd` |
@@ -35,7 +36,7 @@ state, so we always know *what is left*.
 | Phase | Title | State | Blocking dependency |
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
-| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🟡 **Code ready — NOT RUN** (validated on a preview trace) | trace-gen cache (~19 h), then a fast phase1 pass |
+| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🔵 **In progress** — full weather trace-gen running (`trace-gen-c46c804f`, ETA ~8 h); phase1 sweep auto-runs on completion | trace-gen → phase1 pass |
 | **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
