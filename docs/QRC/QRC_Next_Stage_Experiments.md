@@ -42,19 +42,40 @@ progress live. Both consume the same artifacts, so they ship together.
   (weather R² @ h=1,10,20,30,45; NARMA-10 NMSE; feature count; wall-clock; delta-vs-baseline);
   standardized JSON + auto summary table.
 
-### 0.C Backend API (Flask blueprint `/api/qrc`, mirrors `app/routes/qml.py`)
+### 0.C Backend API + run control (Flask blueprint `/api/qrc`, mirrors `app/routes/qml.py`)
+
+**Deployment note — GPU locality.** QRC runs require the local GPU (RTX 5070 Ti); the Cloudflare
+production container has no GPU. Therefore the `qrc_bp` **launcher + execution run on the dev box**,
+exposed to the SPA via a **Cloudflare Tunnel** (auth-gated), with the dev box acting as the worker.
+The SPA (on Cloudflare/R2) calls this dev-box API for QRC control, progress, FID and results.
+
 Register `qrc_bp` at `/api/qrc` in `app/__init__.py`. Endpoints:
-- `GET /api/qrc/runs` — list runs (id, task, config, status) from the artifacts/run registry.
+
+*Monitor (read-only):*
+- `GET /api/qrc/runs` — list runs (id, task, config, status) from the run registry.
 - `GET /api/qrc/runs/<id>/progress` — progress events (poll `events.jsonl`; SSE optional, matching
   the existing solve-stream pattern): phase, step/total, ETA, event log, per-order/horizon results.
-- `GET /api/qrc/runs/<id>/fid?step=k` — for input step *k*: time-domain FID (t, real, imag, |.|)
-  **and** its frequency content (freq_Hz, magnitude, plus the selected 653 peak positions), read
-  from the trace `.npz`.
-- `GET /api/qrc/runs/<id>/results` — the results JSON (NARMA/weather tables, ESN comparison).
+- `GET /api/qrc/runs/<id>/fid?step=k` — time-domain FID (t, real, imag, |.|) **and** frequency
+  content (freq_Hz, magnitude, selected 653 peak positions), read from the trace `.npz`.
+- `GET /api/qrc/runs/<id>/results` — results JSON (NARMA/weather tables, ESN comparison).
+
+*Control (auth-gated — reuse `auth_bp`/admin; these launch GPU jobs):*
+- `POST /api/qrc/runs` — launch a run from a JSON config (`task` ∈ trace-gen / narma / weather /
+  phase1; fid_points, splits, horizons, feature method, …). Spawns the existing runner as a managed
+  subprocess on the dev box (mirror the QML/solve launcher: run registry + PID + `events.jsonl`),
+  returns a run id. Enforce a **single-GPU-job lock** (one heavy run at a time) + a config allow-list.
+- `POST /api/qrc/runs/<id>/stop` — terminate a running job.
+- `GET /api/qrc/runs/<id>/status` — running / done / failed + exit info.
+
+This makes the UI a **remote control plane**: submit, monitor, and stop GPU runs entirely from the
+browser while away from the dev box. Operational requirement: the dev box stays powered and the
+tunnel stays up (it is the worker).
 
 ### 0.D Frontend UI (Vue 3 + Vuetify + Pinia, mirrors the QML pages)
 - `stores/qrc.ts` (axios), router entries `/qrc` and `/qrc/runs/:id`.
-- `QrcDashboardPage.vue` — list of runs with live status (task, progress %, ETA).
+- `QrcDashboardPage.vue` — list of runs with live status (task, progress %, ETA), **plus a
+  "New run" control** (choose task + config → `POST /api/qrc/runs`) and per-run **Stop** buttons
+  (auth-gated). This is the remote command surface.
 - `QrcRunDetailPage.vue` — the core view:
   - **FID time-domain plot** (real + imaginary vs time) with a **step slider** to scrub input steps.
   - **Frequency-domain plot** (magnitude spectrum vs Hz) with the 653 selected peaks highlighted.
