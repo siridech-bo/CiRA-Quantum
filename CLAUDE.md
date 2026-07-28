@@ -59,6 +59,13 @@ architecture, or where things run. If something here proves wrong, fix it here.
 - Commit on the feature branch for QRC work; only merge to `main` once a stage
   is validated + reviewed.
 
+## Progress tracking (strict)
+
+- Keep **`docs/QRC/QRC_Next_Stage_Status.md` + `.html`** current. Update them
+  **on every subtask completion** — prepend a row to the "Session activity log"
+  and flip any affected phase/scoreboard state. This is the user's standing
+  rule for knowing what Claude is up to; do not batch it or skip it.
+
 ## Conventions
 
 - Windows host; primary shell is PowerShell, Bash tool also available. Write

@@ -66,24 +66,39 @@
   <h1>QRC Next-Stage — Implementation Status</h1>
   <p class="sub">Traces every phase in
     <a href="./QRC_Next_Stage_Experiments.md">QRC_Next_Stage_Experiments.md</a>
-    to its real state. &nbsp;Updated 2026-07-28.</p>
+    to its real state. &nbsp;Updated 2026-07-28 — Feature-Lab UI shipped, trace-gen progress wired.
+    <br><b>Update rule:</b> refreshed strictly on every subtask completion.</p>
 
-  <div class="bar" title="Roughly 1 of 6 core phases complete, 1 code-ready"><i style="width:22%"></i></div>
+  <div class="bar" title="Phase 0 done, UI+ done, Ops in progress, Phase 1 ready to run"><i style="width:40%"></i></div>
   <div class="legend">
     <span class="pill d-done"><span class="dot"></span>Done — built &amp; exercised</span>
+    <span class="pill" style="background:rgba(77,163,255,.14);color:#4da3ff;border-color:var(--border)"><span class="dot" style="background:#4da3ff"></span>In progress</span>
     <span class="pill d-run"><span class="dot"></span>Code ready — NOT RUN</span>
     <span class="pill d-prim"><span class="dot"></span>Primitive only — no runner</span>
     <span class="pill d-none"><span class="dot"></span>Not started</span>
   </div>
+
+  <h2>Session activity log <span style="font-size:.7em;color:var(--muted);font-weight:400">(newest first)</span></h2>
+  <div class="scroll"><table>
+    <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
+    <tbody>
+      <tr><td>07-28</td><td>Feature-Lab UI: <code>/embedding</code> + scatter + Exp 1.1/1.2/1.3 charts</td><td><span class="tag t-done">built · 22 tests · type-check clean</span></td><td><code>fb8127b</code></td></tr>
+      <tr><td>07-28</td><td>trace-gen live progress (per-step <code>status.json</code> + event log)</td><td><span class="tag t-done">verified via /progress</span></td><td><code>34090fd</code></td></tr>
+      <tr><td>07-28</td><td>Frontend production build from <code>qrc-simulation</code></td><td><span class="tag t-done">dist/ verified</span></td><td>—</td></tr>
+      <tr><td>07-28</td><td>Preview trace (240 steps) + preview <code>phase1</code> run</td><td><span class="tag t-done">phase1-163c2c60 · UI populated · presentation approved</span></td><td>—</td></tr>
+      <tr><td>07-28</td><td><code>CLAUDE.md</code>: deploy architecture; dev box == prod box (.167)</td><td><span class="tag t-done">recorded</span></td><td><code>721ecf4</code>,<code>34090fd</code></td></tr>
+      <tr><td>07-28</td><td>Status tracker created + Plan_2 under VCS</td><td><span class="tag t-done">done</span></td><td><code>8f0d5a4</code></td></tr>
+    </tbody>
+  </table></div>
 
   <h2>Scoreboard</h2>
   <div class="scroll"><table>
     <thead><tr><th>Phase</th><th>Title</th><th>State</th><th>Blocking dependency</th></tr></thead>
     <tbody>
       <tr><td><b>0</b></td><td>Instrumentation: trace cache + FID/progress UI + run control</td>
-        <td><span class="tag t-done">Done</span></td><td>— (2 minor gaps)</td></tr>
+        <td><span class="tag t-done">Done — both gaps closed</span></td><td>—</td></tr>
       <tr><td><b>1</b></td><td>Flag-level feature experiments (phase / multimodal / selection incl. UMAP)</td>
-        <td><span class="tag t-run">Code ready — not run</span></td><td>trace-gen cache (~19 h) → phase1 pass</td></tr>
+        <td><span class="tag t-run">Code ready — not run (validated on preview)</span></td><td>trace-gen cache (~19 h) → phase1 pass</td></tr>
       <tr><td><b>2</b></td><td>Encoding sweep (7 functions / phase-amp / protons-only)</td>
         <td><span class="tag t-prim">Primitives — no runner</span></td><td>build <code>qrc_phase2.py</code>; needs re-evolution</td></tr>
       <tr><td><b>3</b></td><td>External feature libraries (tsfresh, nmrglue)</td>
@@ -95,9 +110,9 @@
       <tr><td><b>6</b></td><td>Encoding × feature interaction + τ sweep</td>
         <td><span class="tag t-none">Not started (gated)</span></td><td>best encoding × best features</td></tr>
       <tr><td><b>UI+</b></td><td>Feature-Lab UI: Phase-1 sweep panel + UMAP/PCA embedding scatter</td>
-        <td><span class="tag t-none">Not started</span></td><td>Phase-1 results to visualize</td></tr>
-      <tr><td><b>Ops</b></td><td>Remote command via Cloudflare Tunnel (run from browser off-box)</td>
-        <td><span class="tag t-none">Not started</span></td><td>deploy + auth-gated tunnel</td></tr>
+        <td><span class="tag t-done">Done — presentation approved</span></td><td>—</td></tr>
+      <tr><td><b>Ops</b></td><td>Remote access at <code>quantum.cira-core.com/qrc</code> (run/watch off-box)</td>
+        <td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">In progress — build done, deployer handoff ready</span></td><td>ship branch + Cloudflare Access</td></tr>
     </tbody>
   </table></div>
 
@@ -111,8 +126,8 @@
         <tr><td>0.B Offline evaluation harness</td><td><span class="tag t-done">Done</span></td><td><code>app/qrc/feature_lab.py</code></td></tr>
         <tr><td>0.C Backend API + run control (7 routes, auth-gated launch/stop, allow-list, single-job lock)</td><td><span class="tag t-done">Done</span></td><td><code>routes/qrc.py</code>, <code>qrc/launcher.py</code></td></tr>
         <tr><td>0.D Frontend UI (dashboard, run detail, FID + spectrum charts, new-run dialog, results)</td><td><span class="tag t-done">Done</span></td><td><code>views/Qrc*.vue</code>, <code>components/Qrc*.vue</code></td></tr>
-        <tr><td>trace-gen live progress (step/ETA in UI)</td><td><span class="tag t-run">Gap</span></td><td><code>qrc_gen_traces.py</code> not yet emitting <code>status()</code></td></tr>
-        <tr><td>Remote command off-box</td><td><span class="tag t-none">Gap</span></td><td>auth-gated Cloudflare Tunnel (GPU is dev-box-local)</td></tr>
+        <tr><td>trace-gen live progress (step/ETA in UI)</td><td><span class="tag t-done">Done (34090fd)</span></td><td>per-step <code>status.json</code> + event log; verified via /progress</td></tr>
+        <tr><td>Remote access off-box → see <b>Ops</b> row</td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">In progress</span></td><td>prod host IS this box (.167) with the GPU — see CLAUDE.md</td></tr>
       </tbody>
     </table></div>
   </div>
@@ -185,24 +200,24 @@
   </div>
 
   <div class="card">
-    <div class="phase-h"><span class="num">UI+</span><h3>Feature-Lab UI (new, raised 2026-07-28)</h3><span class="tag t-none">Not started</span></div>
+    <div class="phase-h"><span class="num">UI+</span><h3>Feature-Lab UI</h3><span class="tag t-done">Done — presentation approved</span></div>
     <div class="scroll"><table>
       <tbody>
-        <tr><td>Feature-Lab panel — Phase-1 sweep (R² vs #features per method) as interactive chart</td><td><span class="tag t-none">Not started</span></td><td>—</td></tr>
-        <tr><td><b>UMAP/PCA embedding view</b> — backend endpoint → 2D projection; frontend scatter colored by target</td><td><span class="tag t-none">Not started</span></td><td>—</td></tr>
+        <tr><td>Feature-Lab panel — Exp 1.1/1.2 method bars + Exp 1.3 selection-sweep chart (interactive, replaces static PNG)</td><td><span class="tag t-done">Done</span></td><td><code>QrcFeatureLabPanel.vue</code></td></tr>
+        <tr><td><b>UMAP/PCA embedding view</b> — <code>/embedding</code> → 2-D projection server-side; canvas scatter coloured by target, test points ringed</td><td><span class="tag t-done">Done</span></td><td><code>QrcEmbeddingScatter.vue</code>, <code>routes/qrc.py</code></td></tr>
       </tbody>
     </table></div>
-    <p class="note">Neither plan doc specs a UMAP <i>visualization</i> — UMAP appears only as a <b>reducer</b> (Exp 1.3 / 4.1 R3). The embedding scatter is a new proposed addition.</p>
+    <p class="note">Validated on preview run <code>phase1-163c2c60</code> (23 sweep rows, 240-point embedding; PCA + UMAP both working). <b>Presentation approved by user 2026-07-28.</b> Neither plan doc specs a UMAP <i>visualization</i> — UMAP was only a <b>reducer</b> (Exp 1.3 / 4.1 R3); this scatter was a new addition.</p>
   </div>
 
   <h2>What is left — priority order</h2>
   <ol class="prio">
-    <li><b>Run Phase 1</b> (unblocks the most): trace-gen cache → <code>qrc_phase1.py</code> → decision gate. Phase 4, the Feature-Lab UI, and the UMAP view all need this data.</li>
-    <li><b>Close the two Phase-0 gaps:</b> trace-gen live progress; remote Cloudflare Tunnel.</li>
-    <li><b>Build the Feature-Lab UI</b> (Phase-1 sweep panel + UMAP/PCA embedding scatter).</li>
+    <li><b>Run Phase 1 for real</b> (unblocks the most): full trace-gen cache (~19 h, now with a live progress bar) → <code>qrc_phase1.py</code> → decision gate. The Feature-Lab UI is ready and waiting to display the real numbers.</li>
+    <li><b>Ship remote access</b> — deployer serves the branch at <code>quantum.cira-core.com/qrc</code> + Cloudflare Access (build handed off).</li>
     <li><b>Build the Phase-2 runner</b> (<code>qrc_phase2.py</code>) — encoding / phase-amp / protons-only.</li>
     <li><b>Phase 3</b> (tsfresh, nmrglue) → <b>Phase 4 full grid</b> → gated <b>Phase 5 / 6</b>.</li>
   </ol>
+  <p class="note" style="margin-top:10px">Done since v1 of this tracker: the Phase-0 progress gap, the Feature-Lab UI, and the UMAP/PCA embedding view — see the activity log up top.</p>
 
   <p class="foot">Generated as a living tracker for the QRC sub-project. Source of truth:
     <code>docs/QRC/QRC_Next_Stage_Status.md</code>.</p>

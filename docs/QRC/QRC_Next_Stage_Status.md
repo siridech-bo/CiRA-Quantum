@@ -1,15 +1,28 @@
 # QRC Next-Stage — Implementation Status Tracker
 
 **Source plan:** [`QRC_Next_Stage_Experiments.md`](./QRC_Next_Stage_Experiments.md)
-**Last updated:** 2026-07-28
+**Last updated:** 2026-07-28 (Feature-Lab UI shipped; trace-gen progress wired)
 **Purpose:** one place that traces every phase/experiment in the plan to its real
 state, so we always know *what is left*.
+**Update rule:** this tracker is updated **strictly on every subtask completion**.
+
+## Session activity log (newest first)
+
+| When | Subtask | Result | Commit |
+|------|---------|--------|--------|
+| 2026-07-28 | Feature-Lab UI: `/embedding` endpoint + scatter + Exp 1.1/1.2/1.3 charts | ✅ built, 22 tests pass, type-check clean | `fb8127b` |
+| 2026-07-28 | trace-gen live progress (per-step `status.json` + event log) | ✅ verified via `/progress` parser | `34090fd` |
+| 2026-07-28 | Frontend production build from `qrc-simulation` | ✅ `dist/` verified (QRC + Feature-Lab bundled) | — |
+| 2026-07-28 | Preview trace (240 steps) + preview `phase1` run | ✅ `phase1-163c2c60` done; UI populated (PCA+UMAP work) | — |
+| 2026-07-28 | `CLAUDE.md`: deploy architecture; dev box == prod box (`.167`) | ✅ | `721ecf4`, `34090fd` |
+| 2026-07-28 | Status tracker created (this file) + Plan_2 under VCS | ✅ | `8f0d5a4` |
 
 ## Legend
 
 | Mark | Meaning |
 |------|---------|
 | ✅ **Done** | Code written, wired, and exercised (or shipped). |
+| 🔵 **In progress** | Being worked now; partially landed. |
 | 🟡 **Code ready — NOT RUN** | Runner + code exist and pass tests, but no experiment has been executed → no results yet. Needs the trace cache and a compute pass. |
 | 🟠 **Primitive only — no runner** | The physics/feature knob exists in the engine, but there is **no experiment driver** that sweeps it and no results. |
 | ⬜ **Not started** | No code. |
@@ -20,15 +33,15 @@ state, so we always know *what is left*.
 
 | Phase | Title | State | Blocking dependency |
 |-------|-------|-------|---------------------|
-| **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** | — (two minor gaps below) |
-| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🟡 **Code ready — NOT RUN** | trace-gen cache (~19 h), then a fast phase1 pass |
+| **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
+| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🟡 **Code ready — NOT RUN** (validated on a preview trace) | trace-gen cache (~19 h), then a fast phase1 pass |
 | **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
 | **5** | Self-supervised representation learning (autoencoder, TS2Vec) | ⬜ **Not started** (gated) | only if Phase 4 shows headroom |
 | **6** | Encoding × feature interaction + τ sweep | ⬜ **Not started** (gated) | best encoding (P2) × best features (P3) |
-| **UI+** | Feature-Lab UI: Phase-1 sweep panel + UMAP/PCA embedding scatter | ⬜ **Not started** | Phase-1 results to visualize |
-| **Ops** | Remote command via Cloudflare Tunnel (run from browser off-box) | ⬜ **Not started** | deploy + auth-gated tunnel; dev box powered |
+| **UI+** | Feature-Lab UI: Phase-1 sweep panel + UMAP/PCA embedding scatter | ✅ **Done** | — (populated by a phase1 run) |
+| **Ops** | Remote access at `quantum.cira-core.com/qrc` (run/watch from browser off-box) | 🔵 **In progress** — frontend build done + deployer handoff ready; tunnel/serve pending | deployer ships branch + Cloudflare Access |
 
 ---
 
@@ -41,13 +54,16 @@ state, so we always know *what is left*.
 | 0.C Backend API + run control (`/api/qrc`, 7 routes, auth-gated launch/stop, allow-list, single-job lock) | ✅ | `backend/app/routes/qrc.py`, `backend/app/qrc/launcher.py` |
 | 0.D Frontend UI (dashboard, run detail, FID time chart, spectrum, new-run dialog, results) | ✅ | `frontend/src/views/Qrc*.vue`, `frontend/src/components/Qrc*.vue`, `frontend/src/stores/qrc.ts` |
 
-**Two open gaps in Phase 0:**
-1. 🟡 **trace-gen live progress** — `qrc_gen_traces.py` does not yet emit
-   `ProgressLogger.status()` step/ETA, so the UI progress bar + event log stay
-   empty during a trace-gen run (results still land correctly).
-2. ⬜ **Remote command** — the UI runs locally; commanding runs from a browser
-   while away needs the launcher exposed via an auth-gated Cloudflare Tunnel
-   (quantum.cira-core.com has no GPU; the RTX 5070 Ti is dev-box-local).
+**Phase 0 gaps — both now closed:**
+1. ✅ **trace-gen live progress** — `qrc_gen_traces.py` now emits per-step
+   `ProgressLogger.status()` (phase/step/total/ETA) + an event log into the
+   run-dir, so `GET /runs/<id>/progress` drives a live bar + ETA in the UI
+   (commit `34090fd`). Verified through the backend parser.
+2. 🔵 **Remote access** — moved to the **Ops** row. The frontend build is done
+   and the deployer handoff is ready; what remains is shipping the branch +
+   Cloudflare Access so `quantum.cira-core.com/qrc` is reachable off-box.
+   (Correction: the prod host **is** this dev box, `DESKTOP-1A0J7FD`/`.167`,
+   and it **has** the RTX 5070 Ti — see `CLAUDE.md`.)
 
 ---
 
@@ -127,26 +143,30 @@ Only pursued "if Phase 4 shows headroom."
 
 ---
 
-## UI additions (raised 2026-07-28) ⬜ NOT STARTED
+## UI+ Feature-Lab (raised 2026-07-28) ✅ DONE — presentation approved
 
-Not part of the original plan text, but the natural next UI increment:
+| Item | What | State | Where |
+|------|------|-------|-------|
+| Feature-Lab panel | Exp 1.1/1.2 method-comparison bars + Exp 1.3 selection-sweep chart (interactive, replaces the static PNG) | ✅ | `frontend/src/components/QrcFeatureLabPanel.vue` |
+| **UMAP/PCA embedding view** | `GET /runs/<id>/embedding` → 2-D projection (PCA/UMAP) computed server-side; canvas scatter coloured by target, test points ringed | ✅ | `QrcEmbeddingScatter.vue`, `backend/app/routes/qrc.py` |
 
-| Item | What | State |
-|------|------|-------|
-| Feature-Lab panel | Surface the Phase-1 sweep (R² vs #features per method) as an interactive chart instead of a static PNG | ⬜ |
-| **UMAP/PCA embedding view** | Backend endpoint → 2D projection of reservoir feature vectors; frontend scatter colored by target | ⬜ |
+Validated on preview run `phase1-163c2c60` (23 sweep rows, 240-point embedding;
+PCA + UMAP both working). **Presentation approved by user 2026-07-28.**
 
-> Note: neither plan doc actually specs a "UMAP *visualization*" — UMAP appears
-> only as a **reducer** (Exp 1.3 / 4.1 R3). The embedding scatter above is a new,
-> proposed addition.
+> Note: neither plan doc specs a "UMAP *visualization*" — UMAP is only a
+> **reducer** (Exp 1.3 / 4.1 R3). This embedding scatter was a new addition.
 
 ---
 
 ## What is left, in priority order
 
-1. **Run Phase 1** (unblocks the most): trace-gen cache → `qrc_phase1.py` → gate.
-   Everything downstream (Phase 4, the Feature-Lab UI, UMAP viz) needs this data.
-2. **Close the two Phase-0 gaps:** trace-gen live progress; remote Cloudflare Tunnel.
-3. **Build the Feature-Lab UI** (Phase-1 sweep panel + UMAP/PCA embedding scatter).
-4. **Build the Phase-2 runner** (`qrc_phase2.py`) — encoding / phase-amp / protons-only.
-5. **Phase 3** (tsfresh, nmrglue) → **Phase 4 full grid** → gated **Phase 5 / 6**.
+1. **Run Phase 1 for real** (unblocks the most): full trace-gen cache (~19 h,
+   now with a live progress bar) → `qrc_phase1.py` → decision gate. The
+   Feature-Lab UI is ready and waiting to display the real numbers.
+2. **Ship remote access** — deployer serves the branch at
+   `quantum.cira-core.com/qrc` + Cloudflare Access (build handed off).
+3. **Build the Phase-2 runner** (`qrc_phase2.py`) — encoding / phase-amp / protons-only.
+4. **Phase 3** (tsfresh, nmrglue) → **Phase 4 full grid** → gated **Phase 5 / 6**.
+
+*(Done since v1 of this tracker: Phase-0 progress gap, the Feature-Lab UI, and
+the UMAP/PCA embedding view — see the activity log at the top.)*
