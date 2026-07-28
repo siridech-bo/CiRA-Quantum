@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-d = json.load(open("artifacts/qrc_paper4_weather.json"))
+d = json.load(open("artifacts/qrc_paper4_weather_v2.json"))
 q = d["qrc_weather"]
 e = d["esn_weather"]
 H = sorted((int(h) for h in q), key=int)

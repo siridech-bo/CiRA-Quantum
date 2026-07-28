@@ -31,7 +31,7 @@ paper = {
 }
 
 # --- This work (simulation) ---
-run = json.load(open("artifacts/qrc_paper4_weather.json"))
+run = json.load(open("artifacts/qrc_paper4_weather_v2.json"))
 q = run["qrc_weather"]
 e = run["esn_weather"]
 sizes = sorted(e, key=int)
