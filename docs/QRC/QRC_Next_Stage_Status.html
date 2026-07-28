@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QRC Next-Stage — Implementation Status</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#171d26; --panel2:#1d2530; --border:#2a3543;
+    --fg:#e6edf3; --muted:#9aa7b4; --accent:#4da3ff;
+    --done:#3fb950; --run:#d9a441; --prim:#e07b3c; --none:#6e7b8a;
+    --done-bg:rgba(63,185,80,.14); --run-bg:rgba(217,164,65,.14);
+    --prim-bg:rgba(224,123,60,.14); --none-bg:rgba(110,123,138,.14);
+  }
+  @media (prefers-color-scheme:light){
+    :root{
+      --bg:#f6f8fa; --panel:#ffffff; --panel2:#f0f3f6; --border:#d0d7de;
+      --fg:#1f2328; --muted:#59636e; --accent:#0969da;
+      --done:#1a7f37; --run:#9a6700; --prim:#bc4c00; --none:#6e7781;
+      --done-bg:rgba(26,127,55,.10); --run-bg:rgba(154,103,0,.10);
+      --prim-bg:rgba(188,76,0,.10); --none-bg:rgba(110,119,129,.10);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1040px;margin:0 auto;padding:32px 22px 80px;}
+  h1{font-size:1.7rem;margin:.2em 0 .1em;letter-spacing:-.01em}
+  h2{font-size:1.25rem;margin:2.2em 0 .5em;padding-top:.6em;border-top:1px solid var(--border)}
+  .sub{color:var(--muted);margin:0 0 1.4em}
+  .sub a{color:var(--accent)}
+  code{background:var(--panel2);border:1px solid var(--border);border-radius:5px;
+    padding:.06em .38em;font:13px/1 "Cascadia Code","Consolas",monospace}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 4px}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
+    font-size:.82rem;font-weight:600;border:1px solid var(--border)}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .d-done{background:var(--done-bg);color:var(--done)} .d-done .dot{background:var(--done)}
+  .d-run{background:var(--run-bg);color:var(--run)} .d-run .dot{background:var(--run)}
+  .d-prim{background:var(--prim-bg);color:var(--prim)} .d-prim .dot{background:var(--prim)}
+  .d-none{background:var(--none-bg);color:var(--none)} .d-none .dot{background:var(--none)}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;margin:.6em 0 .2em;font-size:.92rem}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.03em}
+  tbody tr:hover{background:var(--panel2)}
+  .tag{display:inline-block;padding:2px 9px;border-radius:6px;font-size:.78rem;font-weight:700;white-space:nowrap}
+  .t-done{background:var(--done-bg);color:var(--done)}
+  .t-run{background:var(--run-bg);color:var(--run)}
+  .t-prim{background:var(--prim-bg);color:var(--prim)}
+  .t-none{background:var(--none-bg);color:var(--none)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px 18px 14px;margin:14px 0}
+  .phase-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 2px}
+  .phase-h .num{font-size:.8rem;font-weight:700;color:var(--muted);
+    border:1px solid var(--border);border-radius:6px;padding:2px 9px}
+  .phase-h h3{margin:0;font-size:1.06rem}
+  .bar{height:8px;border-radius:6px;background:var(--panel2);overflow:hidden;margin:16px 0 8px}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--done),var(--run))}
+  .note{color:var(--muted);font-size:.88rem}
+  ol.prio{padding-left:1.2em} ol.prio li{margin:.3em 0}
+  .foot{color:var(--muted);font-size:.82rem;margin-top:34px;border-top:1px solid var(--border);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>QRC Next-Stage — Implementation Status</h1>
+  <p class="sub">Traces every phase in
+    <a href="./QRC_Next_Stage_Experiments.md">QRC_Next_Stage_Experiments.md</a>
+    to its real state. &nbsp;Updated 2026-07-28.</p>
+
+  <div class="bar" title="Roughly 1 of 6 core phases complete, 1 code-ready"><i style="width:22%"></i></div>
+  <div class="legend">
+    <span class="pill d-done"><span class="dot"></span>Done — built &amp; exercised</span>
+    <span class="pill d-run"><span class="dot"></span>Code ready — NOT RUN</span>
+    <span class="pill d-prim"><span class="dot"></span>Primitive only — no runner</span>
+    <span class="pill d-none"><span class="dot"></span>Not started</span>
+  </div>
+
+  <h2>Scoreboard</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Phase</th><th>Title</th><th>State</th><th>Blocking dependency</th></tr></thead>
+    <tbody>
+      <tr><td><b>0</b></td><td>Instrumentation: trace cache + FID/progress UI + run control</td>
+        <td><span class="tag t-done">Done</span></td><td>— (2 minor gaps)</td></tr>
+      <tr><td><b>1</b></td><td>Flag-level feature experiments (phase / multimodal / selection incl. UMAP)</td>
+        <td><span class="tag t-run">Code ready — not run</span></td><td>trace-gen cache (~19 h) → phase1 pass</td></tr>
+      <tr><td><b>2</b></td><td>Encoding sweep (7 functions / phase-amp / protons-only)</td>
+        <td><span class="tag t-prim">Primitives — no runner</span></td><td>build <code>qrc_phase2.py</code>; needs re-evolution</td></tr>
+      <tr><td><b>3</b></td><td>External feature libraries (tsfresh, nmrglue)</td>
+        <td><span class="tag t-none">Not started</span></td><td>new deps + integration</td></tr>
+      <tr><td><b>4</b></td><td>Dim-reduction benchmark (R0–R6 × Ridge/SVR)</td>
+        <td><span class="tag t-run">Partial — reducers exist</span></td><td>best feature set from Phase 3</td></tr>
+      <tr><td><b>5</b></td><td>Self-supervised representation learning (autoencoder, TS2Vec)</td>
+        <td><span class="tag t-none">Not started (gated)</span></td><td>only if Phase 4 shows headroom</td></tr>
+      <tr><td><b>6</b></td><td>Encoding × feature interaction + τ sweep</td>
+        <td><span class="tag t-none">Not started (gated)</span></td><td>best encoding × best features</td></tr>
+      <tr><td><b>UI+</b></td><td>Feature-Lab UI: Phase-1 sweep panel + UMAP/PCA embedding scatter</td>
+        <td><span class="tag t-none">Not started</span></td><td>Phase-1 results to visualize</td></tr>
+      <tr><td><b>Ops</b></td><td>Remote command via Cloudflare Tunnel (run from browser off-box)</td>
+        <td><span class="tag t-none">Not started</span></td><td>deploy + auth-gated tunnel</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Phase detail</h2>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">Phase 0</span><h3>Instrumentation</h3><span class="tag t-done">Done</span></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td>0.A Raw-FID trace cache (schema §1)</td><td><span class="tag t-done">Done</span></td><td><code>scripts/qrc_gen_traces.py</code></td></tr>
+        <tr><td>0.B Offline evaluation harness</td><td><span class="tag t-done">Done</span></td><td><code>app/qrc/feature_lab.py</code></td></tr>
+        <tr><td>0.C Backend API + run control (7 routes, auth-gated launch/stop, allow-list, single-job lock)</td><td><span class="tag t-done">Done</span></td><td><code>routes/qrc.py</code>, <code>qrc/launcher.py</code></td></tr>
+        <tr><td>0.D Frontend UI (dashboard, run detail, FID + spectrum charts, new-run dialog, results)</td><td><span class="tag t-done">Done</span></td><td><code>views/Qrc*.vue</code>, <code>components/Qrc*.vue</code></td></tr>
+        <tr><td>trace-gen live progress (step/ETA in UI)</td><td><span class="tag t-run">Gap</span></td><td><code>qrc_gen_traces.py</code> not yet emitting <code>status()</code></td></tr>
+        <tr><td>Remote command off-box</td><td><span class="tag t-none">Gap</span></td><td>auth-gated Cloudflare Tunnel (GPU is dev-box-local)</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">Phase 1</span><h3>Flag-level feature experiments</h3><span class="tag t-run">Code ready — not run</span></div>
+    <p class="note">All builders + reducers live in <code>app/qrc/feature_methods.py</code>, driven by <code>scripts/qrc_phase1.py</code>. Nothing executed yet — needs a real trace.</p>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td>1.1 Add FID phase (<code>magnitude653</code> → <code>phase</code>)</td><td><span class="tag t-run">Code ready</span></td><td><code>build_features("phase")</code></td></tr>
+        <tr><td>1.2 Multimodal (+time-domain, wavelet, entropy)</td><td><span class="tag t-run">Code ready</span></td><td><code>build_features("multimodal")</code></td></tr>
+        <tr><td>1.3 Feature selection (PCA/KPCA/<b>UMAP</b>/LASSO/MI/random) + R²-vs-#features figure</td><td><span class="tag t-run">Code ready</span></td><td><code>reduce_features(...)</code>, <code>qrc_phase1.py</code></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">Phase 2</span><h3>Encoding sweep</h3><span class="tag t-prim">Primitives — no runner</span></div>
+    <p class="note">Every knob exists in the engine; there is no experiment driver and no results. Unlike Phase 1, this re-evolves the reservoir per setting (cannot reuse one trace).</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Exp</th><th>What</th><th>Primitive</th><th>Runner</th></tr></thead>
+      <tbody>
+        <tr><td>2.1</td><td>7-function encoding sweep (arcsin√, arccos, linear, sinusoidal, log, polynomial, exp)</td><td><span class="tag t-done">✓ ENCODING_FNS</span></td><td><span class="tag t-none">none</span></td></tr>
+        <tr><td>2.2</td><td>Phase-amplitude encoding</td><td><span class="tag t-done">✓ phase_amplitude</span></td><td><span class="tag t-none">none</span></td></tr>
+        <tr><td>2.3</td><td>Protons-only vs all-spins</td><td><span class="tag t-done">✓ target_qubits</span></td><td><span class="tag t-none">none</span></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">Phase 3</span><h3>External feature libraries</h3><span class="tag t-none">Not started</span></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td>3.1 TSFRESH automatic feature extraction</td><td><span class="tag t-none">Not started</span></td><td>dep <code>tsfresh</code> not added</td></tr>
+        <tr><td>3.2 nmrglue physics-informed (J-couplings, cross-peaks)</td><td><span class="tag t-none">Not started</span></td><td>dep <code>nmrglue</code> not added</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">Phase 4</span><h3>Dimensionality-reduction benchmark</h3><span class="tag t-run">Partial</span></div>
+    <p class="note">Reducers exist; <code>qrc_phase1.py</code> runs a subset (multimodal × reducers at one horizon). The full R0–R6 × {Ridge, SVR} grid + heatmap harness is not built and not run.</p>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td>R0 raw · R1 PCA · R2 KPCA · R3 UMAP · R4 LASSO · R5 MI · R6 random</td><td><span class="tag t-done">Functions exist</span></td><td><code>reduce_features</code></td></tr>
+        <tr><td>Full grid × {Ridge, SVR} + heatmap deliverable</td><td><span class="tag t-none">Not built / not run</span></td><td>—</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">Phase 5</span><h3>Self-supervised representation learning</h3><span class="tag t-none">Not started (gated)</span></div>
+    <p class="note">Only pursued if Phase 4 shows headroom.</p>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td>5.1 Denoising autoencoder (PyTorch available)</td><td><span class="tag t-none">Not started</span></td><td>—</td></tr>
+        <tr><td>5.2 Contrastive learning / TS2Vec</td><td><span class="tag t-none">Not started</span></td><td>dep not added</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">Phase 6</span><h3>Encoding × feature interaction</h3><span class="tag t-none">Not started (gated)</span></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td>6.1 Best encoding × best features cross-study</td><td><span class="tag t-none">Not started</span></td><td>depends on P2 + P3</td></tr>
+        <tr><td>6.2 τ sweep at best configuration</td><td><span class="tag t-none">Not started</span></td><td><code>tau</code> knob ✓ exists in <code>config.py</code></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="phase-h"><span class="num">UI+</span><h3>Feature-Lab UI (new, raised 2026-07-28)</h3><span class="tag t-none">Not started</span></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td>Feature-Lab panel — Phase-1 sweep (R² vs #features per method) as interactive chart</td><td><span class="tag t-none">Not started</span></td><td>—</td></tr>
+        <tr><td><b>UMAP/PCA embedding view</b> — backend endpoint → 2D projection; frontend scatter colored by target</td><td><span class="tag t-none">Not started</span></td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Neither plan doc specs a UMAP <i>visualization</i> — UMAP appears only as a <b>reducer</b> (Exp 1.3 / 4.1 R3). The embedding scatter is a new proposed addition.</p>
+  </div>
+
+  <h2>What is left — priority order</h2>
+  <ol class="prio">
+    <li><b>Run Phase 1</b> (unblocks the most): trace-gen cache → <code>qrc_phase1.py</code> → decision gate. Phase 4, the Feature-Lab UI, and the UMAP view all need this data.</li>
+    <li><b>Close the two Phase-0 gaps:</b> trace-gen live progress; remote Cloudflare Tunnel.</li>
+    <li><b>Build the Feature-Lab UI</b> (Phase-1 sweep panel + UMAP/PCA embedding scatter).</li>
+    <li><b>Build the Phase-2 runner</b> (<code>qrc_phase2.py</code>) — encoding / phase-amp / protons-only.</li>
+    <li><b>Phase 3</b> (tsfresh, nmrglue) → <b>Phase 4 full grid</b> → gated <b>Phase 5 / 6</b>.</li>
+  </ol>
+
+  <p class="foot">Generated as a living tracker for the QRC sub-project. Source of truth:
+    <code>docs/QRC/QRC_Next_Stage_Status.md</code>.</p>
+</div>
+</body>
+</html>
