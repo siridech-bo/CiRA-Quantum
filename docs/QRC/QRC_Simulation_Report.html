@@ -68,7 +68,22 @@ Dean, Faculty of Information Technology, KMITL · Internal technical report / pu
   <div><b>3→9</b><span>qubits swept, one variable</span></div>
   <div><b>28×</b><span>GPU speedup at N=9</span></div>
   <div><b>~5×</b><span>QRC NARMA gain, N=3→9</span></div>
-  <div><b>0/7</b><span>QRC wins vs classical ESN</span></div>
+  <div><b>&lt;0.5 Hz</b><span>SLEEPY validation agreement</span></div>
+</div>
+
+<div style="background:var(--card);border:1px solid var(--rule);border-left:4px solid #16a34a;
+  border-radius:10px;padding:14px 20px;margin:16px 0">
+<p style="margin:.2em 0"><strong>Update — Paper-4 reproduction (2026-07-28).</strong> This
+scaling study used an <em>observables-only</em> readout, and its pessimistic verdict below
+(“no quantum advantage”) was subsequently shown to be a <strong>readout artefact</strong>. With
+the paper’s time-multiplexed <strong>FID-653 spectral readout</strong>, the same simulator
+reproduces Hou et al. 2026 end to end: NARMA in the <strong>10⁻⁵–10⁻⁶</strong> regime
+(R²≈0.999), and a quantum advantage on <strong>weather forecasting that quantitatively matches
+the experiment</strong> — 45-day temperature R² <strong>0.79</strong>, above the saturating
+classical ESN band (0.62–0.70); the effect is set by the number of FID readout functions
+(<code>fid_points</code>). Details: <code>QRC_Reproduction_Results.md</code> and the manuscript
+<code>QRC_Manuscript.docx</code> / <code>QRC_Manuscript_SI.docx</code>. The N=3–9 scaling results
+below remain valid as an ablation of the <em>observable-only</em> readout.</p>
 </div>
 
 <div class="abstract">
@@ -84,7 +99,9 @@ a GPU (CUDA) implementation accelerates it ≈28×, cutting a full N=9 point fro
 0.25→0.048), but memory capacity does not scale (peaks at N=4, saturates ~6–7) and a size-matched
 classical Echo State Network beats the QRC on NARMA at every size (0/7). The study demonstrates
 that more qubits help the quantum reservoir, but does <em>not</em> demonstrate quantum advantage
-over a classical reservoir in this baseline configuration.</p>
+over a classical reservoir in this baseline configuration. <strong>(See the update banner above:
+with the paper’s FID spectral readout — omitted in this observable-only study — the advantage is
+in fact reproduced and quantitatively matched to the experiment.)</strong></p>
 </div>
 
 <div class="toc">
@@ -339,6 +356,12 @@ reservoir's task accuracy (~5× on NARMA from N=3 to 9), but memory capacity sat
 size-matched classical ESN wins at every size.</strong> The configuration justifies neither
 over-claiming a quantum advantage nor dismissing the approach — it establishes a validated baseline and
 the fast tooling needed to search, methodically, for the regimes where NMR-QRC hardware earns its keep.</p>
+<p><strong>Follow-up (see the update banner at the top).</strong> That search succeeded: adding the
+paper’s time-multiplexed FID-653 spectral readout — the ingredient this observable-only study omitted —
+reproduces Hou et al. 2026 end to end, including a quantum advantage on weather forecasting that
+quantitatively matches the experiment (45-day temperature R² 0.79 vs a saturating classical ESN band of
+0.62–0.70), with the effect governed by the number of FID readout functions. The full account is in
+<code>QRC_Reproduction_Results.md</code> and the manuscript <code>QRC_Manuscript.docx</code>.</p>
 
 <hr>
 <h3>References</h3>
