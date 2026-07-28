@@ -73,6 +73,9 @@ const STAGE_INDEX: Record<JobStatus, number> = {
   formulating: 0,
   compiling: 1,
   validating: 2,
+  // Paused after validating, before solving — the stepper shows validating
+  // as the furthest-reached stage while the user approves the formulation.
+  awaiting_approval: 2,
   solving: 3,
   complete: 4,
   error: 4, // surfaced separately via the error alert below

@@ -272,7 +272,7 @@ export const useQmlStore = defineStore('qml', () => {
   }
 
   function applyEvent(event: any) {
-    const status = event.status as QmlJobStatus | 'epoch'
+    const status = event.status as QmlJobStatus | 'epoch' | 'decision_grid'
 
     if (status === 'epoch') {
       // Append to the live curve, dedupe on epoch number in case the

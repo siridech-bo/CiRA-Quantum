@@ -186,6 +186,7 @@ def run_narma_multitask(
     feature_cfg: FeatureConfig | None = None,
     input_kind: str = "sine",
     progress_cb=None,
+    fid_cb=None,
 ) -> tuple[dict[int, dict], int]:
     """Emulate several NARMA orders from a *single* reservoir pass.
 
@@ -196,7 +197,9 @@ def run_narma_multitask(
     separate ridge readout per order. This is ~len(orders)× cheaper than
     calling :func:`run_narma` per order, which re-runs the whole reservoir.
 
-    Returns ``({order: metrics}, n_qubits)``.
+    Returns ``({order: metrics}, n_qubits)``. ``fid_cb(step, fid)`` is
+    forwarded to the reservoir loop so the trace-cache generator can dump
+    the per-step raw FID (FID readout only) from the same single pass.
     """
     orders = list(orders)
     tr_cfg = cfg.training
@@ -206,7 +209,7 @@ def run_narma_multitask(
     # Input is order-independent; take it from the first order.
     u, _ = seq(n_steps, orders[0], seed=cfg.sim.seed)
     res = build_reservoir(cfg, feature_cfg)
-    out = res.run(u, progress_cb=progress_cb)      # the ONE expensive pass
+    out = res.run(u, progress_cb=progress_cb, fid_cb=fid_cb)  # the ONE expensive pass
     results: dict[int, dict] = {}
     for order in orders:
         _, y = seq(n_steps, order, seed=cfg.sim.seed)
@@ -577,17 +580,20 @@ def run_weather_reservoir(
     proton_idx=(4, 5, 6, 7, 8),
     carbon_idx=(0, 1, 2, 3),
     progress_cb=None,
+    fid_cb=None,
 ) -> np.ndarray:
     """One reservoir pass over the weather series → readout matrix X.
 
     The (expensive) FID reservoir is run once; the caller fits cheap
-    per-horizon, per-variable readouts on the returned X (multitasking)."""
+    per-horizon, per-variable readouts on the returned X (multitasking).
+    ``fid_cb(step, fid)`` is forwarded to the reservoir loop so the
+    trace-cache generator can dump the per-step raw FID (FID readout only)."""
     system = QRCSystem(cfg.system, cfg.sim)
     encoder = Encoder(system, cfg.encoding)
     res = Reservoir(system, encoder, feature_cfg)
     seq = _weather_input(weather_norm, n_steps, system.n,
                          list(proton_idx), list(carbon_idx))
-    out = res.run(seq, progress_cb=progress_cb)
+    out = res.run(seq, progress_cb=progress_cb, fid_cb=fid_cb)
     return out.X
 
 

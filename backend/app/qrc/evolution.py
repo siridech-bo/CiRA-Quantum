@@ -56,6 +56,7 @@ class Reservoir:
         rho0=None,
         progress: bool = False,
         progress_cb=None,
+        fid_cb=None,
     ) -> ReservoirOutput:
         """Drive ``inputs`` through the reservoir.
 
@@ -67,6 +68,12 @@ class Reservoir:
         ``progress_cb``, if given, is called as ``progress_cb(done, total)``
         after each input step — used by the long-running reproduction runner
         to emit step-level progress + ETA to its event log.
+
+        ``fid_cb``, if given, is called as ``fid_cb(step, fid)`` with the
+        per-step raw complex FID (only in FID-readout mode) — used by the
+        trace-cache generator to dump the per-step FID without changing the
+        normal readout. It is a no-op for the observables readout and adds no
+        overhead when left ``None``.
         """
         arr = np.asarray(inputs, dtype=float)
         if arr.ndim == 1:
@@ -110,6 +117,8 @@ class Reservoir:
                 d = self.sys.dim
                 rho_mat = vec_gpu.reshape(d, d).T.cpu().numpy()
                 fid = self.sys.fid_signal(rho_mat)
+                if fid_cb is not None:
+                    fid_cb(k, fid)
                 feats, fnames = self.features.from_fid(fid)
                 if names is None:
                     names = fnames
@@ -118,6 +127,8 @@ class Reservoir:
                 rho = self.encoder.apply(rho, values)
                 _, rho = self.sys.multiplex(rho)
                 fid = self.sys.fid_signal(rho)
+                if fid_cb is not None:
+                    fid_cb(k, fid)
                 feats, fnames = self.features.from_fid(fid)
                 if names is None:
                     names = fnames

@@ -25,6 +25,8 @@ import QmlBenchmarkRecordPage from '@/views/QmlBenchmarkRecordPage.vue'
 import QldpcLandingPage from '@/views/QldpcLandingPage.vue'
 import QldpcLearnPage from '@/views/QldpcLearnPage.vue'
 import QldpcCodeFamilyDetailPage from '@/views/QldpcCodeFamilyDetailPage.vue'
+import QrcDashboardPage from '@/views/QrcDashboardPage.vue'
+import QrcRunDetailPage from '@/views/QrcRunDetailPage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -96,6 +98,14 @@ const routes: RouteRecordRaw[] = [
   { path: '/qldpc', component: QldpcLandingPage },
   { path: '/qldpc/learn', component: QldpcLearnPage },
   { path: '/qldpc/codes/:id', component: QldpcCodeFamilyDetailPage },
+  // QRC Stage A — remote control plane for GPU reservoir runs on the
+  // dev box (FID/spectrum plots, live progress, results). Public like
+  // the QML/qLDPC galleries: read-only monitoring needs no account,
+  // only the New-run/Stop controls are auth-gated (checked in-component
+  // against ``auth.user``, mirroring the qLDPC/QML public-gallery
+  // pattern rather than a route-level guard).
+  { path: '/qrc', component: QrcDashboardPage },
+  { path: '/qrc/runs/:id', component: QrcRunDetailPage },
   // Phase 7 — Admin read-only views. Operator visibility into users,
   // jobs, and BYOK provider distribution. requiresAdmin pushes
   // non-admins back to /.

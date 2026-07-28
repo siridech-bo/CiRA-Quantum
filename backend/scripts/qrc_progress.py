@@ -37,6 +37,7 @@ class ProgressLogger:
         self.refresh_s = refresh_s
         self.jsonl = self.dir / "events.jsonl"
         self.html = self.dir / "progress.html"
+        self.status_json = self.dir / "status.json"
         self.jsonl.write_text("", encoding="utf-8")   # truncate
         self._events: list[dict] = []
         self._status: dict = {}
@@ -62,10 +63,30 @@ class ProgressLogger:
         self._render()
 
     def status(self, **fields) -> None:
-        """Update the live status panel (phase/step/total/eta) — no console
-        spam; only re-renders the HTML."""
+        """Update the live status panel (phase/step/total/eta).
+
+        No console spam. Besides re-rendering the HTML, the latest snapshot is
+        persisted durably to ``status.json`` so the control API's
+        ``GET /runs/<id>/progress`` can surface real step/total/ETA (the HTML
+        alone isn't machine-readable, so without this the endpoint returns
+        ``null`` for progress_pct/eta_s — Stage A seam)."""
         self._status.update(fields)
+        self._write_status()
         self._render()
+
+    def _write_status(self) -> None:
+        """Persist the latest {phase,step,total,eta_s,elapsed_s} snapshot."""
+        snap = {
+            "phase": self._status.get("phase"),
+            "step": self._status.get("step"),
+            "total": self._status.get("total"),
+            "eta_s": self._status.get("eta_s"),
+            "elapsed_s": round(time.time() - self._t0, 1),
+            "updated": datetime.now().isoformat(timespec="seconds"),
+        }
+        tmp = self.status_json.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(snap, default=float), encoding="utf-8")
+        tmp.replace(self.status_json)
 
     def result(self, label: str, metrics: dict) -> None:
         """Record a finished sub-result (e.g. a NARMA order) for the table."""

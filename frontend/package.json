@@ -12,6 +12,7 @@
     "@mdi/font": "^7.4.47",
     "axios": "^1.6.0",
     "pinia": "^2.1.7",
+    "uplot": "^1.6.32",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0",
     "vuetify": "^3.5.0"
@@ -19,7 +20,7 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/tsconfig": "^0.5.1",
-    "typescript": "^5.3.0",
+    "typescript": "~5.4.5",
     "vite": "^5.0.0",
     "vite-plugin-vuetify": "^2.0.0",
     "vue-tsc": "^1.8.27"

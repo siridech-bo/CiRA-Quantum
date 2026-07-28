@@ -130,9 +130,12 @@ const bestEnergy = computed(() => {
 })
 
 const fastestMs = computed(() => {
-  const completed = rows.value.filter((r) => r.status === 'complete')
-  if (!completed.length) return null
-  return Math.min(...completed.map((r) => r.elapsed_ms))
+  const times = rows.value
+    .filter((r) => r.status === 'complete')
+    .map((r) => r.elapsed_ms)
+    .filter((v): v is number => v != null)
+  if (!times.length) return null
+  return Math.min(...times)
 })
 
 function fmtEnergy(e: number | undefined): string {

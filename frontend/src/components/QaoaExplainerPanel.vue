@@ -267,7 +267,10 @@ interface HistBar {
 const histogramBars = computed<HistBar[]>(() => {
   const xs = props.extras.top_bitstrings
   const ps = props.extras.top_probabilities
-  const es = props.extras.top_energies
+  // top_energies may carry nulls (energy not scored); coerce to 0 — this
+  // matches JS's existing numeric coercion of null in the arithmetic below,
+  // so it is behavior-preserving while satisfying the number-typed HistBar.
+  const es = props.extras.top_energies.map((e) => e ?? 0)
   if (!xs.length) return []
 
   // Determine the energy-rank used for coloring. Reverse for maximize

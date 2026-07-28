@@ -107,7 +107,8 @@ function nodeColor(state: BnbNode['state']): string {
   return 'rgb(var(--v-theme-primary))'
 }
 
-function fmtTime(ms: number): string {
+function fmtTime(ms?: number): string {
+  if (ms === undefined || ms === null) return '—'
   if (ms < 10) return `${ms.toFixed(1)} ms`
   if (ms < 1000) return `${Math.round(ms)} ms`
   return `${(ms / 1000).toFixed(2)} s`

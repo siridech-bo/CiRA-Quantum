@@ -193,6 +193,14 @@ validation = [
     "ipython>=8.0,<10.0",
 ]
 
+# QRC Phase-1 feature-lab (``app/qrc/feature_methods.py``,
+# ``scripts/qrc_phase1.py``). The reducer sweep's UMAP path needs umap-learn;
+# it is imported lazily and guarded, so the package (and the other reducers:
+# PCA/KernelPCA/MI/LASSO/random-projection via scikit-learn from ``[qrc]``)
+# work without this extra. Install for the nonlinear-projection experiments
+# with ``pip install ".[featurelab]"``.
+featurelab = ["umap-learn>=0.5,<1.0"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
