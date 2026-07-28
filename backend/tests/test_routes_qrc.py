@@ -278,6 +278,66 @@ def test_fid_missing_trace_404(isolated_app):
     assert r.get_json()["code"] == "TRACE_MISSING"
 
 
+# ---- Embedding endpoint (Feature-Lab 2-D projection) -----------------------
+
+
+def _fake_weather_trace(path: Path, n_steps: int = 12, fid_points: int = 64) -> None:
+    """A §1 weather trace with the target + split the embedding colours by."""
+    rng = np.random.default_rng(1)
+    fids = (rng.standard_normal((n_steps, fid_points))
+            + 1j * rng.standard_normal((n_steps, fid_points))).astype(np.complex64)
+    weather_norm = rng.random((n_steps, 2))
+    split = np.array([3, 6, 3])  # washout, train, test
+    np.savez(path, fids=fids, fid_dwell=np.float64(3e-4), task="weather",
+             weather_norm=weather_norm, split=split)
+
+
+def test_embedding_pca_shape(isolated_app):
+    app, _launcher, _regular, runs_root, traces_root = isolated_app
+    _, entry = _fabricate_run(runs_root)
+    trace_path = traces_root / "narma.npz"
+    _fake_weather_trace(trace_path, n_steps=12, fid_points=64)
+    entry["trace_path"] = str(trace_path)
+    _write_registry(runs_root, {entry["id"]: entry})
+
+    client = app.test_client()
+    r = client.get("/api/qrc/runs/narma-deadbeef/embedding"
+                   "?method=pca&feature=magnitude653&n_peaks=16")
+    assert r.status_code == 200, r.get_data(as_text=True)
+    body = r.get_json()
+    assert body["method"] == "pca"
+    assert body["feature"] == "magnitude653"
+    assert body["n_points"] == 12
+    assert len(body["points"]) == 12
+    assert all(len(p) == 2 for p in body["points"])   # projected to 2-D
+    assert len(body["color"]) == 12
+    assert body["color_label"] == "temperature (norm)"
+    # split tags follow the [3,6,3] washout/train/test layout.
+    assert body["split"][0] == "washout" and body["split"][-1] == "test"
+
+
+def test_embedding_bad_method_400(isolated_app):
+    app, _launcher, _regular, runs_root, traces_root = isolated_app
+    _, entry = _fabricate_run(runs_root)
+    trace_path = traces_root / "narma.npz"
+    _fake_weather_trace(trace_path)
+    entry["trace_path"] = str(trace_path)
+    _write_registry(runs_root, {entry["id"]: entry})
+    client = app.test_client()
+    r = client.get("/api/qrc/runs/narma-deadbeef/embedding?method=tsne")
+    assert r.status_code == 400
+    assert r.get_json()["code"] == "BAD_METHOD"
+
+
+def test_embedding_missing_trace_404(isolated_app):
+    app, _launcher, _regular, runs_root, _traces = isolated_app
+    _fabricate_run(runs_root)  # no trace anywhere
+    client = app.test_client()
+    r = client.get("/api/qrc/runs/narma-deadbeef/embedding")
+    assert r.status_code == 404
+    assert r.get_json()["code"] == "TRACE_MISSING"
+
+
 # ---- Control endpoints: auth gating ----------------------------------------
 
 

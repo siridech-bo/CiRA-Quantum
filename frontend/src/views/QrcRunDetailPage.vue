@@ -15,6 +15,7 @@ import CiraLogo from '@/components/CiraLogo.vue'
 import QrcFidTimeChart from '@/components/QrcFidTimeChart.vue'
 import QrcSpectrumChart from '@/components/QrcSpectrumChart.vue'
 import QrcResultsPanel from '@/components/QrcResultsPanel.vue'
+import QrcFeatureLabPanel from '@/components/QrcFeatureLabPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,6 +47,13 @@ const status = computed<QrcRunStatus | null>(
 )
 
 const isActive = computed(() => status.value === 'running')
+
+// Feature-Lab (embedding + Exp 1.1/1.2/1.3 charts) applies to trace-backed
+// runs: a phase1 sweep (charts + embedding) or a trace-gen run (embedding).
+const showFeatureLab = computed(() => {
+  const t = runSummary.value?.task
+  return t === 'phase1' || t === 'trace-gen'
+})
 
 const progressPct = computed(() => {
   const p = qrc.currentProgress
@@ -313,6 +321,14 @@ onBeforeUnmount(() => {
             @update:model-value="onStepInput"
           />
         </v-card>
+
+        <!-- Feature Lab (embedding + Exp 1.1/1.2/1.3) -->
+        <QrcFeatureLabPanel
+          v-if="showFeatureLab"
+          :run-id="runId"
+          :results="qrc.currentResults"
+          :task="runSummary?.task"
+        />
 
         <!-- Results -->
         <QrcResultsPanel :results="qrc.currentResults" />

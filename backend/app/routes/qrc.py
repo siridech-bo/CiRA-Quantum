@@ -308,6 +308,133 @@ def qrc_run_fid(run_id: str):
     return jsonify(payload)
 
 
+# ---- Read-only: feature-space embedding (UMAP/PCA computed server-side) ----
+
+
+def _trace_color(npz) -> tuple[list[float], str]:
+    """A per-step scalar to colour the embedding scatter, + its label.
+
+    Weather traces colour by normalized temperature (the primary target);
+    NARMA traces colour by the driving input; otherwise fall back to the
+    step index so the scatter still renders.
+    """
+    import numpy as np
+
+    if "weather_norm" in npz:
+        return np.asarray(npz["weather_norm"], dtype=float)[:, 0].tolist(), "temperature (norm)"
+    if "narma_input" in npz:
+        return np.asarray(npz["narma_input"], dtype=float).ravel().tolist(), "NARMA input"
+    n = int(np.asarray(npz["fids"]).shape[0])
+    return list(range(n)), "step index"
+
+
+def _split_labels(npz, n_steps: int) -> list[str]:
+    """Tag each step washout/train/test from the ``split`` triple (§1)."""
+    import numpy as np
+
+    try:
+        washout, n_train, _ = (int(x) for x in np.asarray(npz["split"]).ravel()[:3])
+    except (KeyError, ValueError):
+        return ["all"] * n_steps
+    labels = []
+    for i in range(n_steps):
+        if i < washout:
+            labels.append("washout")
+        elif i < washout + n_train:
+            labels.append("train")
+        else:
+            labels.append("test")
+    return labels
+
+
+def _embed_2d(X, method: str, seed: int = 42):
+    """Project ``X`` [n, d] to 2-D. ``pca`` (fast, always available) or ``umap``
+    (nonlinear; needs the ``[featurelab]`` extra). Standardized first so no
+    single high-variance feature dominates the projection."""
+    import numpy as np
+    from sklearn.preprocessing import StandardScaler
+
+    Xs = StandardScaler().fit_transform(np.asarray(X, dtype=float))
+    if method == "umap":
+        import umap  # guarded — raises ImportError if the extra isn't installed
+
+        n_neighbors = int(min(15, max(2, Xs.shape[0] - 1)))
+        reducer = umap.UMAP(n_components=2, n_neighbors=n_neighbors, random_state=seed)
+        return reducer.fit_transform(Xs)
+    from sklearn.decomposition import PCA
+
+    return PCA(n_components=2, random_state=seed).fit_transform(Xs)
+
+
+@qrc_bp.route("/runs/<run_id>/embedding", methods=["GET"])
+def qrc_run_embedding(run_id: str):
+    """2-D projection of a run's reservoir feature vectors (Feature-Lab view).
+
+    Query: ``method`` (``pca`` default | ``umap``), ``feature``
+    (``multimodal`` default | ``phase`` | ``magnitude653``), ``n_peaks``.
+    Builds the feature matrix from the cached trace, projects to 2-D, and
+    returns points + a per-point colour (target) + split tag. This is the
+    same server-side-compute pattern as ``/fid`` (no client-side heavy math).
+    """
+    entry = launcher.get_run(run_id)
+    if entry is None:
+        return jsonify({"error": "Run not found"}), 404
+
+    trace_path = launcher.resolve_trace_path(entry)
+    if trace_path is None:
+        return jsonify({
+            "error": "No trace .npz available for this run yet.",
+            "code": "TRACE_MISSING",
+        }), 404
+
+    method = (request.args.get("method") or "pca").lower()
+    if method not in ("pca", "umap"):
+        return jsonify({"error": "method must be 'pca' or 'umap'", "code": "BAD_METHOD"}), 400
+    feature = (request.args.get("feature") or "multimodal").lower()
+    if feature not in ("magnitude653", "phase", "multimodal"):
+        return jsonify({
+            "error": "feature must be 'magnitude653', 'phase', or 'multimodal'",
+            "code": "BAD_FEATURE",
+        }), 400
+    try:
+        n_peaks = int(request.args.get("n_peaks", "653") or "653")
+    except ValueError:
+        return jsonify({"error": "n_peaks must be an integer", "code": "BAD_NPEAKS"}), 400
+
+    import numpy as np
+
+    from app.qrc.feature_methods import build_features
+
+    with np.load(str(trace_path), allow_pickle=True) as z:
+        npz = {k: z[k] for k in z.files}
+    if "fids" not in npz:
+        return jsonify({"error": "Trace .npz is missing 'fids'.", "code": "TRACE_MALFORMED"}), 422
+
+    fids = np.asarray(npz["fids"])
+    X, _names = build_features(fids, feature, n_peaks=n_peaks, select="first")
+
+    try:
+        coords = _embed_2d(X, method)
+    except ImportError:
+        return jsonify({
+            "error": "UMAP unavailable — install the [featurelab] extra (umap-learn).",
+            "code": "UMAP_UNAVAILABLE",
+        }), 503
+
+    color, color_label = _trace_color(npz)
+    n_steps = int(fids.shape[0])
+    return jsonify({
+        "method": method,
+        "feature": feature,
+        "n_features_in": int(X.shape[1]),
+        "n_points": n_steps,
+        "points": np.asarray(coords, dtype=float).tolist(),
+        "color": color[:n_steps],
+        "color_label": color_label,
+        "split": _split_labels(npz, n_steps),
+    })
+
+
 # ---- Control (auth-gated): launch / stop -----------------------------------
 
 

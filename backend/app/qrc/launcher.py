@@ -400,6 +400,13 @@ def launch_run(task: str, config: dict[str, Any]) -> dict[str, Any]:
         if task == "trace-gen":
             trace_path: Path | None = run_dir / "trace.npz"
             results_path = trace_path
+        elif task == "phase1":
+            # phase1 writes ``summary.json`` (+ per-experiment JSONs + the
+            # selection figure) into its ``--out-dir`` (= run_dir); it never
+            # emits a single ``results.json``. Point results_path at the
+            # summary so ``GET /runs/<id>/results`` surfaces the sweep.
+            trace_path = None
+            results_path = run_dir / "summary.json"
         else:
             trace_path = None
             results_path = run_dir / "results.json"

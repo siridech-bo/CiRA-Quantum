@@ -101,6 +101,32 @@ export interface QrcRunStatusInfo {
   exit_code: number | null
 }
 
+/** 2-D feature-space projection from ``GET /runs/<id>/embedding``.
+ *  ``points[i] = [x, y]`` is step ``i``'s reservoir feature vector projected
+ *  to 2-D; ``color[i]`` is that step's target (for a continuous colour map)
+ *  and ``split[i]`` its washout/train/test membership. */
+export interface QrcEmbedding {
+  method: 'pca' | 'umap'
+  feature: 'magnitude653' | 'phase' | 'multimodal'
+  n_features_in: number
+  n_points: number
+  points: number[][]
+  color: number[]
+  color_label: string
+  split: string[]
+}
+
+/** One row of a phase1 ``summary.json`` (the sweep the Feature-Lab charts
+ *  render): a feature-set experiment or a selection/reducer point. */
+export interface QrcSummaryRow {
+  experiment: string
+  kind: 'feature' | 'selection'
+  feature_count: number | null
+  metric: number | null
+  reducer?: string
+  reducer_k?: number | null
+}
+
 const RUNNING: QrcRunStatus[] = ['running']
 
 // ---------------------------------------------------------------------
@@ -228,6 +254,36 @@ function mockResults(_id: string): QrcResults {
   }
 }
 
+/** Deterministic synthetic embedding: two temperature-graded gaussian
+ *  blobs so the scatter + colour map render when the API is unreachable. */
+function mockEmbedding(method: 'pca' | 'umap', feature: QrcEmbedding['feature']): QrcEmbedding {
+  const n = 180
+  const points: number[][] = []
+  const color: number[] = []
+  const split: string[] = []
+  for (let i = 0; i < n; i++) {
+    const s = Math.sin(i * 12.9898) * 43758.5453
+    const r1 = s - Math.floor(s)
+    const s2 = Math.sin(i * 78.233) * 12543.1234
+    const r2 = s2 - Math.floor(s2)
+    const blob = i % 2
+    const cx = blob ? 2.4 : -2.4
+    points.push([cx + (r1 - 0.5) * 3, (r2 - 0.5) * 3])
+    color.push(blob ? 0.3 + r1 * 0.4 : 0.6 + r2 * 0.4)
+    split.push(i < 30 ? 'washout' : i < 130 ? 'train' : 'test')
+  }
+  return {
+    method,
+    feature,
+    n_features_in: feature === 'magnitude653' ? 653 : feature === 'phase' ? 1959 : 1977,
+    n_points: n,
+    points,
+    color,
+    color_label: 'temperature (norm)',
+    split,
+  }
+}
+
 // ---------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------
@@ -244,6 +300,9 @@ export const useQrcStore = defineStore('qrc', () => {
 
   const currentResults = ref<QrcResults | null>(null)
   const usingMockResults = ref(false)
+
+  const currentEmbedding = ref<QrcEmbedding | null>(null)
+  const usingMockEmbedding = ref(false)
 
   const error = ref<string | null>(null)
 
@@ -348,6 +407,34 @@ export const useQrcStore = defineStore('qrc', () => {
     }
   }
 
+  /** GET /api/qrc/runs/<id>/embedding — 2-D projection of the run's feature
+   *  vectors. ``method`` pca|umap, ``feature`` magnitude653|phase|multimodal.
+   *  UMAP can take a few seconds server-side (it's computed on demand from the
+   *  trace); the caller drives loading state. A real HTTP error (e.g. UMAP
+   *  extra missing → 503) surfaces to the caller; only a network drop mocks. */
+  async function loadEmbedding(
+    id: string,
+    method: 'pca' | 'umap' = 'pca',
+    feature: QrcEmbedding['feature'] = 'multimodal',
+  ): Promise<QrcEmbedding> {
+    try {
+      const r = await api.get<QrcEmbedding>(`/api/qrc/runs/${id}/embedding`, {
+        params: { method, feature },
+      })
+      currentEmbedding.value = r.data
+      usingMockEmbedding.value = false
+      return r.data
+    } catch (e) {
+      if (isNetworkError(e)) {
+        const m = mockEmbedding(method, feature)
+        currentEmbedding.value = m
+        usingMockEmbedding.value = true
+        return m
+      }
+      throw e
+    }
+  }
+
   async function loadStatus(id: string): Promise<QrcRunStatusInfo> {
     const r = await api.get<QrcRunStatusInfo>(`/api/qrc/runs/${id}/status`)
     return r.data
@@ -394,9 +481,11 @@ export const useQrcStore = defineStore('qrc', () => {
     currentProgress.value = null
     currentFid.value = null
     currentResults.value = null
+    currentEmbedding.value = null
     usingMockProgress.value = false
     usingMockFid.value = false
     usingMockResults.value = false
+    usingMockEmbedding.value = false
     error.value = null
   }
 
@@ -409,6 +498,8 @@ export const useQrcStore = defineStore('qrc', () => {
     usingMockFid,
     currentResults,
     usingMockResults,
+    currentEmbedding,
+    usingMockEmbedding,
     error,
     anyRunActive,
     loadRuns,
@@ -419,6 +510,7 @@ export const useQrcStore = defineStore('qrc', () => {
     stopProgressPolling,
     loadFid,
     loadResults,
+    loadEmbedding,
     loadStatus,
     createRun,
     stopRun,
