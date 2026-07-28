@@ -25,6 +25,13 @@ architecture, or where things run. If something here proves wrong, fix it here.
   `deploy/nssm/cloudflared_ingress.yml`.
 - Deploy-host identity is `.167` (an earlier `.110` was stale DHCP drift, fixed
   in commit `5e0d430`).
+- **This dev box IS the prod box.** Hostname `DESKTOP-1A0J7FD`, LAN IP
+  `192.168.1.167`. The machine Claude develops on == the machine serving
+  `quantum.cira-core.com` == the machine with the RTX 5070 Ti. So QRC
+  trace-gen / phase1 runs done here are *already on the prod host*; deploying
+  QRC is "build the SPA + serve it + tunnel already points here", not "move
+  compute to another box". Do not ask whether they're the same machine — they
+  are.
 
 ## QRC is PART of the CiRA Quantum app, not a separate product
 
