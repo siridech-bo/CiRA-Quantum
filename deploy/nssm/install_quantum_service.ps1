@@ -1,5 +1,5 @@
 # install_quantum_service.ps1 — install CiRA Quantum as an NSSM
-# Windows service on .110, wrapping the pre-built Docker image.
+# Windows service on .167, wrapping the pre-built Docker image.
 #
 # Path B (Docker-in-NSSM). All Python deps + the built Vue SPA + the
 # pyqpanda3/qiskit/dimod toolchain are baked into the container image
@@ -15,7 +15,7 @@
 # a known path) while getting the "everything's in the container"
 # simplicity.
 #
-# Run from an elevated PowerShell (Administrator) on .110 after the
+# Run from an elevated PowerShell (Administrator) on .167 after the
 # preflight steps in deploy/nssm/DEPLOY_NSSM.md are complete:
 #   1. Docker Desktop is running (systray icon healthy).
 #   2. Image ``cira-quantum-backend:local`` exists (``docker images``).

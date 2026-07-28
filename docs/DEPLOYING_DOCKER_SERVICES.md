@@ -56,6 +56,13 @@ we've paid for in production and can operate confidently.
    └──────────────────────────────────────────────────────────┘
 ```
 
+> **Deploy host identity.** The Windows box is `DESKTOP-1A0J7FD`. LAN
+> IP is `192.168.1.167`, pinned via router DHCP reservation on the
+> ethernet NIC's MAC. If it ever drifts (post-power-outage DHCP
+> shuffle, as happened 2026-07-04), fix the reservation on the router
+> — don't update this doc. Every `.167` reference here means *"the
+> deploy host, currently at that IP."*
+
 **Three layers, three responsibilities:**
 
 - **Cloudflare Tunnel** owns the public-facing HTTPS and the DNS. One

@@ -1,7 +1,7 @@
 # cloudflared config addition — adds quantum.cira-core.com to the
-# existing oculus-prod tunnel on .110.
+# existing oculus-prod tunnel on .167.
 #
-# Full path on .110: C:\Users\viset\.cloudflared\config.yml
+# Full path on .167: C:\Users\viset\.cloudflared\config.yml
 #
 # DO NOT copy this file over the existing config — the operator's file
 # already has the tunnel + credentials-file + oculus.cira-core.com
@@ -49,7 +49,7 @@
 #        Restart-Service Cloudflared
 #
 # 3. Verify from off-LAN (a phone hotspot works, or curl from any
-#    non-.110 machine):
+#    non-.167 machine):
 #
 #        curl -s https://quantum.cira-core.com/api/health
 #

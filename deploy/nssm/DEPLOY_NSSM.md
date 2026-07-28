@@ -1,6 +1,14 @@
-# CiRA Quantum — Deploy to `.110` via NSSM-wrapped Docker
+# CiRA Quantum — Deploy to `.167` via NSSM-wrapped Docker
 
-Target: `quantum.cira-core.com` served from `.110` via Docker Desktop
+> **Deploy-host identity note.** The Windows box running this service
+> is `DESKTOP-1A0J7FD`, LAN IP `192.168.1.167` (pinned via router
+> DHCP reservation on MAC of the ethernet NIC). Earlier drafts of
+> this doc called it `.110`, which was a stale reference from before
+> a power-outage-induced DHCP drift on 2026-07-04. If the IP changes
+> again, update the reservation on the router, not this doc —
+> physical machine identity is what matters, not the number.
+
+Target: `quantum.cira-core.com` served from `.167` via Docker Desktop
 + NSSM Windows service + Cloudflare Tunnel ingress rule added to the
 existing `oculus-prod` tunnel. **All Python deps, the built Vue SPA,
 and the pyqpanda3 / qiskit toolchain are baked into a single Docker
@@ -117,7 +125,7 @@ mounted). The template already has this. Do NOT change it to
 `D:\data\cira-quantum\app.db` — that's a host path and won't work
 inside the container.
 
-⚠️ Do NOT commit the populated `.env`. It stays only on `.110`.
+⚠️ Do NOT commit the populated `.env`. It stays only on `.167`.
 
 ## 6. Manual smoke test (before touching NSSM)
 
@@ -228,7 +236,7 @@ service: http://localhost:5209`.
 
 ## 9. Verify from off-LAN
 
-From a phone hotspot or any non-`.110` machine:
+From a phone hotspot or any non-`.167` machine:
 
 ```powershell
 curl -s https://quantum.cira-core.com/api/health
@@ -323,10 +331,10 @@ Restart-Service CiraQuantumSvc
 
 - **Docker Desktop dependency.** The NSSM service depends on
   `com.docker.service`. If Docker Desktop is not running, the service
-  will fail to start at boot until Docker is up. On `.110` where
+  will fail to start at boot until Docker is up. On `.167` where
   Docker Desktop autostarts, this is fine.
 
-- **No warm standby.** `.110` is a single failure domain. If it goes
+- **No warm standby.** `.167` is a single failure domain. If it goes
   down, we lose availability until it comes back. Acceptable at
   research-customer scale; revisit when incident volume forces it.
 
@@ -338,7 +346,7 @@ Restart-Service CiraQuantumSvc
 
 The pre-Docker deploy path — venv + waitress + NSSM without Docker —
 is still viable but retired in favor of the containerized approach
-above. If for any reason Docker Desktop stops working on `.110`, the
+above. If for any reason Docker Desktop stops working on `.167`, the
 fallback path is:
 
 1. Create `D:\CiRA Quantum\venv`, `pip install -e ".[quantum,ibm-quantum]"`.

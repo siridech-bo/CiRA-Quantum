@@ -13,7 +13,7 @@
 #
 # Target platform: linux/amd64 (Cloudflare Containers today; Origin's
 # pyqpanda3 wheels are amd64-only, so this is not optional). The
-# Windows deploy on .110 runs this same image via Docker Desktop's
+# Windows deploy on .167 runs this same image via Docker Desktop's
 # WSL2 backend, which transparently runs Linux containers.
 #
 # GPU simulated annealing is intentionally excluded from this image —
@@ -124,7 +124,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    # Default to 5209 so the NSSM-wrapped ``docker run`` on .110 lines
+    # Default to 5209 so the NSSM-wrapped ``docker run`` on .167 lines
     # up with the Cloudflare Tunnel ingress rule out of the box. Override
     # via ``-e PORT=…`` when running the container in a different context.
     PORT=5209 \
