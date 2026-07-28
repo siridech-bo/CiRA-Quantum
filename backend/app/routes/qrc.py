@@ -152,11 +152,13 @@ def _load_results(entry: dict[str, Any]) -> dict[str, Any]:
     if not results_path:
         return {}
     path = Path(results_path)
-    if not path.exists():
+    # A trace-gen run registers a binary ``trace.npz`` as its output — that is
+    # not a results JSON, so never try to decode it as text (0xff → 500).
+    if path.suffix.lower() != ".json" or not path.exists():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}
 

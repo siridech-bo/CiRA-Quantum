@@ -180,6 +180,24 @@ def test_progress_reads_durable_status_json(isolated_app):
     assert row["eta_s"] == 800.0
 
 
+def test_trace_gen_binary_results_path_no_500(isolated_app):
+    """A trace-gen run registers a binary ``trace.npz`` as its output. The
+    results loader must NOT try to decode it as UTF-8 text (regression: that
+    raised UnicodeDecodeError -> HTTP 500 on /progress and /results)."""
+    client, runs_root, _ = isolated_app
+    run_dir, entry = _fabricate_run(runs_root, run_id="trace-gen-cafef00d", status="done")
+    # Point results at a binary .npz (as the launcher does for trace-gen).
+    trace = run_dir / "trace.npz"
+    _fake_trace(trace)
+    entry["results_path"] = str(trace)
+    entry["task"] = "trace-gen"
+    _write_registry(runs_root, {entry["id"]: entry})
+    for ep in ("progress", "results"):
+        r = client.get(f"/api/qrc/runs/{entry['id']}/{ep}")
+        assert r.status_code == 200, f"/{ep} -> {r.status_code}"
+    assert client.get(f"/api/qrc/runs/{entry['id']}/results").get_json() == {}
+
+
 def test_progress_404_on_unknown(isolated_app):
     app, *_ = isolated_app
     client = app.test_client()
