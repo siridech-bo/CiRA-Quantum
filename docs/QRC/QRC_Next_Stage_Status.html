@@ -82,6 +82,7 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>07-29</td><td><b>Re-launched full trace-gen (resumable)</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">running trace-gen-a6304ab1 · streaming verified · ETA ~9-18h · crash resumes</span></td><td>—</td></tr>
       <tr><td>07-29</td><td><b>Stream FID to disk + crash-resume</b> (root fix for the "13h in RAM" design)</td><td><span class="tag t-done">memmap streaming + resumable GPU-state ckpts; resume BIT-IDENTICAL (new GPU test); 70 tests pass</span></td><td><code>5c7f43a</code></td></tr>
       <tr><td>07-29</td><td><b>Fix: telemetry must never crash the run</b> (WinError 5 replace race)</td><td><span class="tag t-done">retry + best-effort; verified via forced-error test</span></td><td><code>618abeb</code></td></tr>
       <tr><td>07-29</td><td>⚠️ Full trace-gen <b>FAILED</b> at step 1140/1474 (~13.7h)</td><td><span class="tag t-none">status.json replace hit PermissionError → aborted; root-caused + fixed; awaiting re-launch</span></td><td><code>trace-gen-c46c804f</code></td></tr>

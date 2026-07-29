@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-07-29 | **Re-launched full trace-gen (resumable)** | 🔵 running `trace-gen-a6304ab1` · streaming to disk verified · ETA ~9–18 h · crash now resumes | — |
 | 2026-07-29 | **Stream FID to disk + crash-resume** (root fix for the "13h in RAM" design) | ✅ memmap streaming + resumable GPU-state checkpoints; resume is **bit-identical** (new GPU test); 70 tests pass | `5c7f43a` |
 | 2026-07-29 | **Fix: telemetry must never crash the run** (WinError 5 replace race) | ✅ retry + best-effort; verified via forced-error test | `618abeb` |
 | 2026-07-29 | ⚠️ Full trace-gen **FAILED** at step 1140/1474 (~13.7 h) | ❌ per-step `status.json` replace hit PermissionError → aborted the run; root-caused + fixed above; **awaiting re-launch decision** | `trace-gen-c46c804f` |
@@ -39,7 +40,7 @@ state, so we always know *what is left*.
 | Phase | Title | State | Blocking dependency |
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
-| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🟡 **Ready to re-run** — first full trace-gen failed at 77% on a telemetry bug (now fixed, `618abeb`); real full run ~17.7 h; **awaiting re-launch go-ahead** | re-launch trace-gen → phase1 |
+| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🔵 **In progress** — resumable full trace-gen running (`trace-gen-a6304ab1`); streams to disk, crash-resumes; phase1 auto-runs on completion | trace-gen → phase1 |
 | **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
