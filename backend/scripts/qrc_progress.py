@@ -48,7 +48,11 @@ class ProgressLogger:
     # -- public API -----------------------------------------------------
 
     def event(self, kind: str, message: str, **data) -> None:
-        """Record one event: append JSONL, print, re-render HTML."""
+        """Record one event: append JSONL, print, re-render HTML.
+
+        File I/O is best-effort: telemetry must never crash the run it observes
+        (a JSONL append or HTML render failing is not worth aborting an
+        18-hour compute for)."""
         ev = {
             "t": datetime.now().isoformat(timespec="seconds"),
             "elapsed_s": round(time.time() - self._t0, 1),
@@ -57,8 +61,11 @@ class ProgressLogger:
             **data,
         }
         self._events.append(ev)
-        with self.jsonl.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(ev, default=float) + "\n")
+        try:
+            with self.jsonl.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(ev, default=float) + "\n")
+        except Exception:  # noqa: BLE001 - telemetry is best-effort
+            pass
         print(f"[{ev['elapsed_s']:>8.1f}s] {kind}: {message}", flush=True)
         self._render()
 
@@ -75,7 +82,15 @@ class ProgressLogger:
         self._render()
 
     def _write_status(self) -> None:
-        """Persist the latest {phase,step,total,eta_s,elapsed_s} snapshot."""
+        """Persist the latest {phase,step,total,eta_s,elapsed_s} snapshot.
+
+        Robust + best-effort. On Windows ``Path.replace`` raises
+        ``PermissionError`` (WinError 5) if a reader (the ``/progress``
+        endpoint polling ``status.json``) holds the target open at that exact
+        instant, so we retry the atomic swap briefly. Above all this must
+        **never propagate** — a telemetry write must not be able to crash the
+        multi-hour run it is observing (that is exactly what killed
+        ``trace-gen-c46c804f`` at step 1140/1474)."""
         snap = {
             "phase": self._status.get("phase"),
             "step": self._status.get("step"),
@@ -84,9 +99,19 @@ class ProgressLogger:
             "elapsed_s": round(time.time() - self._t0, 1),
             "updated": datetime.now().isoformat(timespec="seconds"),
         }
-        tmp = self.status_json.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(snap, default=float), encoding="utf-8")
-        tmp.replace(self.status_json)
+        try:
+            tmp = self.status_json.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(snap, default=float), encoding="utf-8")
+            for attempt in range(6):
+                try:
+                    tmp.replace(self.status_json)
+                    return
+                except PermissionError:
+                    if attempt == 5:
+                        return  # reader kept it locked; next step updates it
+                    time.sleep(0.05)
+        except Exception:  # noqa: BLE001 - telemetry is best-effort, never fatal
+            pass
 
     def result(self, label: str, metrics: dict) -> None:
         """Record a finished sub-result (e.g. a NARMA order) for the table."""
@@ -99,7 +124,10 @@ class ProgressLogger:
     # -- rendering ------------------------------------------------------
 
     def _render(self) -> None:
-        self.html.write_text(self._html(), encoding="utf-8")
+        try:
+            self.html.write_text(self._html(), encoding="utf-8")
+        except Exception:  # noqa: BLE001 - telemetry is best-effort, never fatal
+            pass
 
     def _html(self) -> str:
         st = self._status
