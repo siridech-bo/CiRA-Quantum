@@ -392,6 +392,16 @@ class QRCSystem:
         vec = self.qt.operator_to_vector(rho).full().ravel().astype(np.complex64)
         return g["torch"].tensor(vec, device=g["dev"])
 
+    def gpu_load(self, vec_np, which=("x", "y", "z")):
+        """Restore a previously saved GPU state vector — the resume counterpart
+        to :meth:`gpu_init`. ``vec_np`` is the complex64 column-stacked vector
+        as returned by ``vec.cpu().numpy()`` at a checkpoint; round-tripping it
+        through the same dtype is lossless, so resumed evolution is bit-identical
+        to an uninterrupted run."""
+        g = self._ensure_gpu(which)
+        vec = np.asarray(vec_np, dtype=np.complex64).ravel()
+        return g["torch"].tensor(vec, device=g["dev"])
+
     def step_observables_gpu(self, vec, U_mat, which=("x", "y", "z")):
         """One reservoir step fully on the GPU.
 

@@ -187,6 +187,9 @@ def run_narma_multitask(
     input_kind: str = "sine",
     progress_cb=None,
     fid_cb=None,
+    start_step: int = 0,
+    state0=None,
+    checkpoint_cb=None,
 ) -> tuple[dict[int, dict], int]:
     """Emulate several NARMA orders from a *single* reservoir pass.
 
@@ -209,7 +212,13 @@ def run_narma_multitask(
     # Input is order-independent; take it from the first order.
     u, _ = seq(n_steps, orders[0], seed=cfg.sim.seed)
     res = build_reservoir(cfg, feature_cfg)
-    out = res.run(u, progress_cb=progress_cb, fid_cb=fid_cb)  # the ONE expensive pass
+    out = res.run(u, progress_cb=progress_cb, fid_cb=fid_cb,  # the ONE expensive pass
+                  start_step=start_step, state0=state0, checkpoint_cb=checkpoint_cb)
+    # A resumed pass only computed the tail steps, so ``out.X`` is partial and
+    # the per-order readout metrics would be meaningless — the trace-cache
+    # generator (the only resume caller) ignores them anyway. Skip cleanly.
+    if start_step > 0:
+        return {}, out.n_qubits
     results: dict[int, dict] = {}
     for order in orders:
         _, y = seq(n_steps, order, seed=cfg.sim.seed)
@@ -581,19 +590,25 @@ def run_weather_reservoir(
     carbon_idx=(0, 1, 2, 3),
     progress_cb=None,
     fid_cb=None,
+    start_step: int = 0,
+    state0=None,
+    checkpoint_cb=None,
 ) -> np.ndarray:
     """One reservoir pass over the weather series → readout matrix X.
 
     The (expensive) FID reservoir is run once; the caller fits cheap
     per-horizon, per-variable readouts on the returned X (multitasking).
     ``fid_cb(step, fid)`` is forwarded to the reservoir loop so the
-    trace-cache generator can dump the per-step raw FID (FID readout only)."""
+    trace-cache generator can dump the per-step raw FID (FID readout only).
+    ``start_step``/``state0``/``checkpoint_cb`` enable crash-resume: continue
+    from a saved GPU state at ``start_step`` and checkpoint state periodically."""
     system = QRCSystem(cfg.system, cfg.sim)
     encoder = Encoder(system, cfg.encoding)
     res = Reservoir(system, encoder, feature_cfg)
     seq = _weather_input(weather_norm, n_steps, system.n,
                          list(proton_idx), list(carbon_idx))
-    out = res.run(seq, progress_cb=progress_cb, fid_cb=fid_cb)
+    out = res.run(seq, progress_cb=progress_cb, fid_cb=fid_cb,
+                  start_step=start_step, state0=state0, checkpoint_cb=checkpoint_cb)
     return out.X
 
 

@@ -57,6 +57,9 @@ class Reservoir:
         progress: bool = False,
         progress_cb=None,
         fid_cb=None,
+        start_step: int = 0,
+        state0=None,
+        checkpoint_cb=None,
     ) -> ReservoirOutput:
         """Drive ``inputs`` through the reservoir.
 
@@ -102,11 +105,20 @@ class Reservoir:
             names = self.features.observable_names()
 
         rho_mat = self.sys.init_mat(rho) if vec_loop else None
-        vec_gpu = (
-            self.sys.gpu_init(rho, which=which) if (gpu_loop or fid_gpu) else None
-        )
+        # Resume support (GPU FID path): ``state0`` restores the exact GPU
+        # state vector saved at a checkpoint so evolution continues from
+        # ``start_step`` instead of recomputing from 0. Only the GPU FID path
+        # carries a serialisable state today; other backends stream but do not
+        # resume (``start_step`` stays 0 for them).
+        if gpu_loop or fid_gpu:
+            if fid_gpu and state0 is not None:
+                vec_gpu = self.sys.gpu_load(state0, which=which)
+            else:
+                vec_gpu = self.sys.gpu_init(rho, which=which)
+        else:
+            vec_gpu = None
 
-        for k in range(n_steps):
+        for k in range(start_step, n_steps):
             values = seq[k] if seq.shape[1] > 1 else seq[k, 0]
             if fid_gpu:
                 # Reservoir update stays on the GPU; then read out the FID.
@@ -156,8 +168,19 @@ class Reservoir:
                 print(f"  reservoir step {k}/{n_steps}", flush=True)
             if progress_cb is not None:
                 progress_cb(k + 1, n_steps)
+            # Resume checkpoint: hand the caller a *lazy* state provider so the
+            # (GPU→CPU) state copy only materialises when a checkpoint is
+            # actually due. Only the GPU FID path has a serialisable state.
+            if checkpoint_cb is not None:
+                if fid_gpu:
+                    checkpoint_cb(k, lambda: vec_gpu.detach().to("cpu").numpy())
+                else:
+                    checkpoint_cb(k, lambda: None)
 
-        X = np.vstack(rows)
+        # Resumed runs computed only the tail; the returned X covers the steps
+        # this call actually ran. Trace-gen ignores X (it streams FID via
+        # fid_cb), so a short X here is fine; non-resumed callers get the full X.
+        X = np.vstack(rows) if rows else np.empty((0, 0))
         return ReservoirOutput(
             X=X,
             feature_names=names or [],

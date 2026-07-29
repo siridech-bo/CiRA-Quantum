@@ -29,6 +29,7 @@ Run from ``d:\\CiRA Quantum\\backend``::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import time
 from dataclasses import asdict
@@ -38,6 +39,11 @@ from pathlib import Path
 import numpy as np
 
 from qrc_progress import ProgressLogger
+
+# Config-keyed checkpoint root — stable across re-launches (each managed run
+# gets a fresh run-dir, so the checkpoint can't live there or resume would
+# never find it). Anchored to the backend dir, independent of cwd.
+_CKPT_ROOT = Path(__file__).resolve().parents[1] / "artifacts" / "traces" / ".ckpt"
 
 from app.qrc.benchmarks import run_narma_multitask, run_weather_reservoir
 from app.qrc.config import (
@@ -91,6 +97,133 @@ class FidCollector:
         return np.vstack(self.rows).astype(np.complex64)
 
 
+def _ckpt_hash(cfg, task: str) -> str:
+    """Stable short hash of everything that determines the per-step FID, so a
+    re-launch with the *same* config finds and resumes its checkpoint, and a
+    changed config does not."""
+    payload = {
+        "task": task,
+        "system": asdict(cfg.system),
+        "sim": asdict(cfg.sim),          # tau, n_virtual, evolution_mode, seed, fid_points
+        "training": asdict(cfg.training),  # washout/n_train/n_test (the split → n_steps + input)
+    }
+    blob = json.dumps(payload, sort_keys=True, default=str).encode()
+    return hashlib.sha256(blob).hexdigest()[:16]
+
+
+class StreamingTrace:
+    """Stream each step's FID straight to an on-disk memmap (never hold the
+    whole run in RAM), checkpoint the GPU state periodically, and support
+    resume — so a crash costs at most one checkpoint interval, not the whole
+    multi-hour run.
+
+    Serves three reservoir hooks:
+      * ``__call__(k, fid)``  → ``fid_cb`` — write row ``k`` to the memmap +
+        update the live progress snapshot.
+      * ``checkpoint(k, state_fn)`` → ``checkpoint_cb`` — every ``every`` steps,
+        flush the memmap and atomically save {state, step} for resume.
+      * ``try_resume()`` → ``(start_step, state0)`` from a matching checkpoint.
+    """
+
+    def __init__(
+        self, ckpt_dir: Path, n_steps: int, fid_points: int, config_hash: str,
+        *, total: int, logger: ProgressLogger | None = None, every: int = 20,
+    ) -> None:
+        self.dir = Path(ckpt_dir)
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.n_steps = n_steps
+        self.fid_points = fid_points
+        self.hash = config_hash
+        self.total = total
+        self.logger = logger
+        self.every = max(1, every)
+        self.fids_path = self.dir / "fids.dat"
+        self.ckpt_path = self.dir / "ckpt.npz"
+        # Must end in .npz — np.savez appends '.npz' to any other name, which
+        # would make the subsequent atomic replace target a missing file.
+        self.tmp_path = self.dir / "ckpt.tmp.npz"
+        self._t0 = time.time()
+        self._start_step = 0
+
+        # A stale memmap of the wrong size (config changed) can't be reused.
+        expected = n_steps * fid_points * np.dtype(np.complex64).itemsize
+        if self.fids_path.exists() and self.fids_path.stat().st_size != expected:
+            self.fids_path.unlink()
+            self.ckpt_path.unlink(missing_ok=True)
+        mode = "r+" if self.fids_path.exists() else "w+"
+        self.mmap = np.memmap(
+            self.fids_path, dtype=np.complex64, mode=mode, shape=(n_steps, fid_points)
+        )
+
+    def try_resume(self) -> tuple[int, np.ndarray | None]:
+        """Resume from a saved checkpoint iff it matches this config. Returns
+        ``(start_step, state0)``; ``(0, None)`` for a fresh run."""
+        if not self.ckpt_path.exists():
+            return 0, None
+        try:
+            with np.load(self.ckpt_path, allow_pickle=False) as z:
+                if str(z["config_hash"]) != self.hash:
+                    return 0, None
+                step = int(z["step"])
+                state = np.asarray(z["state"]) if "state" in z.files else None
+            if state is None or not (0 <= step < self.n_steps):
+                return 0, None
+            self._start_step = step + 1
+            return self._start_step, state
+        except Exception:  # noqa: BLE001 - a corrupt checkpoint just means fresh
+            return 0, None
+
+    def __call__(self, k: int, fid: np.ndarray) -> None:  # fid_cb
+        self.mmap[k] = np.asarray(fid, dtype=np.complex64)
+        if self.logger is not None:
+            done_this_session = k - self._start_step + 1
+            elapsed = time.time() - self._t0
+            per = elapsed / done_this_session if done_this_session > 0 else 0.0
+            eta = per * (self.n_steps - (k + 1))
+            self.logger.status(phase="reservoir", step=k + 1, total=self.total, eta_s=eta)
+
+    def checkpoint(self, k: int, state_fn) -> None:  # checkpoint_cb
+        """Every ``every`` steps (and on the last), durably persist {state,step}
+        for resume. Best-effort: a checkpoint write must never crash the run."""
+        if (k + 1) % self.every != 0 and k != self.n_steps - 1:
+            return
+        try:
+            state = state_fn()
+            if state is None:
+                return  # backend has no serialisable state → stream-only
+            self.mmap.flush()
+            np.savez(
+                self.tmp_path, step=np.int64(k), config_hash=np.str_(self.hash),
+                n_steps=np.int64(self.n_steps), fid_points=np.int64(self.fid_points),
+                state=np.asarray(state, dtype=np.complex64),
+            )
+            self.tmp_path.replace(self.ckpt_path)
+        except Exception:  # noqa: BLE001 - checkpointing is best-effort
+            pass
+
+    def finalize(self) -> np.ndarray:
+        """The complete [n_steps, fid_points] FID array from disk."""
+        self.mmap.flush()
+        return np.array(self.mmap[: self.n_steps], dtype=np.complex64)
+
+    def cleanup(self) -> None:
+        """Drop the checkpoint scratch once the final trace is safely written."""
+        try:
+            self.mmap.flush()
+            del self.mmap
+        except Exception:  # noqa: BLE001
+            pass
+        for p in (self.fids_path, self.ckpt_path, self.tmp_path):
+            try:
+                p.unlink(missing_ok=True)
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            self.dir.rmdir()
+        except OSError:
+            pass
+
+
 def _resolve_system(name_or_n: str):
     """Accept an int qubit count or a preset name for ``--system``."""
     try:
@@ -137,7 +270,7 @@ def _synthetic_weather(n_days: int, seed: int) -> np.ndarray:
 def gen_weather(
     cfg: QRCConfig, feature_cfg: FeatureConfig, args,
     logger: ProgressLogger | None = None,
-) -> dict:
+) -> tuple[dict, "StreamingTrace"]:
     horizons = list(args.horizons)
     tr = cfg.training
     n_steps = tr.washout + tr.n_train + tr.n_test
@@ -160,17 +293,26 @@ def gen_weather(
     weather = weather[:n_days]
 
     proton_idx, carbon_idx = _weather_indices(cfg.system.n_qubits)
-    collector = FidCollector(total=n_steps, logger=logger, phase="reservoir")
+    chash = _ckpt_hash(cfg, "weather")
+    chk = StreamingTrace(_CKPT_ROOT / chash, n_steps, cfg.sim.fid_points, chash,
+                         total=n_steps, logger=logger)
+    start_step, state0 = chk.try_resume()
     print(f"[gen] weather pass: {n_steps} steps, fid_points={cfg.sim.fid_points}, "
-          f"proton_idx={proton_idx} carbon_idx={carbon_idx}", flush=True)
+          f"proton_idx={proton_idx} carbon_idx={carbon_idx}"
+          f"{f' (RESUMING from step {start_step})' if start_step else ''}", flush=True)
     if logger is not None:
-        logger.event("reservoir", f"weather reservoir pass: {n_steps} steps",
-                      phase="reservoir", step=0, total=n_steps)
+        if start_step:
+            logger.event("resume", f"resuming weather pass from step {start_step}/{n_steps}",
+                          phase="reservoir", step=start_step, total=n_steps)
+        else:
+            logger.event("reservoir", f"weather reservoir pass: {n_steps} steps",
+                          phase="reservoir", step=0, total=n_steps)
     run_weather_reservoir(
         cfg, weather, n_steps, feature_cfg=feature_cfg,
-        proton_idx=proton_idx, carbon_idx=carbon_idx, fid_cb=collector,
+        proton_idx=proton_idx, carbon_idx=carbon_idx, fid_cb=chk,
+        start_step=start_step, state0=state0, checkpoint_cb=chk.checkpoint,
     )
-    fids = collector.stack()
+    fids = chk.finalize()
     meta = {
         "task": "weather",
         "generated_utc": datetime.now(UTC).isoformat(),
@@ -186,7 +328,7 @@ def gen_weather(
         "feature_cfg": asdict(feature_cfg),
         "horizons": horizons,
     }
-    return {
+    payload = {
         "fids": fids,
         "fid_dwell": np.float64(cfg.sim.fid_dwell),
         "task": np.str_("weather"),
@@ -196,12 +338,13 @@ def gen_weather(
         "horizons": np.asarray(horizons, dtype=np.int64),
         "meta": np.str_(json.dumps(meta, default=float)),
     }
+    return payload, chk
 
 
 def gen_narma(
     cfg: QRCConfig, feature_cfg: FeatureConfig, args,
     logger: ProgressLogger | None = None,
-) -> dict:
+) -> tuple[dict, "StreamingTrace"]:
     orders = list(args.orders)
     tr = cfg.training
     n_steps = tr.washout + tr.n_train + tr.n_test
@@ -209,17 +352,25 @@ def gen_narma(
     # exactly the sequence run_narma_multitask feeds the reservoir.
     narma_input, _ = narma_sequence_sine(n_steps, orders[0], seed=cfg.sim.seed)
 
-    collector = FidCollector(total=n_steps, logger=logger, phase="reservoir")
+    chash = _ckpt_hash(cfg, "narma")
+    chk = StreamingTrace(_CKPT_ROOT / chash, n_steps, cfg.sim.fid_points, chash,
+                         total=n_steps, logger=logger)
+    start_step, state0 = chk.try_resume()
     print(f"[gen] narma pass: {n_steps} steps, fid_points={cfg.sim.fid_points}, "
-          f"orders={orders}", flush=True)
+          f"orders={orders}{f' (RESUMING from step {start_step})' if start_step else ''}",
+          flush=True)
     if logger is not None:
-        logger.event("reservoir", f"narma reservoir pass: {n_steps} steps",
-                      phase="reservoir", step=0, total=n_steps)
+        if start_step:
+            logger.event("resume", f"resuming narma pass from step {start_step}/{n_steps}",
+                          phase="reservoir", step=start_step, total=n_steps)
+        else:
+            logger.event("reservoir", f"narma reservoir pass: {n_steps} steps",
+                          phase="reservoir", step=0, total=n_steps)
     run_narma_multitask(
         cfg, orders, feature_cfg=feature_cfg, input_kind="sine",
-        fid_cb=collector,
+        fid_cb=chk, start_step=start_step, state0=state0, checkpoint_cb=chk.checkpoint,
     )
-    fids = collector.stack()
+    fids = chk.finalize()
     meta = {
         "task": "narma",
         "generated_utc": datetime.now(UTC).isoformat(),
@@ -233,7 +384,7 @@ def gen_narma(
         "feature_cfg": asdict(feature_cfg),
         "orders": orders,
     }
-    return {
+    payload = {
         "fids": fids,
         "fid_dwell": np.float64(cfg.sim.fid_dwell),
         "task": np.str_("narma"),
@@ -243,6 +394,7 @@ def gen_narma(
         "orders": np.asarray(orders, dtype=np.int64),
         "meta": np.str_(json.dumps(meta, default=float)),
     }
+    return payload, chk
 
 
 def main() -> None:
@@ -297,8 +449,9 @@ def main() -> None:
                       system=args.system, evolution_mode=args.evolution_mode,
                       fid_points=args.fid_points, splits=list(args.splits))
 
+    chk = None
     try:
-        payload = (gen_weather if args.task == "weather" else gen_narma)(
+        payload, chk = (gen_weather if args.task == "weather" else gen_narma)(
             cfg, feature_cfg, args, logger=logger
         )
         if logger is not None:
@@ -311,6 +464,10 @@ def main() -> None:
         if logger is not None:
             logger.event("error", f"trace-gen failed: {type(exc).__name__}: {exc}")
         raise
+
+    # Trace is safely written — the streamed checkpoint scratch can go now.
+    if chk is not None:
+        chk.cleanup()
 
     fids = payload["fids"]
     print(f"[gen] wrote {out.resolve()}")
