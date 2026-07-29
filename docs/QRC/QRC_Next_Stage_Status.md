@@ -10,7 +10,9 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
-| 2026-07-28 | **Launched full weather trace-gen** (2048 fid_points, 1474 steps) | 🔵 running `trace-gen-c46c804f` · ETA ~8 h · live bar in UI | — |
+| 2026-07-29 | **Fix: telemetry must never crash the run** (WinError 5 replace race) | ✅ retry + best-effort; verified via forced-error test | `618abeb` |
+| 2026-07-29 | ⚠️ Full trace-gen **FAILED** at step 1140/1474 (~13.7 h) | ❌ per-step `status.json` replace hit PermissionError → aborted the run; root-caused + fixed above; **awaiting re-launch decision** | `trace-gen-c46c804f` |
+| 2026-07-28 | **Launched full weather trace-gen** (2048 fid_points, 1474 steps) | 🔵 ran to 77% then failed (see above); real ~43 s/step ⇒ ~17.7 h full | — |
 | 2026-07-28 | Deployer handoff doc (`deploy/QRC_DEPLOY.md`) | ✅ in-tree deploy instructions for `quantum.cira-core.com/qrc` | `5c5bfc8`+ |
 | 2026-07-28 | Feature-Lab UI: `/embedding` endpoint + scatter + Exp 1.1/1.2/1.3 charts | ✅ built, 22 tests pass, type-check clean | `fb8127b` |
 | 2026-07-28 | trace-gen live progress (per-step `status.json` + event log) | ✅ verified via `/progress` parser | `34090fd` |
@@ -36,7 +38,7 @@ state, so we always know *what is left*.
 | Phase | Title | State | Blocking dependency |
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
-| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🔵 **In progress** — full weather trace-gen running (`trace-gen-c46c804f`, ETA ~8 h); phase1 sweep auto-runs on completion | trace-gen → phase1 pass |
+| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🟡 **Ready to re-run** — first full trace-gen failed at 77% on a telemetry bug (now fixed, `618abeb`); real full run ~17.7 h; **awaiting re-launch go-ahead** | re-launch trace-gen → phase1 |
 | **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
