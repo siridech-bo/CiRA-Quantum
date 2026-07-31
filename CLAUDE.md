@@ -3,25 +3,28 @@
 Instructions and durable facts. Read this before reasoning about deployment,
 architecture, or where things run. If something here proves wrong, fix it here.
 
-## Running long/expensive jobs — ASK FIRST (hard rule)
+## Running GPU jobs — ASK + CONFIRM FIRST, EVERY TIME (hard rule)
 
-**Never auto-launch a run expected to take more than a few minutes** — especially
-GPU jobs, multi-hour reservoir passes, or sweeps. This is a shared single-GPU dev
-box and the user decides scope + cost. Before launching:
+**GPU time is a real, billable cost to the user. Confirm before EVERY GPU
+launch** — including **short validation / smoke-test runs**, not just multi-hour
+sweeps. This is a shared single-GPU dev box; the user decides. Before launching:
 
-1. **STOP and ask.** State the **expected wall-clock**, the **scope/fidelity**,
-   and **what it will consume**, and get an **explicit go-ahead**. Offer a
-   faster/cheaper option (smaller fidelity, fewer settings) so they can choose.
-2. **A prior "go" does NOT authorize the next long run.** Each multi-hour job
-   needs its own confirmation, even mid-task.
-3. **Launch via the launcher API, not a raw background process**, so the run is
+1. **STOP and ask for an explicit go-ahead.** State the **expected wall-clock**,
+   the **scope/fidelity**, and **what it consumes**. Offer a faster/cheaper
+   option. Wait for a clear "go" — do not launch in the same breath as asking.
+2. **This applies to *every* GPU run, however brief.** A 2-minute validation run
+   still costs GPU time and still needs a heads-up first. Never slip one in.
+3. **Re-confirm if a number you quoted changes.** If you said "~1.5 h" and it's
+   really "~1.7 h", pause and re-confirm — don't just launch the corrected one.
+4. **A prior "go" does NOT authorize the next run.** Each GPU launch needs its
+   own confirmation, even mid-task.
+5. **Launch via the launcher API, not a raw background process**, so the run is
    visible + stoppable in the QRC UI (`registry.json`). Raw `python …` background
    jobs are invisible to the dashboard — don't use them for real runs.
-4. If a long job is already running, don't start another; the single-GPU lock and
-   the user's time both forbid it.
+6. Don't start a second GPU job while one is running (single-GPU lock + cost).
 
-Estimating: quote a real number (measure a few steps if unsure), and update the
-estimate honestly if it proves slower — don't hand-wave "~5h" when it's ~10h.
+Estimating: quote a **real** number (measure a few steps if unsure), and correct
+it honestly if slower — don't hand-wave "~5h" when it's ~10h.
 
 ## Deployment architecture (get this right)
 
