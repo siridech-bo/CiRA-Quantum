@@ -82,7 +82,8 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
-      <tr><td>07-31</td><td><b>Retracted the Phase-1 verdict</b> (methodology critique)</td><td><span class="tag t-none">sweep underpowered/confounded (18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30); "phase/multimodal don't help" NOT supported</span></td><td>—</td></tr>
+      <tr><td>07-31</td><td><b>Rigorous Phase-1 v2</b> (standalone/null/dim-matched/blocked-CV)</td><td><span class="tag t-done">CORRECTS v1: multimodal DOES carry signal (+0.003…0.005, significant vs random null); phase redundant; reps indistinguishable within CV error (±0.10–0.28); signal low-dimensional (PCA-18 ≈ full). Gate → Phase 2</span></td><td><code>2b59e1c</code></td></tr>
+      <tr><td>07-31</td><td><b>Retracted the v1 Phase-1 verdict</b> (methodology critique)</td><td><span class="tag t-none">v1 underpowered/confounded → drove the v2 study above</span></td><td>—</td></tr>
       <tr><td>07-31</td><td><b>Phase-1 sweep run (raw numbers)</b></td><td><span class="tag t-done">R² per method/horizon produced; conclusions withdrawn (see row above)</span></td><td><code>phase1-1356c77d</code></td></tr>
       <tr><td>07-31</td><td><b>Full trace-gen COMPLETED</b> + phase1 sweep launched</td><td><span class="tag t-done">trace-gen-a6304ab1 done clean (1474/1474); cached weather_full.npz; phase1-1356c77d running</span></td><td>—</td></tr>
       <tr><td>07-29</td><td><b>Re-launched full trace-gen (resumable)</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">running trace-gen-a6304ab1 · streaming verified · ETA ~9-18h · crash resumes</span></td><td>—</td></tr>
@@ -107,7 +108,7 @@
       <tr><td><b>0</b></td><td>Instrumentation: trace cache + FID/progress UI + run control</td>
         <td><span class="tag t-done">Done — both gaps closed</span></td><td>—</td></tr>
       <tr><td><b>1</b></td><td>Flag-level feature experiments (phase / multimodal / selection incl. UMAP)</td>
-        <td><span class="tag t-run">Run but inconclusive — underpowered/confounded (18-of-1977 · appended · p≫n · single-seed/h=30); no valid verdict yet</span></td><td>rigorous Phase-1 redesign (offline, fast)</td></tr>
+        <td><span class="tag t-done">Done (rigorous v2) — multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dim. Gate → Phase 2</span></td><td>optional: reservoir-seed variance (GPU)</td></tr>
       <tr><td><b>2</b></td><td>Encoding sweep (7 functions / phase-amp / protons-only)</td>
         <td><span class="tag t-prim">Primitives — no runner</span></td><td>build <code>qrc_phase2.py</code>; needs re-evolution</td></tr>
       <tr><td><b>3</b></td><td>External feature libraries (tsfresh, nmrglue)</td>
@@ -142,17 +143,17 @@
   </div>
 
   <div class="card">
-    <div class="phase-h"><span class="num">Phase 1</span><h3>Flag-level feature experiments</h3><span class="tag t-run">Run but inconclusive</span></div>
-    <p class="note">Run on the full weather trace (<code>weather_full.npz</code>, 1474 steps) via <code>scripts/qrc_phase1.py</code> — run <code>phase1-1356c77d</code>. <b>⚠️ No valid verdict yet</b> — the as-designed test is underpowered/confounded; do NOT conclude "phase/multimodal don't help".</p>
+    <div class="phase-h"><span class="num">Phase 1</span><h3>Flag-level feature experiments</h3><span class="tag t-done">Done — rigorous v2</span></div>
+    <p class="note">Run on the full weather trace (<code>weather_full.npz</code>, 1474 steps) via <code>scripts/qrc_phase1.py</code> — run <code>phase1-1356c77d</code>. <b>v1 was underpowered/confounded → replaced by the rigorous <code>qrc_phase1_v2.py</code></b> (standalone · random-feature null · dimensionality-matched · RidgeCV · blocked-CV ±std, all horizons).</p>
     <div class="scroll"><table>
-      <thead><tr><th>Exp</th><th>Result (weather R² @ h30, vs 0.812 baseline)</th><th>Verdict</th></tr></thead>
+      <thead><tr><th>Question</th><th>Rigorous answer</th></tr></thead>
       <tbody>
-        <tr><td>1.1 Add FID phase (<code>magnitude653</code> → <code>phase</code>)</td><td>0.802 — within ±0.01 across all horizons</td><td><span class="tag t-none">inconclusive (swamped/confounded)</span></td></tr>
-        <tr><td>1.2 Multimodal (+time-domain, wavelet, entropy)</td><td>0.807 — whisker better only at h45</td><td><span class="tag t-none">inconclusive (swamped/confounded)</span></td></tr>
-        <tr><td>1.3 Feature selection (PCA/KPCA/<b>UMAP</b>/LASSO/MI/random)</td><td>kPCA-100 tops h30 (0.831) but <b>collapses</b> at h20 (0.744) / h45 (0.723)</td><td><span class="tag t-none">h=30-only ranking artifact</span></td></tr>
+        <tr><td>Do <b>multimodal</b> (18) carry signal?</td><td><b>Yes</b> — small but significant +ve marginal every horizon (+0.003…0.005, beats random null); standalone R²≈0.60 @ h30. <i>v1 "useless" was wrong.</i> Keep it.</td></tr>
+        <tr><td>Does <b>phase</b> (re+im) help?</td><td>Structured (beats noise) but <b>redundant</b> — ~0 marginal over magnitude.</td></tr>
+        <tr><td>Best representation? / dimensionality?</td><td>magnitude653, but edge is <b>within CV error (±0.10–0.28)</b> → reps indistinguishable. Signal <b>low-dimensional</b>: PCA-18 of magnitude ≈ full 653.</td></tr>
       </tbody>
     </table></div>
-    <p class="note">Baseline horizon profile: h1=0.950 · h10=0.888 · h20=0.860 · h30=0.812 · h45=0.786. <b>Why inconclusive:</b> 18 multimodal feats are ~0.9% of a 1977-col matrix (swamped); blocks appended not isolated; <b>p≫n</b> (1977 vs 600 train) so ±0.01 is noise; single seed + h=30 ranking. Scale is NOT a confound (readout z-scores, <code>benchmarks.py:346</code>). <b>Required before any gate:</b> standalone per-representation eval · random-feature null · dimensionality-matched · alpha CV · multi-seed + full-horizon ±std.</p>
+    <p class="note">Baseline horizon profile: h1=0.950 · h10=0.888 · h20=0.860 · h30=0.812 · h45=0.786. <b>Decision gate (rigorously supported):</b> representation choice is low-headroom (all reps ≈ equivalent when reduced; multimodal adds ~0.004) → prioritize <b>Phase 2 (encoding)</b> — NOT because "multimodal is useless" (it isn't). Remaining rigor gap: reservoir-<i>seed</i> variance needs a few extra GPU traces.</p>
   </div>
 
   <div class="card">
@@ -224,7 +225,7 @@
   <h2>What is left — priority order</h2>
   <ol class="prio">
     <li><i>(Done: Phase 0, Phase 1, Feature-Lab UI — see activity log.)</i></li>
-    <li><b>Phase-1 rigorous redesign (required)</b> — the first sweep is inconclusive. Standalone per-representation eval · random-feature null · dimensionality-matched · alpha CV · multi-seed + full-horizon ±std. Offline on the cached trace (minutes, no GPU).</li>
+    <li><b>Phase 1 — done (rigorous v2).</b> Optional remaining rigor: reservoir-<i>seed</i> variance = a few extra GPU traces (resumable). Otherwise settled.</li>
     <li><b>Phase 2 — encoding runner</b> (<code>qrc_phase2.py</code>): encoding-function sweep / phase-amplitude / protons-only. The next real lever; re-evolves the reservoir (multi-hour GPU, now resumable).</li>
     <li><b>Ship remote access</b> — deployer serves the branch at <code>quantum.cira-core.com/qrc</code> + Cloudflare Access (build handed off). Parallel.</li>
     <li><b>Phase 3</b> (tsfresh, nmrglue) → <b>Phase 4 full grid</b> → gated <b>Phase 5 / 6</b>.</li>

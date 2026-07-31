@@ -10,7 +10,8 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
-| 2026-07-31 | **Retracted the Phase-1 verdict** (methodology critique) | ⚠️ the sweep is underpowered/confounded (18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30). "phase/multimodal don't help" is **not supported** — rigorous redesign required before any conclusion | — |
+| 2026-07-31 | **Rigorous Phase-1 v2** (standalone/null/dim-matched/blocked-CV) | ✅ `qrc_phase1_v2.py`. **Corrects v1:** multimodal DOES carry signal (+0.003…0.005, significant vs random null); phase redundant; reps indistinguishable within CV error (±0.10–0.28); signal low-dimensional (PCA-18 ≈ full). Gate → Phase 2 (rigorously) | `2b59e1c` |
+| 2026-07-31 | **Retracted the Phase-1 verdict** (methodology critique) | ⚠️ v1 underpowered/confounded (18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30); "phase/multimodal don't help" not supported → drove the v2 study above | — |
 | 2026-07-31 | **Phase-1 sweep run (raw numbers)** | ✅ `phase1-1356c77d` produced R² per method/horizon; conclusions withdrawn (see next row) | — |
 | 2026-07-31 | **Full trace-gen COMPLETED** + phase1 sweep launched | ✅ `trace-gen-a6304ab1` done clean (1474/1474 rows, valid); cached as `weather_full.npz`; phase1 `phase1-1356c77d` running | — |
 | 2026-07-29 | **Re-launched full trace-gen (resumable)** | ✅ streamed to disk, completed without loss (no crash; resume path proven separately) | — |
@@ -43,7 +44,7 @@ state, so we always know *what is left*.
 | Phase | Title | State | Blocking dependency |
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
-| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🟡 **Run but inconclusive** — first sweep done, but the as-designed test is underpowered/confounded (18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30). **No valid verdict yet** — needs rigorous redesign | rigorous Phase-1 redesign (offline, fast) |
+| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done (rigorous v2)** — standalone/null/dim-matched/blocked-CV. Multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dimensional. Gate → Phase 2 | (optional: reservoir-seed variance = extra GPU traces) |
 | **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
@@ -76,28 +77,26 @@ state, so we always know *what is left*.
 
 ---
 
-## Phase 1 — Flag-level feature experiments 🟡 RUN, BUT INCONCLUSIVE (needs rigorous redesign)
+## Phase 1 — Flag-level feature experiments ✅ DONE (rigorous v2; v1 verdict corrected)
 
-First sweep run on the full weather trace (`weather_full.npz`, 1474 steps) via
-`scripts/qrc_phase1.py` — run `phase1-1356c77d`. Raw numbers (weather R² @ h30):
+The v1 sweep (`qrc_phase1.py`, run `phase1-1356c77d`) was **underpowered/confounded**
+(18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30-only), so its
+"phase/multimodal don't help" reading was withdrawn. The rigorous study
+`scripts/qrc_phase1_v2.py` (standalone eval · random-feature null · dimensionality-
+matched · RidgeCV alpha · **blocked-CV mean±std, all horizons**) replaces it. Findings:
 
-| Exp | R² @ h30 (baseline 0.812) | Note |
-|-----|-----|-----|
-| 1.1 Add FID phase (`magnitude653` → `phase`) | 0.802 (±0.01 across horizons) | appended to baseline |
-| 1.2 Multimodal (+time-domain, wavelet, entropy) | 0.807 | 18 descriptors appended to 1959 |
-| 1.3 Feature selection (PCA / KPCA / **UMAP** / LASSO / MI / random) | kPCA-100 tops h30 (0.831), collapses h20/h45 | h=30-only ranking artifact |
+| Question | Rigorous answer |
+|-----|-----|
+| Do **multimodal** (18 feats) carry signal? | **Yes.** Small but statistically significant **+ve** marginal at every horizon (+0.003…+0.005, beats random-feature null); standalone R²≈0.60 @ h30. *v1's "useless" was wrong.* **Keep it.** |
+| Does **phase** (re+im) help? | Structured (beats noise) but **redundant** — ~0 marginal over magnitude. |
+| Best single representation? | magnitude653, but its edge is **within CV error bars (±0.10–0.28)** → representations statistically **indistinguishable**. |
+| Why did v1 see ±0.01 "differences"? | Noise. Blocked-CV variance is ~10–25×, and the fixed single split was optimistic. |
+| Dimensionality? | **Signal is low-dimensional** — PCA-18 of magnitude ≈ full 653 (0.799 vs 0.812 @ h30); all reps converge when reduced. The p≫n dilution was the real issue. |
 
-**⚠️ Do NOT conclude "phase/multimodal don't help" from this.** The as-designed
-test is underpowered and confounded: (1) the 18 multimodal descriptors are ~0.9%
-of a 1977-column matrix (swamped); (2) blocks are *appended*, not isolated, so
-marginal value is unattributable; (3) **p ≫ n** (1977 features vs 600 train) —
-±0.01 on a single split is noise; (4) single seed, h=30-only ranking. Feature
-scale is *not* a confound (the readout z-score-standardises — `benchmarks.py:346`).
-
-**Rigorous redesign (offline, minutes, no GPU) — required before any gate:**
-standalone per-representation eval · random-feature null control · dimensionality-
-matched comparison · per-representation alpha CV · multi-seed + full-horizon ±std.
-Only then decide readout-vs-encoding priority.
+**Decision gate (now rigorously supported):** feature-representation choice is
+**low-headroom** (all reps ≈ equivalent when reduced; multimodal adds only ~0.004)
+→ prioritize **Phase 2 (encoding)**. Not because "multimodal is useless" (it isn't).
+*Remaining rigor gap:* reservoir-**seed** variance needs a few extra GPU traces.
 
 ---
 
