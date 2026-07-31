@@ -153,7 +153,7 @@ _CHOICE_SPEC: dict[str, tuple[str, tuple[str, ...]]] = {
     "subtask": ("--task", ("weather", "narma")),
     "select": ("--select", ("first", "mean")),
     "experiment": ("--experiment", ("2.1", "2.1_quick", "2.2", "all")),
-    "fidelity": ("--fidelity", ("screen", "full", "tiny")),
+    "fidelity": ("--fidelity", ("quick", "screen", "full", "tiny")),
 }
 
 # Only names/dots/dashes — never a path separator or "..". Blocks traversal

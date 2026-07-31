@@ -56,6 +56,9 @@ HORIZONS = [1, 10, 20, 30, 45]
 # Fidelity presets. 'screen' ranks settings affordably (~40 min/setting on the
 # 9-spin GPU); 'full' confirms the winner at Paper-4 resolution (~hours).
 FIDELITY = {
+    # ~1.5–1.8 h for 3 encodings at the measured ~10 s/step — a fast sanity
+    # ranking (small blocked-CV, enough to see the spread across encodings).
+    "quick": {"fid_points": 512, "n_virtual": 10, "splits": (30, 110, 70)},
     "screen": {"fid_points": 512, "n_virtual": 10, "splits": (100, 300, 200)},
     "full": {"fid_points": 2048, "n_virtual": 25, "splits": (374, 600, 500)},
     "tiny": {"fid_points": 64, "n_virtual": 4, "splits": (10, 20, 10)},  # smoke test
