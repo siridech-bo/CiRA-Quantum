@@ -10,7 +10,8 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
-| 2026-07-31 | **Phase-1 sweep COMPLETE (real numbers)** | ✅ `phase1-1356c77d` done. Finding: 653-spectral baseline near-optimal; phase/multimodal ≈ wash; the kPCA "win" is an h=30-only artifact (collapses at h20/h45). Readout levers marginal → **shift priority to Phase 2 (encoding)** | — |
+| 2026-07-31 | **Retracted the Phase-1 verdict** (methodology critique) | ⚠️ the sweep is underpowered/confounded (18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30). "phase/multimodal don't help" is **not supported** — rigorous redesign required before any conclusion | — |
+| 2026-07-31 | **Phase-1 sweep run (raw numbers)** | ✅ `phase1-1356c77d` produced R² per method/horizon; conclusions withdrawn (see next row) | — |
 | 2026-07-31 | **Full trace-gen COMPLETED** + phase1 sweep launched | ✅ `trace-gen-a6304ab1` done clean (1474/1474 rows, valid); cached as `weather_full.npz`; phase1 `phase1-1356c77d` running | — |
 | 2026-07-29 | **Re-launched full trace-gen (resumable)** | ✅ streamed to disk, completed without loss (no crash; resume path proven separately) | — |
 | 2026-07-29 | **Stream FID to disk + crash-resume** (root fix for the "13h in RAM" design) | ✅ memmap streaming + resumable GPU-state checkpoints; resume is **bit-identical** (new GPU test); 70 tests pass | `5c7f43a` |
@@ -42,7 +43,7 @@ state, so we always know *what is left*.
 | Phase | Title | State | Blocking dependency |
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
-| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done** — real full-trace sweep run. Verdict: 653-spectral baseline near-optimal; augmentations marginal; kPCA "win" is an h=30-only artifact. Gate → prioritize **Phase 2 (encoding)** | (optional multi-seed/full-horizon re-run to firm up) |
+| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🟡 **Run but inconclusive** — first sweep done, but the as-designed test is underpowered/confounded (18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30). **No valid verdict yet** — needs rigorous redesign | rigorous Phase-1 redesign (offline, fast) |
 | **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
@@ -75,23 +76,28 @@ state, so we always know *what is left*.
 
 ---
 
-## Phase 1 — Flag-level feature experiments ✅ DONE (real full-trace sweep)
+## Phase 1 — Flag-level feature experiments 🟡 RUN, BUT INCONCLUSIVE (needs rigorous redesign)
 
-Run on the full weather trace (`weather_full.npz`, 1474 steps) via
-`scripts/qrc_phase1.py` — run `phase1-1356c77d`. **Verdict: the 653-peak
-spectral baseline is near-optimal; the augmentations give no robust gain.**
+First sweep run on the full weather trace (`weather_full.npz`, 1474 steps) via
+`scripts/qrc_phase1.py` — run `phase1-1356c77d`. Raw numbers (weather R² @ h30):
 
-| Exp | Result (weather R² @ h30, vs 0.812 baseline) | Verdict |
+| Exp | R² @ h30 (baseline 0.812) | Note |
 |-----|-----|-----|
-| 1.1 Add FID phase (`magnitude653` → `phase`) | 0.802 — within ±0.01 at every horizon | no gain (wash) |
-| 1.2 Multimodal (+time-domain, wavelet, entropy) | 0.807 — whisker better only at h45 | no gain (wash) |
-| 1.3 Feature selection (PCA / KPCA / **UMAP** / LASSO / MI / random) | kPCA-100 tops h30 (0.831) but **collapses** at h20 (0.744) / h45 (0.723) | not robust — h=30 artifact |
+| 1.1 Add FID phase (`magnitude653` → `phase`) | 0.802 (±0.01 across horizons) | appended to baseline |
+| 1.2 Multimodal (+time-domain, wavelet, entropy) | 0.807 | 18 descriptors appended to 1959 |
+| 1.3 Feature selection (PCA / KPCA / **UMAP** / LASSO / MI / random) | kPCA-100 tops h30 (0.831), collapses h20/h45 | h=30-only ranking artifact |
 
-Baseline horizon profile: h1=0.950 · h10=0.888 · h20=0.860 · h30=0.812 · h45=0.786.
+**⚠️ Do NOT conclude "phase/multimodal don't help" from this.** The as-designed
+test is underpowered and confounded: (1) the 18 multimodal descriptors are ~0.9%
+of a 1977-column matrix (swamped); (2) blocks are *appended*, not isolated, so
+marginal value is unattributable; (3) **p ≫ n** (1977 features vs 600 train) —
+±0.01 on a single split is noise; (4) single seed, h=30-only ranking. Feature
+scale is *not* a confound (the readout z-score-standardises — `benchmarks.py:346`).
 
-**Decision gate:** readout feature-engineering → no robust improvement →
-prioritize **Phase 2 (encoding)**. *Optional:* multi-seed + full-horizon
-re-run to firm up the negative result (fast — trace is cached, no GPU).
+**Rigorous redesign (offline, minutes, no GPU) — required before any gate:**
+standalone per-representation eval · random-feature null control · dimensionality-
+matched comparison · per-representation alpha CV · multi-seed + full-horizon ±std.
+Only then decide readout-vs-encoding priority.
 
 ---
 
