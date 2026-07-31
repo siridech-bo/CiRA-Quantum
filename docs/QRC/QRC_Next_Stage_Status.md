@@ -49,7 +49,7 @@ state, so we always know *what is left*.
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
 | **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done (rigorous v2)** — standalone/null/dim-matched/blocked-CV. Multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dimensional. Gate → Phase 2 | (optional: reservoir-seed variance = extra GPU traces) |
-| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🔵 **In progress** — runner `qrc_phase2.py` built + validated; 2.1 screening sweep (7 encodings, 9-spin, blocked-CV, resumable) running (~5 h) | 2.3 protons-only flag + full-fidelity confirm of winner |
+| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🔵 **In progress** — `qrc_phase2.py` built + **launcher-integrated (UI-visible, live progress, stoppable)**. Quick 3-encoding sanity subset running (~1.7 h); full 7-encoding + 2.2/2.3 after | full 7-encoding sweep + 2.2/2.3 (on user go-ahead) |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
 | **5** | Self-supervised representation learning (autoencoder, TS2Vec) | ⬜ **Not started** (gated) | only if Phase 4 shows headroom |
