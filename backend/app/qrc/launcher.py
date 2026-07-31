@@ -111,6 +111,18 @@ _TASKS: dict[str, dict[str, Any]] = {
         "flags": (),
         "choices": ("subtask",),
     },
+    # phase2 re-evolves the reservoir per encoding setting. Its CLI takes
+    # ``--experiment``/``--fidelity`` (choices) and writes results + live
+    # progress into ``--run-dir`` (so the UI shows a moving bar per encoding).
+    "phase2": {
+        "script": "scripts/qrc_phase2.py",
+        "fixed": [],
+        "numeric": ("seed",),
+        "lists": (),
+        "flags": (),
+        "choices": ("experiment", "fidelity"),
+        "output": "run_dir",
+    },
 }
 
 # name -> (cli flag, python type, min, max). Applies to both scalar
@@ -140,6 +152,8 @@ _FLAG_SPEC: dict[str, str] = {
 _CHOICE_SPEC: dict[str, tuple[str, tuple[str, ...]]] = {
     "subtask": ("--task", ("weather", "narma")),
     "select": ("--select", ("first", "mean")),
+    "experiment": ("--experiment", ("2.1", "2.1_quick", "2.2", "all")),
+    "fidelity": ("--fidelity", ("screen", "full", "tiny")),
 }
 
 # Only names/dots/dashes — never a path separator or "..". Blocks traversal
@@ -205,6 +219,9 @@ def build_argv(task: str, config: dict[str, Any], run_dir: Path, results_path: P
     # directory via --trace/--out-dir.
     if spec.get("output") == "out_dir":
         argv += ["--out-dir", str(run_dir)]
+    elif spec.get("output") == "run_dir":
+        # writes outputs + live progress into the run-dir (no separate --out).
+        argv += ["--run-dir", str(run_dir)]
     else:
         argv += ["--run-dir", str(run_dir), "--out", str(results_path)]
     if trace_required:
@@ -407,6 +424,11 @@ def launch_run(task: str, config: dict[str, Any]) -> dict[str, Any]:
             # summary so ``GET /runs/<id>/results`` surfaces the sweep.
             trace_path = None
             results_path = run_dir / "summary.json"
+        elif task == "phase2":
+            # phase2 writes ``phase2_summary.json`` (ranking + per-encoding
+            # results) into its ``--run-dir``.
+            trace_path = None
+            results_path = run_dir / "phase2_summary.json"
         else:
             trace_path = None
             results_path = run_dir / "results.json"

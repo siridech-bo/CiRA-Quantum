@@ -44,9 +44,13 @@ from qrc_gen_traces import (
     _weather_indices,
 )
 from qrc_phase1_v2 import blocked_folds, ridge_r2
+from qrc_progress import ProgressLogger
 
 ENCODINGS = ["arcsin_sqrt", "arccos", "linear", "sinusoidal",
              "logarithmic", "polynomial", "exponential"]
+# A representative 3-way subset for a quick sanity sweep (baseline + two very
+# different curvatures): Paper-4 arcsin√, plain linear, mid-emphasising sinusoidal.
+QUICK_ENCODINGS = ["arcsin_sqrt", "linear", "sinusoidal"]
 HORIZONS = [1, 10, 20, 30, 45]
 
 # Fidelity presets. 'screen' ranks settings affordably (~40 min/setting on the
@@ -86,7 +90,8 @@ def _weather_series(cfg, weather_train, weather_test):
     return weather, n_steps
 
 
-def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test) -> dict:
+def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test,
+                *, logger: ProgressLogger | None = None, phase_label: str = "") -> dict:
     """Evolve the reservoir for one encoding setting and score it (blocked CV)."""
     weather, n_steps = _weather_series(cfg, weather_train, weather_test)
     proton_idx, carbon_idx = _weather_indices(cfg.system.n_qubits)
@@ -95,7 +100,7 @@ def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test) -> dict
     # the task string so different encodings get distinct, resumable checkpoints.
     chash = _ckpt_hash(cfg, f"phase2::{label}")
     chk = StreamingTrace(_CKPT_ROOT / chash, n_steps, cfg.sim.fid_points, chash,
-                         total=n_steps)
+                         total=n_steps, logger=logger, phase=phase_label or label)
     start_step, state0 = chk.try_resume()
     if start_step:
         print(f"  [{label}] resuming from step {start_step}/{n_steps}", flush=True)
@@ -128,6 +133,10 @@ def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test) -> dict
 def settings_for(experiment: str, fidelity: str, seed: int,
                  system: str = "crotonic9_paper4") -> list[tuple[str, QRCConfig]]:
     out = []
+    if experiment == "2.1_quick":
+        for fn in QUICK_ENCODINGS:
+            out.append((f"2.1_{fn}", build_cfg(fn, fidelity, seed=seed, system=system)))
+        return out
     if experiment in ("2.1", "all"):
         for fn in ENCODINGS:
             out.append((f"2.1_{fn}", build_cfg(fn, fidelity, seed=seed, system=system)))
@@ -167,11 +176,14 @@ def make_figure(results: list[dict], out: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="QRC Phase-2 encoding sweep")
-    ap.add_argument("--experiment", choices=["2.1", "2.2", "all"], default="2.1")
+    ap.add_argument("--experiment", choices=["2.1", "2.1_quick", "2.2", "all"], default="2.1")
     ap.add_argument("--fidelity", choices=list(FIDELITY), default="screen")
     ap.add_argument("--system", default="crotonic9_paper4",
                     help="preset name or integer qubit count (use a small int for smoke tests)")
     ap.add_argument("--out-dir", default="artifacts/qrc_phase2")
+    ap.add_argument("--run-dir", default=None,
+                    help="managed-run dir (launcher). When set, --out-dir defaults "
+                         "to it and live progress is emitted for the UI.")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--weather-train", default="data/weather/DailyDelhiClimateTrain.csv")
     ap.add_argument("--weather-test", default="data/weather/DailyDelhiClimateTest.csv")
@@ -179,25 +191,44 @@ def main() -> None:
                     help="restrict to these encoding fn names (for a quick subset)")
     args = ap.parse_args()
 
-    out = Path(args.out_dir)
+    # A managed run (--run-dir) writes its outputs into the run-dir and emits
+    # live progress for the UI; a bare CLI run uses --out-dir and stays quiet.
+    out = Path(args.run_dir) if args.run_dir else Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    logger = None
+    if args.run_dir:
+        logger = ProgressLogger(run_dir=args.run_dir, title=f"phase2 {args.experiment}")
+
     plan = settings_for(args.experiment, args.fidelity, args.seed, args.system)
     if args.only:
         plan = [(lbl, cfg) for lbl, cfg in plan if cfg.encoding.fn in args.only
                 or "phaseamp" in lbl]
-    print(f"Phase-2 {args.experiment} @ {args.fidelity}: {len(plan)} settings", flush=True)
+    n_set = len(plan)
+    print(f"Phase-2 {args.experiment} @ {args.fidelity}: {n_set} settings", flush=True)
+    if logger is not None:
+        logger.event("config", f"phase2 {args.experiment} @ {args.fidelity}: {n_set} encodings",
+                     experiment=args.experiment, fidelity=args.fidelity, n_settings=n_set)
 
     results = []
-    for label, cfg in plan:
-        rpath = out / f"result_{label}.json"
-        if rpath.exists():                              # sweep-level resume
-            print(f"[phase2] {label}: cached, skipping", flush=True)
-            results.append(json.loads(rpath.read_text(encoding="utf-8")))
-            continue
-        res = run_setting(cfg, label, args.weather_train, args.weather_test)
-        res["fidelity"] = args.fidelity
-        rpath.write_text(json.dumps(res, indent=2), encoding="utf-8")
-        results.append(res)
+    try:
+        for i, (label, cfg) in enumerate(plan):
+            rpath = out / f"result_{label}.json"
+            if rpath.exists():                              # sweep-level resume
+                print(f"[phase2] {label}: cached, skipping", flush=True)
+                results.append(json.loads(rpath.read_text(encoding="utf-8")))
+                continue
+            phase_label = f"{i + 1}/{n_set} {cfg.encoding.fn}"
+            if logger is not None:
+                logger.event("encoding", f"encoding {phase_label}", phase=phase_label)
+            res = run_setting(cfg, label, args.weather_train, args.weather_test,
+                              logger=logger, phase_label=phase_label)
+            res["fidelity"] = args.fidelity
+            rpath.write_text(json.dumps(res, indent=2), encoding="utf-8")
+            results.append(res)
+    except Exception as exc:  # surface into the event log, then re-raise
+        if logger is not None:
+            logger.event("error", f"phase2 failed: {type(exc).__name__}: {exc}")
+        raise
 
     # summary + figure
     key = np.mean([[r["by_horizon"][f"h{h}"]["cv_mean"] for h in HORIZONS] for r in results], axis=1)
@@ -214,6 +245,10 @@ def main() -> None:
         print(f"  {results[i]['label']:<26} {key[i]:.3f}", flush=True)
     make_figure(results, out / "phase2_encoding.png")
     print(f"\nDone. Outputs in {out.resolve()}")
+    if logger is not None:
+        logger.status(phase="done", eta_s=0)
+        logger.event("ranking", "sweep complete — ranking: " + ", ".join(summary["ranking"]))
+        logger.close("done", f"phase2 {args.experiment} complete")
 
 
 if __name__ == "__main__":

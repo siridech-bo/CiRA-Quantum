@@ -128,6 +128,7 @@ class StreamingTrace:
     def __init__(
         self, ckpt_dir: Path, n_steps: int, fid_points: int, config_hash: str,
         *, total: int, logger: ProgressLogger | None = None, every: int = 20,
+        phase: str = "reservoir",
     ) -> None:
         self.dir = Path(ckpt_dir)
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -137,6 +138,7 @@ class StreamingTrace:
         self.total = total
         self.logger = logger
         self.every = max(1, every)
+        self.phase = phase
         self.fids_path = self.dir / "fids.dat"
         self.ckpt_path = self.dir / "ckpt.npz"
         # Must end in .npz — np.savez appends '.npz' to any other name, which
@@ -180,7 +182,7 @@ class StreamingTrace:
             elapsed = time.time() - self._t0
             per = elapsed / done_this_session if done_this_session > 0 else 0.0
             eta = per * (self.n_steps - (k + 1))
-            self.logger.status(phase="reservoir", step=k + 1, total=self.total, eta_s=eta)
+            self.logger.status(phase=self.phase, step=k + 1, total=self.total, eta_s=eta)
 
     def checkpoint(self, k: int, state_fn) -> None:  # checkpoint_cb
         """Every ``every`` steps (and on the last), durably persist {state,step}
