@@ -3,6 +3,26 @@
 Instructions and durable facts. Read this before reasoning about deployment,
 architecture, or where things run. If something here proves wrong, fix it here.
 
+## Running long/expensive jobs — ASK FIRST (hard rule)
+
+**Never auto-launch a run expected to take more than a few minutes** — especially
+GPU jobs, multi-hour reservoir passes, or sweeps. This is a shared single-GPU dev
+box and the user decides scope + cost. Before launching:
+
+1. **STOP and ask.** State the **expected wall-clock**, the **scope/fidelity**,
+   and **what it will consume**, and get an **explicit go-ahead**. Offer a
+   faster/cheaper option (smaller fidelity, fewer settings) so they can choose.
+2. **A prior "go" does NOT authorize the next long run.** Each multi-hour job
+   needs its own confirmation, even mid-task.
+3. **Launch via the launcher API, not a raw background process**, so the run is
+   visible + stoppable in the QRC UI (`registry.json`). Raw `python …` background
+   jobs are invisible to the dashboard — don't use them for real runs.
+4. If a long job is already running, don't start another; the single-GPU lock and
+   the user's time both forbid it.
+
+Estimating: quote a real number (measure a few steps if unsure), and update the
+estimate honestly if it proves slower — don't hand-wave "~5h" when it's ~10h.
+
 ## Deployment architecture (get this right)
 
 - **`quantum.cira-core.com` is self-hosted**, NOT a Cloudflare-hosted /
