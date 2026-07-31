@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-07-31 | **Phase-1 sweep COMPLETE (real numbers)** | ✅ `phase1-1356c77d` done. Finding: 653-spectral baseline near-optimal; phase/multimodal ≈ wash; the kPCA "win" is an h=30-only artifact (collapses at h20/h45). Readout levers marginal → **shift priority to Phase 2 (encoding)** | — |
 | 2026-07-31 | **Full trace-gen COMPLETED** + phase1 sweep launched | ✅ `trace-gen-a6304ab1` done clean (1474/1474 rows, valid); cached as `weather_full.npz`; phase1 `phase1-1356c77d` running | — |
 | 2026-07-29 | **Re-launched full trace-gen (resumable)** | ✅ streamed to disk, completed without loss (no crash; resume path proven separately) | — |
 | 2026-07-29 | **Stream FID to disk + crash-resume** (root fix for the "13h in RAM" design) | ✅ memmap streaming + resumable GPU-state checkpoints; resume is **bit-identical** (new GPU test); 70 tests pass | `5c7f43a` |
@@ -41,7 +42,7 @@ state, so we always know *what is left*.
 | Phase | Title | State | Blocking dependency |
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
-| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | 🔵 **In progress** — resumable full trace-gen running (`trace-gen-a6304ab1`); streams to disk, crash-resumes; phase1 auto-runs on completion | trace-gen → phase1 |
+| **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done** — real full-trace sweep run. Verdict: 653-spectral baseline near-optimal; augmentations marginal; kPCA "win" is an h=30-only artifact. Gate → prioritize **Phase 2 (encoding)** | (optional multi-seed/full-horizon re-run to firm up) |
 | **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
