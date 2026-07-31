@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-07-31 | **Rich multimodal (136 vs 18) + paired-fold test** | ✅ `qrc_phase1_rich.py`. 18 was too few — richer extraction ~doubles multimodal standalone (h45 0.42→0.63). But **paired per-fold test: no robust win over magnitude** (mag wins h1/h10; long-horizon = 1–2 lucky folds). No representation dominates → reinforces Phase 2 | `858e0e0` |
 | 2026-07-31 | **Rigorous Phase-1 v2** (standalone/null/dim-matched/blocked-CV) | ✅ `qrc_phase1_v2.py`. **Corrects v1:** multimodal DOES carry signal (+0.003…0.005, significant vs random null); phase redundant; reps indistinguishable within CV error (±0.10–0.28); signal low-dimensional (PCA-18 ≈ full). Gate → Phase 2 (rigorously) | `2b59e1c` |
 | 2026-07-31 | **Retracted the Phase-1 verdict** (methodology critique) | ⚠️ v1 underpowered/confounded (18-of-1977 swamped · appended-not-isolated · p≫n · single-seed/h=30); "phase/multimodal don't help" not supported → drove the v2 study above | — |
 | 2026-07-31 | **Phase-1 sweep run (raw numbers)** | ✅ `phase1-1356c77d` produced R² per method/horizon; conclusions withdrawn (see next row) | — |
@@ -89,7 +90,8 @@ matched · RidgeCV alpha · **blocked-CV mean±std, all horizons**) replaces it.
 |-----|-----|
 | Do **multimodal** (18 feats) carry signal? | **Yes.** Small but statistically significant **+ve** marginal at every horizon (+0.003…+0.005, beats random-feature null); standalone R²≈0.60 @ h30. *v1's "useless" was wrong.* **Keep it.** |
 | Does **phase** (re+im) help? | Structured (beats noise) but **redundant** — ~0 marginal over magnitude. |
-| Best single representation? | magnitude653, but its edge is **within CV error bars (±0.10–0.28)** → representations statistically **indistinguishable**. |
+| Does extracting **more** multimodal (136 vs 18) help? | **For multimodal itself, yes** — richer extraction (windowed TD + per-band wavelet + 10-measure complexity) ~doubles long-horizon skill (h45 CV 0.42→0.63). **But a paired per-fold test shows no robust win over magnitude** (mag wins h1/h10 in 0–1 of 5 folds; long-horizon "wins" are 1–2 lucky folds). `qrc_phase1_rich.py`. |
+| Best single representation? | No robust winner — magnitude wins short-range, long-range is a fold-variance coin-flip. Differences **within CV error bars (±0.10–0.28)**. |
 | Why did v1 see ±0.01 "differences"? | Noise. Blocked-CV variance is ~10–25×, and the fixed single split was optimistic. |
 | Dimensionality? | **Signal is low-dimensional** — PCA-18 of magnitude ≈ full 653 (0.799 vs 0.812 @ h30); all reps converge when reduced. The p≫n dilution was the real issue. |
 

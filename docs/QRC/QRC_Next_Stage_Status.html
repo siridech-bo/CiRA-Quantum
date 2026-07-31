@@ -82,6 +82,7 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>07-31</td><td><b>Rich multimodal (136 vs 18) + paired-fold test</b></td><td><span class="tag t-done">18 too few — richer extraction ~doubles multimodal standalone (h45 0.42→0.63); but paired per-fold test = NO robust win over magnitude (mag wins h1/h10; long-horizon = 1–2 lucky folds). No representation dominates → Phase 2</span></td><td><code>858e0e0</code></td></tr>
       <tr><td>07-31</td><td><b>Rigorous Phase-1 v2</b> (standalone/null/dim-matched/blocked-CV)</td><td><span class="tag t-done">CORRECTS v1: multimodal DOES carry signal (+0.003…0.005, significant vs random null); phase redundant; reps indistinguishable within CV error (±0.10–0.28); signal low-dimensional (PCA-18 ≈ full). Gate → Phase 2</span></td><td><code>2b59e1c</code></td></tr>
       <tr><td>07-31</td><td><b>Retracted the v1 Phase-1 verdict</b> (methodology critique)</td><td><span class="tag t-none">v1 underpowered/confounded → drove the v2 study above</span></td><td>—</td></tr>
       <tr><td>07-31</td><td><b>Phase-1 sweep run (raw numbers)</b></td><td><span class="tag t-done">R² per method/horizon produced; conclusions withdrawn (see row above)</span></td><td><code>phase1-1356c77d</code></td></tr>
@@ -150,7 +151,8 @@
       <tbody>
         <tr><td>Do <b>multimodal</b> (18) carry signal?</td><td><b>Yes</b> — small but significant +ve marginal every horizon (+0.003…0.005, beats random null); standalone R²≈0.60 @ h30. <i>v1 "useless" was wrong.</i> Keep it.</td></tr>
         <tr><td>Does <b>phase</b> (re+im) help?</td><td>Structured (beats noise) but <b>redundant</b> — ~0 marginal over magnitude.</td></tr>
-        <tr><td>Best representation? / dimensionality?</td><td>magnitude653, but edge is <b>within CV error (±0.10–0.28)</b> → reps indistinguishable. Signal <b>low-dimensional</b>: PCA-18 of magnitude ≈ full 653.</td></tr>
+        <tr><td>Does extracting <b>more</b> multimodal (136 vs 18) help?</td><td><b>For multimodal itself yes</b> — richer extraction ~doubles long-horizon skill (h45 CV 0.42→0.63); 18 was too few. <b>But paired per-fold test shows no robust win over magnitude</b> (mag wins h1/h10; long-horizon "wins" are 1–2 lucky folds). <code>qrc_phase1_rich.py</code></td></tr>
+        <tr><td>Best representation? / dimensionality?</td><td>No robust winner — magnitude wins short-range, long-range is a fold-variance coin-flip (±0.10–0.28). Signal <b>low-dimensional</b> (PCA-18 ≈ full 653).</td></tr>
       </tbody>
     </table></div>
     <p class="note">Baseline horizon profile: h1=0.950 · h10=0.888 · h20=0.860 · h30=0.812 · h45=0.786. <b>Decision gate (rigorously supported):</b> representation choice is low-headroom (all reps ≈ equivalent when reduced; multimodal adds ~0.004) → prioritize <b>Phase 2 (encoding)</b> — NOT because "multimodal is useless" (it isn't). Remaining rigor gap: reservoir-<i>seed</i> variance needs a few extra GPU traces.</p>
