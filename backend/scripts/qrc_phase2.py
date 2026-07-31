@@ -24,7 +24,9 @@ Run from ``backend``::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -133,6 +135,18 @@ def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test,
             "n_steps": n_steps, "fid_points": cfg.sim.fid_points, "by_horizon": by_h}
 
 
+# Config-keyed cache of finished per-encoding results, so a crash/reboot +
+# relaunch (which gets a fresh run-dir) skips already-finished encodings rather
+# than re-running hours of them. Sibling to the trace-gen checkpoint root.
+_RESULTS_ROOT = _CKPT_ROOT.parent / ".phase2_results"
+
+
+def _sweep_key(experiment: str, fidelity: str, seed: int, system: str) -> str:
+    blob = json.dumps({"e": experiment, "f": fidelity, "s": seed, "sys": system},
+                      sort_keys=True).encode()
+    return hashlib.sha256(blob).hexdigest()[:16]
+
+
 def settings_for(experiment: str, fidelity: str, seed: int,
                  system: str = "crotonic9_paper4") -> list[tuple[str, QRCConfig]]:
     out = []
@@ -207,6 +221,10 @@ def main() -> None:
         plan = [(lbl, cfg) for lbl, cfg in plan if cfg.encoding.fn in args.only
                 or "phaseamp" in lbl]
     n_set = len(plan)
+    # Config-keyed result cache survives a relaunch (fresh run-dir); the run-dir
+    # copy is for local inspection / the UI.
+    cache_dir = _RESULTS_ROOT / _sweep_key(args.experiment, args.fidelity, args.seed, args.system)
+    cache_dir.mkdir(parents=True, exist_ok=True)
     print(f"Phase-2 {args.experiment} @ {args.fidelity}: {n_set} settings", flush=True)
     if logger is not None:
         logger.event("config", f"phase2 {args.experiment} @ {args.fidelity}: {n_set} encodings",
@@ -215,10 +233,15 @@ def main() -> None:
     results = []
     try:
         for i, (label, cfg) in enumerate(plan):
-            rpath = out / f"result_{label}.json"
-            if rpath.exists():                              # sweep-level resume
+            cpath = cache_dir / f"result_{label}.json"          # durable (resume)
+            rpath = out / f"result_{label}.json"                # run-dir (UI/local)
+            if cpath.exists():                                  # sweep-level resume
                 print(f"[phase2] {label}: cached, skipping", flush=True)
-                results.append(json.loads(rpath.read_text(encoding="utf-8")))
+                res = json.loads(cpath.read_text(encoding="utf-8"))
+                rpath.write_text(json.dumps(res, indent=2), encoding="utf-8")
+                results.append(res)
+                if logger is not None:
+                    logger.event("cached", f"encoding {i + 1}/{n_set} {cfg.encoding.fn}: cached, skipped")
                 continue
             phase_label = f"{i + 1}/{n_set} {cfg.encoding.fn}"
             if logger is not None:
@@ -226,7 +249,9 @@ def main() -> None:
             res = run_setting(cfg, label, args.weather_train, args.weather_test,
                               logger=logger, phase_label=phase_label)
             res["fidelity"] = args.fidelity
-            rpath.write_text(json.dumps(res, indent=2), encoding="utf-8")
+            blob = json.dumps(res, indent=2)
+            cpath.write_text(blob, encoding="utf-8")            # durable first
+            rpath.write_text(blob, encoding="utf-8")
             results.append(res)
     except Exception as exc:  # surface into the event log, then re-raise
         if logger is not None:
@@ -247,6 +272,8 @@ def main() -> None:
     for i in order:
         print(f"  {results[i]['label']:<26} {key[i]:.3f}", flush=True)
     make_figure(results, out / "phase2_encoding.png")
+    # Full sweep succeeded — the resume cache is no longer needed.
+    shutil.rmtree(cache_dir, ignore_errors=True)
     print(f"\nDone. Outputs in {out.resolve()}")
     if logger is not None:
         logger.status(phase="done", eta_s=0)
