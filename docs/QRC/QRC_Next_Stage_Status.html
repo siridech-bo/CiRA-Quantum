@@ -82,6 +82,7 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>07-31</td><td><b>Phase 2 encoding runner built + screening sweep launched</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">qrc_phase2.py (re-evolves per encoding; blocked-CV; streaming/resumable). 2.1 screening (7 encodings, 9-spin) running ~5h</span></td><td><code>5601406</code></td></tr>
       <tr><td>07-31</td><td><b>Figure 8</b> — Phase-1 feature-representation plot (reproducible)</td><td><span class="tag t-done">fig8_phase1_features.png + §5.2 in Reproduction Results; standalone CV bands + paired per-fold Δ</span></td><td><code>e9517da</code></td></tr>
       <tr><td>07-31</td><td><b>Rich multimodal (136 vs 18) + paired-fold test</b></td><td><span class="tag t-done">18 too few — richer extraction ~doubles multimodal standalone (h45 0.42→0.63); but paired per-fold test = NO robust win over magnitude (mag wins h1/h10; long-horizon = 1–2 lucky folds). No representation dominates → Phase 2</span></td><td><code>858e0e0</code></td></tr>
       <tr><td>07-31</td><td><b>Rigorous Phase-1 v2</b> (standalone/null/dim-matched/blocked-CV)</td><td><span class="tag t-done">CORRECTS v1: multimodal DOES carry signal (+0.003…0.005, significant vs random null); phase redundant; reps indistinguishable within CV error (±0.10–0.28); signal low-dimensional (PCA-18 ≈ full). Gate → Phase 2</span></td><td><code>2b59e1c</code></td></tr>
@@ -112,7 +113,7 @@
       <tr><td><b>1</b></td><td>Flag-level feature experiments (phase / multimodal / selection incl. UMAP)</td>
         <td><span class="tag t-done">Done (rigorous v2) — multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dim. Gate → Phase 2</span></td><td>optional: reservoir-seed variance (GPU)</td></tr>
       <tr><td><b>2</b></td><td>Encoding sweep (7 functions / phase-amp / protons-only)</td>
-        <td><span class="tag t-prim">Primitives — no runner</span></td><td>build <code>qrc_phase2.py</code>; needs re-evolution</td></tr>
+        <td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">In progress — runner built; 2.1 screening sweep (7 encodings, blocked-CV, resumable) running ~5h</span></td><td>2.3 protons-only + full-fidelity confirm</td></tr>
       <tr><td><b>3</b></td><td>External feature libraries (tsfresh, nmrglue)</td>
         <td><span class="tag t-none">Not started</span></td><td>new deps + integration</td></tr>
       <tr><td><b>4</b></td><td>Dim-reduction benchmark (R0–R6 × Ridge/SVR)</td>

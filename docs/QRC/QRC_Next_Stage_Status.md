@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-07-31 | **Phase 2 encoding runner built + screening sweep launched** | 🔵 `qrc_phase2.py` (re-evolves per encoding; blocked-CV; streaming/resumable; sweep-level resume). 2.1 screening (7 encodings, 9-spin) running ~5 h | `5601406` |
 | 2026-07-31 | **Figure 8** — Phase-1 feature-representation plot (reproducible) | ✅ `fig8_phase1_features.png` + §5.2 in Reproduction Results; 2 panels (standalone CV bands · paired per-fold Δ) | `e9517da` |
 | 2026-07-31 | **Rich multimodal (136 vs 18) + paired-fold test** | ✅ `qrc_phase1_rich.py`. 18 was too few — richer extraction ~doubles multimodal standalone (h45 0.42→0.63). But **paired per-fold test: no robust win over magnitude** (mag wins h1/h10; long-horizon = 1–2 lucky folds). No representation dominates → reinforces Phase 2 | `858e0e0` |
 | 2026-07-31 | **Rigorous Phase-1 v2** (standalone/null/dim-matched/blocked-CV) | ✅ `qrc_phase1_v2.py`. **Corrects v1:** multimodal DOES carry signal (+0.003…0.005, significant vs random null); phase redundant; reps indistinguishable within CV error (±0.10–0.28); signal low-dimensional (PCA-18 ≈ full). Gate → Phase 2 (rigorously) | `2b59e1c` |
@@ -47,7 +48,7 @@ state, so we always know *what is left*.
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
 | **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done (rigorous v2)** — standalone/null/dim-matched/blocked-CV. Multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dimensional. Gate → Phase 2 | (optional: reservoir-seed variance = extra GPU traces) |
-| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟠 **Primitives exist — no runner** | build `qrc_phase2.py`; needs fresh re-evolution |
+| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🔵 **In progress** — runner `qrc_phase2.py` built + validated; 2.1 screening sweep (7 encodings, 9-spin, blocked-CV, resumable) running (~5 h) | 2.3 protons-only flag + full-fidelity confirm of winner |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
 | **5** | Self-supervised representation learning (autoencoder, TS2Vec) | ⬜ **Not started** (gated) | only if Phase 4 shows headroom |
@@ -103,20 +104,24 @@ matched · RidgeCV alpha · **blocked-CV mean±std, all horizons**) replaces it.
 
 ---
 
-## Phase 2 — Encoding sweep 🟠 PRIMITIVES EXIST, NO RUNNER
+## Phase 2 — Encoding sweep 🔵 IN PROGRESS (runner built; screening sweep running)
 
-The engine already knows every knob; there is **no experiment runner** and no
-results.
+Runner `scripts/qrc_phase2.py` re-evolves the reservoir per encoding setting
+(holding everything else fixed) and scores each with the Phase-1 v2 rigorous
+protocol (magnitude-653 readout, RidgeCV, blocked-CV mean±std, all horizons).
+Reuses the streaming/resumable `StreamingTrace`; the sweep itself resumes
+(cached-result settings are skipped). Fidelity presets: `screen` (rank) / `full`
+(confirm) / `tiny` (smoke). Validated end-to-end.
 
-| Exp | What | Primitive present | Runner |
-|-----|------|-------------------|--------|
-| 2.1 | Encoding-function sweep (arcsin√, arccos, linear, sinusoidal, logarithmic, polynomial, exponential) | ✅ `ENCODING_FNS` in `encoding.py` | ⬜ none |
-| 2.2 | Phase-amplitude encoding | ✅ `phase_amplitude` flag (`config.py` + `pulse_unitary`) | ⬜ none |
-| 2.3 | Protons-only vs all-spins | ✅ `target_qubits` (`config.py`) | ⬜ none |
+| Exp | What | Runner | Status |
+|-----|------|--------|--------|
+| 2.1 | Encoding-function sweep (arcsin√, arccos, linear, sinusoidal, logarithmic, polynomial, exponential) | ✅ `qrc_phase2.py --experiment 2.1` | 🔵 **screening sweep running** (7 encodings, 9-spin, ~5 h) |
+| 2.2 | Phase-amplitude encoding off/on | ✅ `--experiment 2.2` | ⬜ queued after 2.1 |
+| 2.3 | Protons-only vs all-spins | ⬜ (needs `target_qubits` wiring for the weather multi-channel encoder) | ⬜ follow-up |
 
-**To finish:** write `qrc_phase2.py` that re-evolves the reservoir per encoding
-setting (unlike Phase 1, this **cannot** reuse a single trace) and records
-weather R² / NARMA NMSE per setting.
+**Next:** read 2.1 screening ranking → confirm top encoding(s) at `--fidelity full`
+→ run 2.2 → wire 2.3. (Compute: each setting is a fresh reservoir pass; screening
+~40 min/setting, full ~hours.)
 
 ---
 
