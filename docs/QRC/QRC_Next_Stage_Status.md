@@ -75,20 +75,23 @@ state, so we always know *what is left*.
 
 ---
 
-## Phase 1 — Flag-level feature experiments 🟡 CODE READY, NOT RUN
+## Phase 1 — Flag-level feature experiments ✅ DONE (real full-trace sweep)
 
-All feature methods + reducers are implemented in
-`backend/app/qrc/feature_methods.py` and driven by
-`backend/scripts/qrc_phase1.py`. **Nothing has been run** — needs a real trace.
+Run on the full weather trace (`weather_full.npz`, 1474 steps) via
+`scripts/qrc_phase1.py` — run `phase1-1356c77d`. **Verdict: the 653-peak
+spectral baseline is near-optimal; the augmentations give no robust gain.**
 
-| Exp | What | State | Where |
-|-----|------|-------|-------|
-| 1.1 | Add FID phase information (`magnitude653` → `phase`) | 🟡 | `build_features(method="phase")` |
-| 1.2 | Enable multimodal features (+time-domain, wavelet, entropy) | 🟡 | `build_features(method="multimodal")` |
-| 1.3 | Feature selection after expansion (PCA / KPCA / **UMAP** / LASSO / MI / random) + R²-vs-#features figure | 🟡 | `reduce_features(...)`, `qrc_phase1.py` |
+| Exp | Result (weather R² @ h30, vs 0.812 baseline) | Verdict |
+|-----|-----|-----|
+| 1.1 Add FID phase (`magnitude653` → `phase`) | 0.802 — within ±0.01 at every horizon | no gain (wash) |
+| 1.2 Multimodal (+time-domain, wavelet, entropy) | 0.807 — whisker better only at h45 | no gain (wash) |
+| 1.3 Feature selection (PCA / KPCA / **UMAP** / LASSO / MI / random) | kPCA-100 tops h30 (0.831) but **collapses** at h20 (0.744) / h45 (0.723) | not robust — h=30 artifact |
 
-**To finish:** run `qrc_gen_traces.py` (the ~19 h GPU pass) → run
-`qrc_phase1.py --trace <name>` (fast, no re-evolution) → decision gate.
+Baseline horizon profile: h1=0.950 · h10=0.888 · h20=0.860 · h30=0.812 · h45=0.786.
+
+**Decision gate:** readout feature-engineering → no robust improvement →
+prioritize **Phase 2 (encoding)**. *Optional:* multi-seed + full-horizon
+re-run to firm up the negative result (fast — trace is cached, no GPU).
 
 ---
 
@@ -168,12 +171,16 @@ PCA + UMAP both working). **Presentation approved by user 2026-07-28.**
 
 ## What is left, in priority order
 
-1. **Run Phase 1 for real** (unblocks the most): full trace-gen cache (~19 h,
-   now with a live progress bar) → `qrc_phase1.py` → decision gate. The
-   Feature-Lab UI is ready and waiting to display the real numbers.
-2. **Ship remote access** — deployer serves the branch at
-   `quantum.cira-core.com/qrc` + Cloudflare Access (build handed off).
-3. **Build the Phase-2 runner** (`qrc_phase2.py`) — encoding / phase-amp / protons-only.
+*(Done: Phase 0, Phase 1, Feature-Lab UI — see activity log up top.)*
+
+1. **(optional, fast) Phase-1 firm-up** — multi-seed + full-horizon re-run to
+   make the "baseline near-optimal" negative result defensible (trace cached,
+   no GPU, minutes). Also fix Exp-1.3 to score the horizon profile, not h=30.
+2. **Phase 2 — encoding runner** (`qrc_phase2.py`): 2.1 encoding-function sweep ·
+   2.2 phase-amplitude · 2.3 protons-only. **The next real lever** (per the
+   gate). Re-evolves the reservoir → multi-hour GPU runs (now resumable).
+3. **Ship remote access** — deployer serves the branch at
+   `quantum.cira-core.com/qrc` + Cloudflare Access (build handed off). Parallel.
 4. **Phase 3** (tsfresh, nmrglue) → **Phase 4 full grid** → gated **Phase 5 / 6**.
 
 *(Done since v1 of this tracker: Phase-0 progress gap, the Feature-Lab UI, and

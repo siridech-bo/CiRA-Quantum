@@ -66,10 +66,10 @@
   <h1>QRC Next-Stage — Implementation Status</h1>
   <p class="sub">Traces every phase in
     <a href="./QRC_Next_Stage_Experiments.md">QRC_Next_Stage_Experiments.md</a>
-    to its real state. &nbsp;Updated 2026-07-28 — Feature-Lab UI shipped, trace-gen progress wired.
+    to its real state. &nbsp;Updated 2026-07-31 — Phase 1 run (real numbers); trace-gen streams + resumes.
     <br><b>Update rule:</b> refreshed strictly on every subtask completion.</p>
 
-  <div class="bar" title="Phase 0 done, UI+ done, Ops in progress, Phase 1 ready to run"><i style="width:40%"></i></div>
+  <div class="bar" title="Phase 0 + Phase 1 + UI done; Ops in progress; Phase 2+ remain"><i style="width:52%"></i></div>
   <div class="legend">
     <span class="pill d-done"><span class="dot"></span>Done — built &amp; exercised</span>
     <span class="pill" style="background:rgba(77,163,255,.14);color:#4da3ff;border-color:var(--border)"><span class="dot" style="background:#4da3ff"></span>In progress</span>
@@ -141,15 +141,17 @@
   </div>
 
   <div class="card">
-    <div class="phase-h"><span class="num">Phase 1</span><h3>Flag-level feature experiments</h3><span class="tag t-run">Code ready — not run</span></div>
-    <p class="note">All builders + reducers live in <code>app/qrc/feature_methods.py</code>, driven by <code>scripts/qrc_phase1.py</code>. Nothing executed yet — needs a real trace.</p>
+    <div class="phase-h"><span class="num">Phase 1</span><h3>Flag-level feature experiments</h3><span class="tag t-done">Done — real full-trace sweep</span></div>
+    <p class="note">Run on the full weather trace (<code>weather_full.npz</code>, 1474 steps) via <code>scripts/qrc_phase1.py</code> — run <code>phase1-1356c77d</code>. <b>Verdict: the 653-peak spectral baseline is near-optimal; the augmentations give no robust gain.</b></p>
     <div class="scroll"><table>
+      <thead><tr><th>Exp</th><th>Result (weather R² @ h30, vs 0.812 baseline)</th><th>Verdict</th></tr></thead>
       <tbody>
-        <tr><td>1.1 Add FID phase (<code>magnitude653</code> → <code>phase</code>)</td><td><span class="tag t-run">Code ready</span></td><td><code>build_features("phase")</code></td></tr>
-        <tr><td>1.2 Multimodal (+time-domain, wavelet, entropy)</td><td><span class="tag t-run">Code ready</span></td><td><code>build_features("multimodal")</code></td></tr>
-        <tr><td>1.3 Feature selection (PCA/KPCA/<b>UMAP</b>/LASSO/MI/random) + R²-vs-#features figure</td><td><span class="tag t-run">Code ready</span></td><td><code>reduce_features(...)</code>, <code>qrc_phase1.py</code></td></tr>
+        <tr><td>1.1 Add FID phase (<code>magnitude653</code> → <code>phase</code>)</td><td>0.802 — within ±0.01 across all horizons</td><td><span class="tag t-none">no gain (wash)</span></td></tr>
+        <tr><td>1.2 Multimodal (+time-domain, wavelet, entropy)</td><td>0.807 — whisker better only at h45</td><td><span class="tag t-none">no gain (wash)</span></td></tr>
+        <tr><td>1.3 Feature selection (PCA/KPCA/<b>UMAP</b>/LASSO/MI/random)</td><td>kPCA-100 tops h30 (0.831) but <b>collapses</b> at h20 (0.744) / h45 (0.723)</td><td><span class="tag t-none">not robust — h=30 artifact</span></td></tr>
       </tbody>
     </table></div>
+    <p class="note">Baseline horizon profile: h1=0.950 · h10=0.888 · h20=0.860 · h30=0.812 · h45=0.786. <b>Decision gate:</b> readout feature-engineering → no robust improvement → prioritize <b>Phase 2 (encoding)</b>. Optional: multi-seed + full-horizon re-run to firm up the negative result.</p>
   </div>
 
   <div class="card">
@@ -220,9 +222,10 @@
 
   <h2>What is left — priority order</h2>
   <ol class="prio">
-    <li><b>Run Phase 1 for real</b> (unblocks the most): full trace-gen cache (~19 h, now with a live progress bar) → <code>qrc_phase1.py</code> → decision gate. The Feature-Lab UI is ready and waiting to display the real numbers.</li>
-    <li><b>Ship remote access</b> — deployer serves the branch at <code>quantum.cira-core.com/qrc</code> + Cloudflare Access (build handed off).</li>
-    <li><b>Build the Phase-2 runner</b> (<code>qrc_phase2.py</code>) — encoding / phase-amp / protons-only.</li>
+    <li><i>(Done: Phase 0, Phase 1, Feature-Lab UI — see activity log.)</i></li>
+    <li><b>(optional, fast) Phase-1 firm-up</b> — multi-seed + full-horizon re-run to make the "baseline near-optimal" result defensible (trace cached, no GPU, minutes); fix Exp-1.3 to score the horizon profile, not h=30.</li>
+    <li><b>Phase 2 — encoding runner</b> (<code>qrc_phase2.py</code>): encoding-function sweep / phase-amplitude / protons-only. The next real lever; re-evolves the reservoir (multi-hour GPU, now resumable).</li>
+    <li><b>Ship remote access</b> — deployer serves the branch at <code>quantum.cira-core.com/qrc</code> + Cloudflare Access (build handed off). Parallel.</li>
     <li><b>Phase 3</b> (tsfresh, nmrglue) → <b>Phase 4 full grid</b> → gated <b>Phase 5 / 6</b>.</li>
   </ol>
   <p class="note" style="margin-top:10px">Done since v1 of this tracker: the Phase-0 progress gap, the Feature-Lab UI, and the UMAP/PCA embedding view — see the activity log up top.</p>
