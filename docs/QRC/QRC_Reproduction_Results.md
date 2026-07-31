@@ -150,6 +150,39 @@ approximate ±0.03). Shaded bands are the ESN(500–10000) baselines (blue = thi
 experiment digitized). Both QRC curves rise above the saturating ESN band at long horizon, and
 the simulation now tracks the experiment quantitatively.*
 
+### 5.2 Which FID feature representation? (Phase-1 rigorous study)
+
+On the full cached trace we compared three readout representations of the same FID —
+**magnitude653** (the Paper-4 spectral-peak set), the pipeline's compact **multimodal-18**
+(6 time-domain + 10 wavelet + 2 entropy), and a **multimodal-136** rich extractor (windowed
+time-domain + per-band wavelet energy/entropy + a 10-measure complexity panel). Each was
+evaluated *standalone* with per-representation RidgeCV and **blocked (time-respecting)
+cross-validation**, and compared against a **random-feature null** and at **matched
+dimensionality**. Scripts: `qrc_phase1_v2.py`, `qrc_phase1_rich.py`.
+
+![Phase-1 feature representations](figures/fig8_phase1_features.png)
+
+*Figure 8: (A) standalone weather-R² vs horizon, blocked-CV mean ± std. Richer extraction
+(18→136) roughly doubles multimodal's long-horizon skill (h45: 0.42→0.63), but all
+representations overlap heavily within CV error. (B) paired per-fold Δ (multimodal-136 −
+magnitude653): the folds straddle zero at every horizon — magnitude wins short-range (h1/h10),
+long-range is a fold-variance coin-flip.*
+
+**Findings (rigorous):** (i) the compact 18-feature multimodal set was *underpowered* — richer
+extraction substantially strengthens the multimodal representation; (ii) even so, **no
+representation robustly beats the spectral baseline** — a paired per-fold test shows the
+apparent long-horizon "wins" are driven by 1–2 lucky folds, and short-range clearly favours
+magnitude; (iii) both multimodal and phase blocks carry genuine signal (they beat a matched
+random-feature null), but phase is redundant with magnitude; (iv) the predictive signal is
+**low-dimensional** (PCA-18 of magnitude ≈ the full 653). Net: **readout feature-representation
+is low-headroom for this task** — temporal (fold) variance dominates any representation
+difference — which motivates targeting the *encoding* next (Phase 2) rather than the readout.
+
+> Methodological note: an earlier single-split, appended-feature sweep (`qrc_phase1.py`) suggested
+> "multimodal doesn't help." That was underpowered/confounded (18-of-1977 features swamped;
+> appended not isolated; p ≫ n; single seed; single-horizon ranking) and was retracted. The
+> figure above uses the corrected, standalone + null + paired-fold methodology.
+
 ## 6. Verdict across both tasks
 
 | task | outcome | consistent with paper? |
