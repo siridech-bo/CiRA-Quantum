@@ -27,6 +27,7 @@ import argparse
 import hashlib
 import json
 import shutil
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -115,11 +116,32 @@ def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test,
         start_step=start_step, state0=state0, checkpoint_cb=chk.checkpoint,
     )
     fids = chk.finalize()
-    chk.cleanup()
+    tr = cfg.training
+
+    # PERSIST the raw waveform — NEVER discard reservoir compute. Save a full
+    # §1-schema trace .npz (like weather_full.npz) so ANY metric (R², memory
+    # capacity, NARMA, other readouts) can be computed offline later WITHOUT
+    # re-evolving. The reservoir pass is the expensive part; keep its output.
+    traces_dir = _CKPT_ROOT.parent
+    traces_dir.mkdir(parents=True, exist_ok=True)
+    trace_path = traces_dir / f"enc_{cfg.encoding.fn}_{chash}.npz"
+    meta = {"task": "weather", "fn": cfg.encoding.fn,
+            "encoding": asdict(cfg.encoding), "sim": asdict(cfg.sim),
+            "training": asdict(cfg.training), "system": asdict(cfg.system),
+            "horizons": HORIZONS}
+    np.savez_compressed(
+        trace_path,
+        fids=fids, fid_dwell=np.float64(cfg.sim.fid_dwell), task=np.str_("weather"),
+        split=np.asarray([tr.washout, tr.n_train, tr.n_test], dtype=np.int64),
+        seed=np.int64(cfg.sim.seed), weather_norm=np.asarray(weather, dtype=np.float64),
+        horizons=np.asarray(HORIZONS, dtype=np.int64),
+        meta=np.str_(json.dumps(meta, default=float)),
+    )
+    print(f"[phase2] saved waveform trace -> {trace_path.name}", flush=True)
+    chk.cleanup()  # remove the checkpoint SCRATCH only — the saved trace stays
 
     X, _ = build_features(fids, "magnitude653", n_peaks=653, select="first")
     temp = weather[:, 0]
-    tr = cfg.training
     folds = blocked_folds(tr.washout, n_steps, 5)
     by_h = {}
     for h in HORIZONS:
@@ -132,7 +154,8 @@ def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test,
     return {"label": label, "fn": cfg.encoding.fn,
             "phase_amplitude": cfg.encoding.phase_amplitude,
             "target_qubits": list(cfg.encoding.target_qubits),
-            "n_steps": n_steps, "fid_points": cfg.sim.fid_points, "by_horizon": by_h}
+            "n_steps": n_steps, "fid_points": cfg.sim.fid_points,
+            "trace": trace_path.name, "by_horizon": by_h}
 
 
 # Config-keyed cache of finished per-encoding results, so a crash/reboot +

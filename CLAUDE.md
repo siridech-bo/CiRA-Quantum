@@ -26,6 +26,27 @@ sweeps. This is a shared single-GPU dev box; the user decides. Before launching:
 Estimating: quote a **real** number (measure a few steps if unsure), and correct
 it honestly if slower — don't hand-wave "~5h" when it's ~10h.
 
+## Never discard reservoir compute — ALWAYS persist the raw waveform (hard rule)
+
+The reservoir evolution (the GPU pass) is the expensive part; a metric (R², etc.)
+is cheap and can be recomputed. **Any code that evolves the reservoir MUST save
+the raw per-step FID waveform to a persistent `.npz` trace (the §1 schema, like
+`weather_full.npz`) BEFORE computing any metric or cleaning up.** Never finalize
+→ compute-metric → delete the waveform.
+
+Why: it happened — the Phase-2 encoding sweep evolved 7 encodings (~6 h GPU),
+computed only R² (which was meaningless at that fidelity), and **deleted the
+waveforms**, so nothing could be re-analyzed with a better metric. Hours wasted.
+The whole point of the trace cache (Phase 0.A) is *evolve once, compute any metric
+offline forever*. Honour it everywhere.
+
+Checklist for any reservoir-evolving runner:
+- Save `fids` + `weather_norm`/`narma_input` + `split` + `seed` + `horizons` +
+  `fid_dwell` + a `meta` (config) into `artifacts/traces/<name>.npz`.
+- `cleanup()` removes only the checkpoint SCRATCH (`.ckpt/`), never the trace.
+- Metrics (R², memory capacity, NARMA, other readouts) are separate offline steps
+  that load the saved trace.
+
 ## Deployment architecture (get this right)
 
 - **`quantum.cira-core.com` is self-hosted**, NOT a Cloudflare-hosted /
