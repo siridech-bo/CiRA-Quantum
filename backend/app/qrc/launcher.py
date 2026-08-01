@@ -537,13 +537,35 @@ def _terminate_pid(pid: int) -> None:
 # ---- Trace resolution (for the FID endpoint) ------------------------------
 
 
+def run_trace_names(entry: dict[str, Any]) -> list[tuple[str, Path]]:
+    """A sweep run's saved waveform traces as ``[(label, Path)]`` from its
+    ``run-dir/traces.json`` manifest (phase2/memcap write one per encoding).
+    Empty for single-trace runs."""
+    run_dir = entry.get("run_dir")
+    if not run_dir:
+        return []
+    manifest = Path(run_dir) / "traces.json"
+    if not manifest.exists():
+        return []
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        out: list[tuple[str, Path]] = []
+        for t in data.get("traces", []):
+            nm = t.get("name")
+            if nm:
+                out.append((str(t.get("fn") or nm), TRACES_ROOT / nm))
+        return out
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
 def resolve_trace_path(entry: dict[str, Any]) -> Path | None:
     """Locate the trace ``.npz`` a run reads/writes (§1 schema).
 
     Resolution order: an explicit ``trace_path`` on the entry, a ``trace``
-    name in its config (→ ``artifacts/traces/<name>.npz``), any ``.npz`` in
-    the run-dir, then ``artifacts/traces/<task>.npz``. Returns the first that
-    exists, else ``None``.
+    name in its config (→ ``artifacts/traces/<name>.npz``), a saved-trace
+    manifest (sweep runs), any ``.npz`` in the run-dir, then
+    ``artifacts/traces/<task>.npz``. Returns the first that exists, else ``None``.
     """
     explicit = entry.get("trace_path")
     if explicit and Path(explicit).exists():
@@ -555,6 +577,11 @@ def resolve_trace_path(entry: dict[str, Any]) -> Path | None:
         candidate = TRACES_ROOT / f"{name}.npz"
         if candidate.exists():
             return candidate
+
+    # Sweep runs (phase2/memcap) link their per-encoding traces via a manifest.
+    for _label, path in run_trace_names(entry):
+        if path.exists():
+            return path
 
     run_dir = entry.get("run_dir")
     if run_dir:

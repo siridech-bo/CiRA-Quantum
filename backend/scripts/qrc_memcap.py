@@ -172,6 +172,18 @@ def _plan(experiment, fidelity, seed, system):
     return [(f"mc_{fn}", build_cfg(fn, fidelity, seed=seed, system=system)) for fn in fns]
 
 
+def _write_manifest(out: Path, results: list[dict]) -> None:
+    """Link this run to its saved waveform traces so the FID viewer can browse
+    them after completion (run-dir has no trace.npz; the traces live in
+    artifacts/traces/ under hashed names)."""
+    try:
+        (out / "traces.json").write_text(json.dumps({"traces": [
+            {"fn": r["fn"], "name": r.get("trace")} for r in results if r.get("trace")
+        ]}, indent=2), encoding="utf-8")
+    except Exception:  # noqa: BLE001 - manifest is best-effort
+        pass
+
+
 def sweep_main():
     ap = argparse.ArgumentParser(description="QRC memory-capacity encoding sweep")
     ap.add_argument("--experiment", choices=["all", "quick"], default="all")
@@ -203,6 +215,7 @@ def sweep_main():
                 res = json.loads(cpath.read_text(encoding="utf-8"))
                 rpath.write_text(json.dumps(res, indent=2), encoding="utf-8")
                 results.append(res)
+                _write_manifest(out, results)
                 print(f"[memcap] {label}: cached, skipping", flush=True)
                 continue
             pl = f"{i + 1}/{n} {cfg.encoding.fn}"
@@ -214,6 +227,7 @@ def sweep_main():
             cpath.write_text(blob, encoding="utf-8")
             rpath.write_text(blob, encoding="utf-8")
             results.append(res)
+            _write_manifest(out, results)
     except Exception as exc:  # noqa: BLE001
         if logger:
             logger.event("error", f"memcap failed: {type(exc).__name__}: {exc}")

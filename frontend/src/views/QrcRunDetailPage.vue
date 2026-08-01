@@ -29,6 +29,7 @@ const fatal = ref<string | null>(null)
 const step = ref(0)
 const fidLoading = ref(false)
 const fidError = ref<string | null>(null)
+const selectedTrace = ref<string>('') // which encoding's saved waveform (sweep runs)
 const stopping = ref(false)
 const stopError = ref<string | null>(null)
 const eventLogEl = ref<HTMLDivElement | null>(null)
@@ -75,12 +76,23 @@ async function fetchFid(k: number) {
   fidLoading.value = true
   fidError.value = null
   try {
-    await qrc.loadFid(runId.value, k)
+    await qrc.loadFid(runId.value, k, selectedTrace.value || undefined)
+    // Default the picker to whatever trace the backend served.
+    if (!selectedTrace.value && qrc.currentFid?.trace_name) {
+      const t = qrc.currentFid.available_traces?.find((x) => x.name === qrc.currentFid?.trace_name)
+      if (t) selectedTrace.value = t.name
+    }
   } catch (e: any) {
     fidError.value = e?.response?.data?.error || e?.message || 'Failed to load FID'
   } finally {
     fidLoading.value = false
   }
+}
+
+function onTraceChange(name: string) {
+  selectedTrace.value = name
+  followLive.value = false // viewing a specific saved encoding, not the live stream
+  fetchFid(step.value)
 }
 
 function onStepInput(v: number | number[]) {
@@ -312,6 +324,26 @@ onBeforeUnmount(() => {
               <span class="text-body-2">{{ ev.message }}</span>
             </div>
           </div>
+        </v-card>
+
+        <!-- Trace picker: sweep runs (phase2/memcap) save one waveform per encoding -->
+        <v-card
+          v-if="(qrc.currentFid?.available_traces?.length || 0) > 1"
+          class="pa-3 mb-3 d-flex align-center flex-wrap ga-3"
+        >
+          <v-icon icon="mdi-database-search-outline" />
+          <div class="text-body-2 text-medium-emphasis">Saved waveform — pick encoding:</div>
+          <v-select
+            :model-value="selectedTrace"
+            :items="qrc.currentFid?.available_traces || []"
+            item-title="fn"
+            item-value="name"
+            density="compact"
+            hide-details
+            variant="outlined"
+            style="max-width: 280px"
+            @update:model-value="onTraceChange"
+          />
         </v-card>
 
         <!-- FID + spectrum -->

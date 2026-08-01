@@ -305,7 +305,18 @@ def qrc_run_fid(run_id: str):
     import numpy as np
 
     live = False
-    trace_path = launcher.resolve_trace_path(entry)
+    # Sweep runs (phase2/memcap) save one trace per encoding; ``?trace=<fn|name>``
+    # picks which to view, and the list is returned so the UI can offer a picker.
+    sweep_traces = launcher.run_trace_names(entry)
+    trace_arg = request.args.get("trace")
+    trace_path = None
+    if trace_arg:
+        for fn, p in sweep_traces:
+            if (fn == trace_arg or p.name == trace_arg) and p.exists():
+                trace_path = p
+                break
+    if trace_path is None:
+        trace_path = launcher.resolve_trace_path(entry)
     if trace_path is not None:
         with np.load(str(trace_path), allow_pickle=False) as npz:
             if "fids" not in npz:
@@ -356,6 +367,9 @@ def qrc_run_fid(run_id: str):
     payload["trace_name"] = trace_name
     payload["trace_path"] = trace_ref
     payload["live"] = live
+    # The per-encoding trace list (empty for single-trace runs) so the UI can
+    # offer a picker to browse each saved waveform in a sweep.
+    payload["available_traces"] = [{"fn": fn, "name": p.name} for fn, p in sweep_traces]
     return jsonify(payload)
 
 

@@ -165,6 +165,17 @@ def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test,
 _RESULTS_ROOT = _CKPT_ROOT.parent / ".phase2_results"
 
 
+def _write_trace_manifest(out: Path, results: list[dict]) -> None:
+    """Link this run to its saved waveform traces (run-dir/traces.json) so the
+    FID viewer can browse them per encoding after completion."""
+    try:
+        (out / "traces.json").write_text(json.dumps({"traces": [
+            {"fn": r["fn"], "name": r.get("trace")} for r in results if r.get("trace")
+        ]}, indent=2), encoding="utf-8")
+    except Exception:  # noqa: BLE001 - manifest is best-effort
+        pass
+
+
 def _sweep_key(experiment: str, fidelity: str, seed: int, system: str) -> str:
     blob = json.dumps({"e": experiment, "f": fidelity, "s": seed, "sys": system},
                       sort_keys=True).encode()
@@ -264,6 +275,7 @@ def main() -> None:
                 res = json.loads(cpath.read_text(encoding="utf-8"))
                 rpath.write_text(json.dumps(res, indent=2), encoding="utf-8")
                 results.append(res)
+                _write_trace_manifest(out, results)
                 if logger is not None:
                     logger.event("cached", f"encoding {i + 1}/{n_set} {cfg.encoding.fn}: cached, skipped")
                 continue
@@ -277,6 +289,7 @@ def main() -> None:
             cpath.write_text(blob, encoding="utf-8")            # durable first
             rpath.write_text(blob, encoding="utf-8")
             results.append(res)
+            _write_trace_manifest(out, results)
     except Exception as exc:  # surface into the event log, then re-raise
         if logger is not None:
             logger.event("error", f"phase2 failed: {type(exc).__name__}: {exc}")

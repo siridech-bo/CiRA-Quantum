@@ -238,10 +238,11 @@ def test_fid_endpoint_computes_fft(isolated_app):
     assert r.status_code == 200
     body = r.get_json()
     assert set(body) == {
-        "step", "n_steps", "t", "real", "imag", "mag",
-        "freq_hz", "spectrum_mag", "peaks_hz", "trace_name", "trace_path", "live",
+        "step", "n_steps", "t", "real", "imag", "mag", "freq_hz", "spectrum_mag",
+        "peaks_hz", "trace_name", "trace_path", "live", "available_traces",
     }
     assert body["live"] is False  # this came from a saved .npz, not a live memmap
+    assert body["available_traces"] == []  # single-trace run, no sweep manifest
     assert body["step"] == 1
     assert body["n_steps"] == 4
     # provenance: the display names the exact saved waveform file it came from.

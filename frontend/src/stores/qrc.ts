@@ -82,6 +82,9 @@ export interface QrcFidData {
   /** Provenance: the exact saved waveform file this FID/spectrum came from. */
   trace_name?: string
   trace_path?: string
+  live?: boolean
+  /** Sweep runs expose one saved trace per encoding, for a UI picker. */
+  available_traces?: { fn: string; name: string }[]
 }
 
 /** Loosely typed — §3 says "the results JSON" without pinning every key.
@@ -387,9 +390,11 @@ export const useQrcStore = defineStore('qrc', () => {
     }
   }
 
-  async function loadFid(id: string, step: number) {
+  async function loadFid(id: string, step: number, trace?: string) {
     try {
-      const r = await api.get<QrcFidData>(`/api/qrc/runs/${id}/fid`, { params: { step } })
+      const params: Record<string, unknown> = { step }
+      if (trace) params.trace = trace
+      const r = await api.get<QrcFidData>(`/api/qrc/runs/${id}/fid`, { params })
       currentFid.value = r.data
       usingMockFid.value = false
     } catch (e) {
