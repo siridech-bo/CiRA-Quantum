@@ -15,6 +15,7 @@ from docx.shared import Inches, Pt, RGBColor
 
 ROOT = Path(__file__).resolve().parents[2] / "docs" / "QRC"
 FIG9 = ROOT / "figures" / "fig9_encoding_judging.png"
+FIG10 = ROOT / "figures" / "fig10_phaseamp.png"
 OUT = ROOT / "QRC_Encoding_Study.docx"
 
 ENCODINGS = [
@@ -169,6 +170,37 @@ def main() -> None:
         b = doc.add_paragraph(style="List Bullet")
         b.add_run(txt)
 
+    _h(doc, "4.1 Phase-amplitude encoding does not help", 2)
+    _p(doc,
+       "The seven functions all inject the input through a single amplitude channel R_x(θ(s)). "
+       "A natural extension adds a second degree of freedom per input — a phase-amplitude pulse "
+       "R_z(2π·s)·R_x(θ(s)) that also rotates each spin about z by an input-proportional angle. "
+       "We tested this on the winning encoding (arcsin_sqrt) with a dedicated GPU run, then "
+       "scored it against the plain-amplitude baseline by recomputing memory capacity on both "
+       "persisted waveforms under identical settings (kmax=30, washout=10, n_pca=50, degrees 1–3):")
+    _table(doc, ["arcsin_sqrt variant", "linear MC", "nonlinear MC", "total MC"],
+           [("amplitude only  R_x(θ)", "4.25", "6.55", "10.81"),
+            ("+ phase-amplitude  R_z(2πs)·R_x(θ)", "1.01", "2.05", "3.06")])
+    if FIG10.exists():
+        doc.add_picture(str(FIG10), width=Inches(6.2))
+        cap = _p(doc,
+                 "Figure 10: (A) memory-capacity spectrum, identical settings on both persisted "
+                 "waveforms; (B) representative FID at step 105 — the phase-amp trace is compressed "
+                 "relative to amplitude-only.",
+                 italic=True, size=9)
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _p(doc,
+       "Adding the phase channel reduces total capacity by ≈72% — and it hurts both the linear "
+       "(−76%) and nonlinear (−69%) components, so it is not a memory-for-nonlinearity trade. "
+       "The extra R_z(2π·s) rotation collapses the FID dynamic range: it drives the encoded "
+       "states toward a smaller, more scrambled region of the readout manifold rather than "
+       "spreading them into new independent directions. For this NMR reservoir and its "
+       "FID-magnitude/quadrature readout, the phase degree of freedom is not observable in a way "
+       "that adds reservoir information — it only dilutes the amplitude signal arcsin√ had already "
+       "placed optimally. Plain amplitude encoding remains the best choice; the second channel is "
+       "counter-productive here. (Single-seed, quick fidelity, as in §5 limitations; the ≈3.5× "
+       "gap makes the direction robust to noise.)")
+
     _h(doc, "5. Discussion", 1)
     for head, body in [
         ("Mechanism — why arcsin_sqrt wins",
@@ -203,8 +235,9 @@ def main() -> None:
          "to become informative only at larger n_virtual/system size. (iii) Absolute "
          "capacities are modest and should be read as relative comparisons."),
         ("Future work",
-         "(i) Phase-amplitude encoding R_z(2πs)·R_x(θ) — the judging harness scores it "
-         "automatically. (ii) Learned encoding (GRAPE / gradient optimization): this "
+         "(i) Phase-amplitude encoding R_z(2πs)·R_x(θ) — resolved (§4.1): it lowers capacity "
+         "by ≈72%, so a second (phase) channel is not the way to beat arcsin√ on this system. "
+         "(ii) Learned encoding (GRAPE / gradient optimization): this "
          "fixed-function comparison is the empirical baseline for optimizing a parametrized "
          "encoding pulse directly; the GPU stepper is autodiff-capable (torch), so an "
          "end-to-end differentiable-QRC optimizer is buildable here with the MC metric as "

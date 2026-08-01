@@ -66,7 +66,7 @@
   <h1>QRC Next-Stage — Implementation Status</h1>
   <p class="sub">Traces every phase in
     <a href="./QRC_Next_Stage_Experiments.md">QRC_Next_Stage_Experiments.md</a>
-    to its real state. &nbsp;Updated 2026-07-31 — Phase 1 run (real numbers); trace-gen streams + resumes.
+    to its real state. &nbsp;Updated 2026-08-01 — Phase-2.2 phase-amplitude wired + launched (memcap-36e4d1b0).
     <br><b>Update rule:</b> refreshed strictly on every subtask completion.</p>
 
   <div class="bar" title="Phase 0 + Phase 1 + UI done; Ops in progress; Phase 2+ remain"><i style="width:52%"></i></div>
@@ -82,6 +82,14 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>08-01</td><td><b>Phase-2.2 phase-amplitude DONE — it HURTS</b></td><td><span class="tag t-done">memcap-36e4d1b0 (waveform saved). Head-to-head, identical settings: plain amplitude arcsin_sqrt <b>totMC 10.81</b> (lin 4.25, nl 6.55) vs R_z(2π·s)·R_x(θ) <b>totMC 3.06</b> (lin 1.01, nl 2.05) → <b>−72%</b> (lin −76%, nl −69%; not a trade). Phase channel collapses FID range → scrambles states. Plain amplitude stays best. Fig 10 + §4.1 in encoding study (.md+.docx)</span></td><td><code>0adc4e1</code>,fig10</td></tr>
+      <tr><td>08-01</td><td><b>Phase-2.2 phase-amplitude — wired + launched</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">memcap <code>phaseamp</code>: arcsin_sqrt with R_z(2π·s)·R_x(θ) (phase-amp ON) vs existing arcsin_sqrt baseline (OFF, reused). Validated no-GPU (phase-amp flag changes pulse unitary, max|Δ|=0.80). Run <code>memcap-36e4d1b0</code> @ quick, kmax=30, waveform-persisting, live on GPU (~35 min)</span></td><td><code>0adc4e1</code></td></tr>
+      <tr><td>08-01</td><td><b>Manuscript addendum: encoding-optimization study</b></td><td><span class="tag t-done">QRC_Encoding_Study.md + .docx (Fig 9): methodology (fidelity-wall, MC/IPC/NARMA panel, provenance, readout-robustness), results, discussion (mechanism, Paper-4 validation, limitations, future/GRAPE)</span></td><td>report</td></tr>
+      <tr><td>08-01</td><td><b>Multi-metric encoding judging</b> (offline, from saved waveforms)</td><td><span class="tag t-done">qrc_judge.py + fig9. arcsin_sqrt wins on ALL signals (linMC 3.66, nlIPC 1.86, NARMA NMSE 0.595); ranking identical under magnitude & multimodal → readout-independent. Bulletproof Phase-2.1 result</span></td><td>judge</td></tr>
+      <tr><td>08-01</td><td><b>Decision: GRAPE deferred to optimized-encoding stage</b></td><td><span class="tag t-none">GRAPE/learned encoding = §8.6.1/§8.8 direction (dedicated paper), not now. Note: torch GPU backend is autodiff-capable → differentiable-QRC path buildable on it. MC = ready objective</span></td><td>—</td></tr>
+      <tr><td>08-01</td><td><b>Phase-2 encoding comparison DONE via MEMORY CAPACITY</b></td><td><span class="tag t-done">memcap-a82a02a7 (7 encodings, waveforms saved, watched live). arcsin_sqrt wins decisively (totMC 4.93 vs 3.08; nonlinear MC ~2× others) → validates Paper-4 quantitatively. Well-separated (not noise, unlike weather-R²)</span></td><td>—</td></tr>
+      <tr><td>08-01</td><td><b>LIVE FID/spectrum streaming + record-name provenance</b></td><td><span class="tag t-done">/fid reads live memmap (clamps over-range); frontend follows latest per encoding. Watchable + verifiable</span></td><td><code>d2cde98</code>,<code>1115a5d</code></td></tr>
+      <tr><td>08-01</td><td><b>memory-capacity metric + persist-waveform fix</b></td><td><span class="tag t-done">qrc_memcap.py (self-test MC=8.00); hard rule: never discard waveforms</span></td><td><code>9542253</code>,<code>9449677</code></td></tr>
       <tr><td>08-01</td><td><b>Phase-2 2.1 sweep DONE (7 encodings) + real-GPU resume proven</b></td><td><span class="tag t-none">crash-resume proven live (stopped@73→resumed@60, real GPU); numbers meaningless again — screen fidelity too small for weather-R² (fidelity wall). Only signal: arcsin_sqrt best at h1. Recommend memory-capacity/NARMA metric</span></td><td><code>phase2-97d971ed</code></td></tr>
       <tr><td>07-31</td><td><b>Phase 2 launcher-integrated + UI-visible; quick subset launched</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">phase2 now a launcher task w/ live progress (validated in dashboard, per-encoding, stoppable). Quick subset phase2-8d981eb8 (3 encodings @ quick, ~1.7h) running. ASK-FIRST rule added to CLAUDE.md+memory</span></td><td><code>7ebbd4c</code></td></tr>
       <tr><td>07-31</td><td><b>Phase 2 encoding runner built + screening sweep launched</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">qrc_phase2.py (re-evolves per encoding; blocked-CV; streaming/resumable). 2.1 screening (7 encodings, 9-spin) running ~5h</span></td><td><code>5601406</code></td></tr>
@@ -115,7 +123,7 @@
       <tr><td><b>1</b></td><td>Flag-level feature experiments (phase / multimodal / selection incl. UMAP)</td>
         <td><span class="tag t-done">Done (rigorous v2) — multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dim. Gate → Phase 2</span></td><td>optional: reservoir-seed variance (GPU)</td></tr>
       <tr><td><b>2</b></td><td>Encoding sweep (7 functions / phase-amp / protons-only)</td>
-        <td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">In progress — runner built + launcher-integrated (UI-visible, live progress, stoppable); quick 3-encoding subset running ~1.7h</span></td><td>full 7-encoding + 2.2/2.3 on go-ahead</td></tr>
+        <td><span class="tag t-done">2.1 + 2.2 DONE — MC/IPC/NARMA panel (fidelity-robust): arcsin_sqrt wins decisively, readout-independent (Fig 9). 2.2 phase-amp tested → HURTS −72% (Fig 10); plain amplitude best. Only 2.3 protons-only left</span></td><td>2.3: target_qubits subset wiring</td></tr>
       <tr><td><b>3</b></td><td>External feature libraries (tsfresh, nmrglue)</td>
         <td><span class="tag t-none">Not started</span></td><td>new deps + integration</td></tr>
       <tr><td><b>4</b></td><td>Dim-reduction benchmark (R0–R6 × Ridge/SVR)</td>

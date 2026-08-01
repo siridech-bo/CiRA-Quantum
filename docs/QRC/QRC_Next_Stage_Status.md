@@ -1,7 +1,7 @@
 # QRC Next-Stage — Implementation Status Tracker
 
 **Source plan:** [`QRC_Next_Stage_Experiments.md`](./QRC_Next_Stage_Experiments.md)
-**Last updated:** 2026-07-28 (Feature-Lab UI shipped; trace-gen progress wired)
+**Last updated:** 2026-08-01 (Phase-2.2 phase-amplitude wired + launched — memcap-36e4d1b0)
 **Purpose:** one place that traces every phase/experiment in the plan to its real
 state, so we always know *what is left*.
 **Update rule:** this tracker is updated **strictly on every subtask completion**.
@@ -10,6 +10,8 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-08-01 | **Phase-2.2 phase-amplitude DONE — it HURTS** | ✅ `memcap-36e4d1b0` (waveform saved). Head-to-head, identical settings: plain amplitude arcsin_sqrt **totMC 10.81** (linMC 4.25, nlMC 6.55) vs `R_z(2π·s)·R_x(θ)` **totMC 3.06** (linMC 1.01, nlMC 2.05) → **−72%** (linear −76%, nonlinear −69%; not a trade). Phase channel collapses FID dynamic range → scrambles states. **Plain amplitude stays best.** Fig 10 + §4.1 appended to encoding study (.md+.docx) | `0adc4e1`,`fig10` |
+| 2026-08-01 | **Phase-2.2 phase-amplitude — wired + launched** | 🔵 `memcap phaseamp` experiment added: arcsin_sqrt with `R_z(2π·s)·R_x(θ)` (phase-amp ON) vs the existing arcsin_sqrt baseline (phase-amp OFF, reused). Validated no-GPU (phase-amp flag changes the pulse unitary, max\|Δ\|=0.80). Run `memcap-36e4d1b0` @ quick, kmax=30, waveform-persisting, live on GPU (~35 min) | `0adc4e1` |
 | 2026-08-01 | **Manuscript addendum: encoding-optimization study** | ✅ `QRC_Encoding_Study.md` + `.docx` (Fig 9 embedded): methodology (fidelity-wall, MC/IPC/NARMA panel, provenance, readout-robustness), results, discussion (mechanism, Paper-4 validation, limitations, future/GRAPE) | `report` |
 | 2026-08-01 | **Multi-metric encoding judging** (offline, from saved waveforms) | ✅ `qrc_judge.py` + fig9. arcsin_sqrt wins on ALL signals (linMC 3.66, nlIPC 1.86, NARMA NMSE 0.595); ranking **identical under magnitude653 & multimodal** → readout-independent (richer features NOT needed for the verdict). Bulletproof Phase-2.1 result | `judge` |
 | 2026-08-01 | **Decision: GRAPE deferred to the optimized-encoding stage** | 📌 GRAPE / gradient (or gradient-free) *learned* encoding is the §8.6.1/§8.8 direction (dedicated encoding paper), not now. Foundation note: the **torch GPU backend is autodiff-capable** → the differentiable-QRC path can be built on it (no Dynamiqs needed) when we get there. MC metric = ready-made objective | — |
@@ -57,7 +59,7 @@ state, so we always know *what is left*.
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
 | **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done (rigorous v2)** — standalone/null/dim-matched/blocked-CV. Multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dimensional. Gate → Phase 2 | (optional: reservoir-seed variance = extra GPU traces) |
-| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟡 **Runner done; 2.1 run but metric inconclusive** — full 7-encoding sweep completed (crash-resume proven live), but weather-R² needs near-full fidelity (screen too small → noise). Only arcsin_sqrt-best-at-h1 signal. **Next: switch to memory-capacity/NARMA metric** | build fidelity-robust encoding metric |
+| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | ✅ **2.1 + 2.2 DONE** — memory-capacity/IPC/NARMA panel (fidelity-robust): **arcsin_sqrt wins decisively** on all metrics, readout-independent (Fig 9). **2.2 phase-amp tested → HURTS −72%** (Fig 10); plain amplitude best. Only 2.3 protons-only left (needs `target_qubits` wiring) | 2.3: target_qubits subset wiring |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
 | **5** | Self-supervised representation learning (autoencoder, TS2Vec) | ⬜ **Not started** (gated) | only if Phase 4 shows headroom |

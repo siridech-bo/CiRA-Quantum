@@ -163,6 +163,40 @@ IPC, stacked), (B) NARMA-10 NMSE (lower better), (C) effective dimensionality,
    (`arcsin_sqrt > exponential > logarithmic > sinusoidal > arccos > linear >
    polynomial`). The encoding verdict does not depend on the FID feature set.
 
+### 4.1 Phase-amplitude encoding does not help
+
+The seven functions above all inject the input through a single amplitude channel
+(`R_x(θ(s))`). A natural extension is to use a *second* degree of freedom per input
+— a phase-amplitude pulse `R_z(2π·s)·R_x(θ(s))` that also rotates each spin about
+`z` by an input-proportional angle. We tested this on the winning encoding
+(`arcsin_sqrt`) with a dedicated GPU run, then scored it against the plain-amplitude
+baseline by recomputing memory capacity on both persisted waveforms under
+*identical* settings (`kmax=30`, `washout=10`, `n_pca=50`, degrees 1–3):
+
+| `arcsin_sqrt` variant | linear MC | nonlinear MC | **total MC** |
+|-----------------------|:---:|:---:|:---:|
+| amplitude only `R_x(θ)` | 4.25 | 6.55 | **10.81** |
+| + phase-amplitude `R_z(2πs)·R_x(θ)` | 1.01 | 2.05 | **3.06** |
+
+![Phase-amplitude head-to-head](figures/fig10_phaseamp.png)
+
+*Figure 10: (A) memory-capacity spectrum, identical settings on both persisted
+waveforms; (B) representative FID at step 105 showing the phase-amp trace (orange)
+compressed relative to amplitude-only (green).*
+
+**Adding the phase channel *reduces* total capacity by ≈ 72%** — and it hurts both
+the linear (−76%) and nonlinear (−69%) components, so it is not a memory-for-
+nonlinearity trade. The FID panel (Fig. 10B) shows why physically: the extra
+`R_z(2π·s)` rotation collapses the FID dynamic range, i.e. it drives the encoded
+states toward a smaller, more scrambled region of the readout manifold rather than
+spreading them into new independent directions. For this NMR reservoir and its
+FID-magnitude/quadrature readout, the phase degree of freedom is not observable in
+a way that adds reservoir information — it only dilutes the amplitude signal that
+`arcsin√` had already placed optimally. **Plain amplitude encoding remains the
+best choice; the second channel is counter-productive here.** (Single-seed,
+`quick`-fidelity, as in §5 limitations; the ≈ 3.5× gap makes the direction robust
+to noise.)
+
 ## 5. Discussion
 
 **Mechanism — why `arcsin_sqrt` wins.** With the Hamiltonian fixed, the encoding
@@ -208,9 +242,9 @@ ranking information here and is expected to become informative only at larger
 0.7–3.7) — expected for a short-memory, small-fidelity screen — and should be read
 as *relative* comparisons, not absolute reservoir capacities.
 
-**Future work.** (i) **Phase-amplitude encoding** (`R_z(2πs)·R_x(θ)`): does
-packing a second degree of freedom per input raise capacity above `arcsin√`? The
-judging harness here scores it automatically. (ii) **Learned encoding (GRAPE /
+**Future work.** (i) ~~Phase-amplitude encoding~~ — **resolved (§4.1): it lowers
+capacity by ≈ 72%**, so a second (phase) channel is not the way to beat `arcsin√`
+on this system. (ii) **Learned encoding (GRAPE /
 gradient optimization).** The fixed-function comparison establishes the empirical
 baseline for going *beyond* hand-designed encodings: optimizing a parametrized
 encoding pulse to maximize memory/IPC directly. The GPU reservoir stepper is
