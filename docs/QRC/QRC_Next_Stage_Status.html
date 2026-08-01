@@ -66,7 +66,7 @@
   <h1>QRC Next-Stage — Implementation Status</h1>
   <p class="sub">Traces every phase in
     <a href="./QRC_Next_Stage_Experiments.md">QRC_Next_Stage_Experiments.md</a>
-    to its real state. &nbsp;Updated 2026-08-01 — Phase-2.2 phase-amplitude wired + launched (memcap-36e4d1b0).
+    to its real state. &nbsp;Updated 2026-08-01 — Phase-2.3 protons-only wired + launched (memcap-f225906f).
     <br><b>Update rule:</b> refreshed strictly on every subtask completion.</p>
 
   <div class="bar" title="Phase 0 + Phase 1 + UI done; Ops in progress; Phase 2+ remain"><i style="width:52%"></i></div>
@@ -82,6 +82,7 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>08-01</td><td><b>Phase-2.3 protons-only — wired + launched</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">memcap <code>protons</code>: arcsin_sqrt encoded only into proton spins (<code>target_qubits=[4,5,6,7,8]</code>, from "H" labels) vs all-spins baseline (reused). Validated no-GPU (identity on 4 carbons; pulse changes, max|Δ|=0.20). Run <code>memcap-f225906f</code> @ quick, kmax=30, waveform-persisting, live on GPU (ETA ~31 min). Judge next</span></td><td><code>c6cf189</code></td></tr>
       <tr><td>08-01</td><td><b>Phase-2.2 phase-amplitude DONE — it HURTS</b></td><td><span class="tag t-done">memcap-36e4d1b0 (waveform saved). Head-to-head, identical settings: plain amplitude arcsin_sqrt <b>totMC 10.81</b> (lin 4.25, nl 6.55) vs R_z(2π·s)·R_x(θ) <b>totMC 3.06</b> (lin 1.01, nl 2.05) → <b>−72%</b> (lin −76%, nl −69%; not a trade). Phase channel collapses FID range → scrambles states. Plain amplitude stays best. Fig 10 + §4.1 in encoding study (.md+.docx)</span></td><td><code>0adc4e1</code>,fig10</td></tr>
       <tr><td>08-01</td><td><b>Phase-2.2 phase-amplitude — wired + launched</b></td><td><span class="tag" style="background:rgba(77,163,255,.14);color:#4da3ff">memcap <code>phaseamp</code>: arcsin_sqrt with R_z(2π·s)·R_x(θ) (phase-amp ON) vs existing arcsin_sqrt baseline (OFF, reused). Validated no-GPU (phase-amp flag changes pulse unitary, max|Δ|=0.80). Run <code>memcap-36e4d1b0</code> @ quick, kmax=30, waveform-persisting, live on GPU (~35 min)</span></td><td><code>0adc4e1</code></td></tr>
       <tr><td>08-01</td><td><b>Manuscript addendum: encoding-optimization study</b></td><td><span class="tag t-done">QRC_Encoding_Study.md + .docx (Fig 9): methodology (fidelity-wall, MC/IPC/NARMA panel, provenance, readout-robustness), results, discussion (mechanism, Paper-4 validation, limitations, future/GRAPE)</span></td><td>report</td></tr>

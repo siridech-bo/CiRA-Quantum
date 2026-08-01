@@ -1,7 +1,7 @@
 # QRC Next-Stage — Implementation Status Tracker
 
 **Source plan:** [`QRC_Next_Stage_Experiments.md`](./QRC_Next_Stage_Experiments.md)
-**Last updated:** 2026-08-01 (Phase-2.2 phase-amplitude wired + launched — memcap-36e4d1b0)
+**Last updated:** 2026-08-01 (Phase-2.3 protons-only wired + launched — memcap-f225906f)
 **Purpose:** one place that traces every phase/experiment in the plan to its real
 state, so we always know *what is left*.
 **Update rule:** this tracker is updated **strictly on every subtask completion**.
@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-08-01 | **Phase-2.3 protons-only — wired + launched** | 🔵 `memcap protons` experiment added: arcsin_sqrt encoded only into the proton spins (`target_qubits=[4,5,6,7,8]`, derived from "H" labels) vs the all-spins baseline (reused). Validated no-GPU (identity on the 4 carbons; pulse changes, max\|Δ\|=0.20). Run `memcap-f225906f` @ quick, kmax=30, waveform-persisting, live on GPU (ETA ~31 min). Judge vs baseline next | `c6cf189` |
 | 2026-08-01 | **Phase-2.2 phase-amplitude DONE — it HURTS** | ✅ `memcap-36e4d1b0` (waveform saved). Head-to-head, identical settings: plain amplitude arcsin_sqrt **totMC 10.81** (linMC 4.25, nlMC 6.55) vs `R_z(2π·s)·R_x(θ)` **totMC 3.06** (linMC 1.01, nlMC 2.05) → **−72%** (linear −76%, nonlinear −69%; not a trade). Phase channel collapses FID dynamic range → scrambles states. **Plain amplitude stays best.** Fig 10 + §4.1 appended to encoding study (.md+.docx) | `0adc4e1`,`fig10` |
 | 2026-08-01 | **Phase-2.2 phase-amplitude — wired + launched** | 🔵 `memcap phaseamp` experiment added: arcsin_sqrt with `R_z(2π·s)·R_x(θ)` (phase-amp ON) vs the existing arcsin_sqrt baseline (phase-amp OFF, reused). Validated no-GPU (phase-amp flag changes the pulse unitary, max\|Δ\|=0.80). Run `memcap-36e4d1b0` @ quick, kmax=30, waveform-persisting, live on GPU (~35 min) | `0adc4e1` |
 | 2026-08-01 | **Manuscript addendum: encoding-optimization study** | ✅ `QRC_Encoding_Study.md` + `.docx` (Fig 9 embedded): methodology (fidelity-wall, MC/IPC/NARMA panel, provenance, readout-robustness), results, discussion (mechanism, Paper-4 validation, limitations, future/GRAPE) | `report` |
