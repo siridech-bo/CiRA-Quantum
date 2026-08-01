@@ -85,6 +85,10 @@ onBeforeUnmount(() => {
       No FID data loaded yet.
     </div>
     <div ref="container" class="chart-host"></div>
+    <div v-if="fid" class="text-caption text-medium-emphasis mt-1 record-name">
+      <v-icon icon="mdi-database-outline" size="x-small" />
+      record: <code>{{ fid.trace_name || '(unknown source)' }}</code> · step {{ fid.step }}
+    </div>
   </div>
 </template>
 

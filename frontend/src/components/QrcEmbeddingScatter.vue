@@ -145,6 +145,10 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
       </span>
       <span>{{ embedding.n_points }} steps · {{ embedding.n_features_in }} features → 2-D ({{ embedding.method.toUpperCase() }})</span>
     </div>
+    <div v-if="embedding && embedding.points.length" class="text-caption text-medium-emphasis record-name">
+      <v-icon icon="mdi-database-outline" size="x-small" />
+      record: <code>{{ embedding.trace_name || '(unknown source)' }}</code>
+    </div>
   </div>
 </template>
 

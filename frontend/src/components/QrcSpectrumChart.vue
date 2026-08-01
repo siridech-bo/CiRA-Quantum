@@ -114,6 +114,10 @@ onBeforeUnmount(() => {
       <v-icon icon="mdi-map-marker" size="x-small" color="#f43f5e" />
       {{ fid.peaks_hz.length }} selected peak bins marked
     </div>
+    <div v-if="fid" class="text-caption text-medium-emphasis record-name">
+      <v-icon icon="mdi-database-outline" size="x-small" />
+      record: <code>{{ fid.trace_name || '(unknown source)' }}</code> · step {{ fid.step }}
+    </div>
   </div>
 </template>
 

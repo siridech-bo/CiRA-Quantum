@@ -79,6 +79,9 @@ export interface QrcFidData {
   freq_hz: number[]
   spectrum_mag: number[]
   peaks_hz: number[]
+  /** Provenance: the exact saved waveform file this FID/spectrum came from. */
+  trace_name?: string
+  trace_path?: string
 }
 
 /** Loosely typed — §3 says "the results JSON" without pinning every key.
@@ -114,6 +117,9 @@ export interface QrcEmbedding {
   color: number[]
   color_label: string
   split: string[]
+  /** Provenance: the saved waveform file this embedding was built from. */
+  trace_name?: string
+  trace_path?: string
 }
 
 /** One row of a phase1 ``summary.json`` (the sweep the Feature-Lab charts
@@ -233,7 +239,10 @@ function mockFid(step: number): QrcFidData {
     spectrum_mag[k] = Math.sqrt(sre * sre + sim * sim)
   }
   const peaks_hz = seedFreqs.filter((f) => f >= 0 && f <= nyquist)
-  return { step, n_steps: MOCK_N_STEPS, t, real, imag, mag, freq_hz, spectrum_mag, peaks_hz }
+  return {
+    step, n_steps: MOCK_N_STEPS, t, real, imag, mag, freq_hz, spectrum_mag, peaks_hz,
+    trace_name: 'mock:synthetic-fid (backend unreachable)',
+  }
 }
 
 function mockResults(_id: string): QrcResults {
@@ -281,6 +290,7 @@ function mockEmbedding(method: 'pca' | 'umap', feature: QrcEmbedding['feature'])
     color,
     color_label: 'temperature (norm)',
     split,
+    trace_name: 'mock:synthetic-embedding (backend unreachable)',
   }
 }
 

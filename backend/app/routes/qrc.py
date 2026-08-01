@@ -305,6 +305,10 @@ def qrc_run_fid(run_id: str):
     payload = _compute_fid(fids, fid_dwell, step, n_peaks)
     payload["step"] = step
     payload["n_steps"] = n_steps
+    # Record provenance so every FID/spectrum display names the exact saved
+    # waveform file it was constructed from — verifiable, not "trust me".
+    payload["trace_name"] = trace_path.name
+    payload["trace_path"] = str(trace_path)
     return jsonify(payload)
 
 
@@ -432,6 +436,8 @@ def qrc_run_embedding(run_id: str):
         "color": color[:n_steps],
         "color_label": color_label,
         "split": _split_labels(npz, n_steps),
+        "trace_name": trace_path.name,
+        "trace_path": str(trace_path),
     })
 
 
