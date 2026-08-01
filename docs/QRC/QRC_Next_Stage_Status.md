@@ -1,7 +1,7 @@
 # QRC Next-Stage — Implementation Status Tracker
 
 **Source plan:** [`QRC_Next_Stage_Experiments.md`](./QRC_Next_Stage_Experiments.md)
-**Last updated:** 2026-08-01 (Phase-2.3 protons-only wired + launched — memcap-f225906f)
+**Last updated:** 2026-08-01 (Phase-2 encoding sweep COMPLETE — 2.1+2.2+2.3; arcsin_sqrt all-spins amplitude wins)
 **Purpose:** one place that traces every phase/experiment in the plan to its real
 state, so we always know *what is left*.
 **Update rule:** this tracker is updated **strictly on every subtask completion**.
@@ -10,7 +10,8 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
-| 2026-08-01 | **Phase-2.3 protons-only — wired + launched** | 🔵 `memcap protons` experiment added: arcsin_sqrt encoded only into the proton spins (`target_qubits=[4,5,6,7,8]`, derived from "H" labels) vs the all-spins baseline (reused). Validated no-GPU (identity on the 4 carbons; pulse changes, max\|Δ\|=0.20). Run `memcap-f225906f` @ quick, kmax=30, waveform-persisting, live on GPU (ETA ~31 min). Judge vs baseline next | `c6cf189` |
+| 2026-08-01 | **Phase-2.3 protons-only DONE — it HURTS (loses nonlinearity)** | ✅ `memcap-f225906f` (waveform saved). Head-to-head, identical settings: all-spins **totMC 10.81** (lin 4.25, nl 6.55) vs protons-only `[4–8]` **totMC 8.28** (lin 4.26, nl 4.02) → **−23%**. **Clean dissociation: linear memory unchanged (protons carry it), nonlinear MC −39% (carbons feed it via J-couplings).** All-spins best; carbons are an active nonlinear resource, not just a bath. **Phase-2 sweep complete** — arcsin_sqrt all-spins amplitude wins all 3 sub-questions. Fig 11 + §4.2 in encoding study (.md+.docx) | `c6cf189`,`fig11` |
+| 2026-08-01 | **Phase-2.3 protons-only — wired + launched** | 🔵 `memcap protons` experiment added: arcsin_sqrt encoded only into the proton spins (`target_qubits=[4,5,6,7,8]`, derived from "H" labels) vs the all-spins baseline (reused). Validated no-GPU (identity on the 4 carbons; pulse changes, max\|Δ\|=0.20). Run `memcap-f225906f` @ quick, kmax=30, waveform-persisting, live on GPU (ETA ~31 min) | `c6cf189` |
 | 2026-08-01 | **Phase-2.2 phase-amplitude DONE — it HURTS** | ✅ `memcap-36e4d1b0` (waveform saved). Head-to-head, identical settings: plain amplitude arcsin_sqrt **totMC 10.81** (linMC 4.25, nlMC 6.55) vs `R_z(2π·s)·R_x(θ)` **totMC 3.06** (linMC 1.01, nlMC 2.05) → **−72%** (linear −76%, nonlinear −69%; not a trade). Phase channel collapses FID dynamic range → scrambles states. **Plain amplitude stays best.** Fig 10 + §4.1 appended to encoding study (.md+.docx) | `0adc4e1`,`fig10` |
 | 2026-08-01 | **Phase-2.2 phase-amplitude — wired + launched** | 🔵 `memcap phaseamp` experiment added: arcsin_sqrt with `R_z(2π·s)·R_x(θ)` (phase-amp ON) vs the existing arcsin_sqrt baseline (phase-amp OFF, reused). Validated no-GPU (phase-amp flag changes the pulse unitary, max\|Δ\|=0.80). Run `memcap-36e4d1b0` @ quick, kmax=30, waveform-persisting, live on GPU (~35 min) | `0adc4e1` |
 | 2026-08-01 | **Manuscript addendum: encoding-optimization study** | ✅ `QRC_Encoding_Study.md` + `.docx` (Fig 9 embedded): methodology (fidelity-wall, MC/IPC/NARMA panel, provenance, readout-robustness), results, discussion (mechanism, Paper-4 validation, limitations, future/GRAPE) | `report` |
@@ -60,7 +61,7 @@ state, so we always know *what is left*.
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
 | **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done (rigorous v2)** — standalone/null/dim-matched/blocked-CV. Multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dimensional. Gate → Phase 2 | (optional: reservoir-seed variance = extra GPU traces) |
-| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | ✅ **2.1 + 2.2 DONE** — memory-capacity/IPC/NARMA panel (fidelity-robust): **arcsin_sqrt wins decisively** on all metrics, readout-independent (Fig 9). **2.2 phase-amp tested → HURTS −72%** (Fig 10); plain amplitude best. Only 2.3 protons-only left (needs `target_qubits` wiring) | 2.3: target_qubits subset wiring |
+| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | ✅ **COMPLETE (2.1+2.2+2.3)** — fidelity-robust MC/IPC/NARMA panel: **arcsin_sqrt all-spins amplitude wins all 3 sub-questions.** 2.1 function sweep: arcsin_sqrt decisive + readout-independent (Fig 9). 2.2 phase-amp → HURTS −72% (Fig 10). 2.3 protons-only → HURTS −23% (Fig 11; loses nonlinearity, carbons feed it). Both extensions lose nonlinearity, not memory | — |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
 | **5** | Self-supervised representation learning (autoencoder, TS2Vec) | ⬜ **Not started** (gated) | only if Phase 4 shows headroom |

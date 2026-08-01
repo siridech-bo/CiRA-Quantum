@@ -16,6 +16,7 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[2] / "docs" / "QRC"
 FIG9 = ROOT / "figures" / "fig9_encoding_judging.png"
 FIG10 = ROOT / "figures" / "fig10_phaseamp.png"
+FIG11 = ROOT / "figures" / "fig11_protons.png"
 OUT = ROOT / "QRC_Encoding_Study.docx"
 
 ENCODINGS = [
@@ -200,6 +201,43 @@ def main() -> None:
        "placed optimally. Plain amplitude encoding remains the best choice; the second channel is "
        "counter-productive here. (Single-seed, quick fidelity, as in §5 limitations; the ≈3.5× "
        "gap makes the direction robust to noise.)")
+
+    _h(doc, "4.2 Protons-only injection loses the nonlinearity the carbons feed", 2)
+    _p(doc,
+       "The baseline pulses the input into all nine spins. The FID is read out from the five "
+       "protons (H1–H5, indices 4–8) while the four carbons (C1–C4) act as a spectator bath "
+       "(§3.1), so a natural question is whether pulsing the bath carbons contributes anything, "
+       "or whether encoding only into the readout protons (target_qubits=[4,5,6,7,8]) is as good "
+       "or better. We ran the proton-only variant of the winning encoding and scored it against "
+       "the all-spins baseline under identical settings:")
+    _table(doc, ["arcsin_sqrt injection", "linear MC", "nonlinear MC", "total MC"],
+           [("all 9 spins (baseline)", "4.25", "6.55", "10.81"),
+            ("protons only [H1–H5]", "4.26", "4.02", "8.28")])
+    if FIG11.exists():
+        doc.add_picture(str(FIG11), width=Inches(6.2))
+        cap = _p(doc,
+                 "Figure 11: (A) memory-capacity spectrum, identical settings; (B) representative "
+                 "FID — the single-trace envelopes are similar; the difference is in the cross-input "
+                 "nonlinear structure, not the waveform shape.",
+                 italic=True, size=9)
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _p(doc,
+       "The result is a clean dissociation: linear memory is unchanged (4.25 → 4.26), but "
+       "nonlinear capacity drops ≈39% (6.55 → 4.02), for a −23% total. The two spin groups play "
+       "distinct roles. The linear memory lives on the protons (the readout nuclei), so injecting "
+       "the input directly into them or into the carbons-then-coupling-in are equally good for "
+       "remembering past inputs. But the carbons supply nonlinearity: driving the bath carbons "
+       "pushes the input through the inter-nuclear J-couplings before it reaches the detected "
+       "protons — an extra layer of coupled evolution that mixes and multiplies past inputs, "
+       "exactly what a reservoir needs. Removing carbon injection removes that layer. All-spins "
+       "injection is therefore better, and the 'spectator' carbons are not merely a bath term to "
+       "optimize away at the encoding stage — they are an active nonlinear resource.")
+    _p(doc,
+       "Phase-2 summary. Across the three sub-questions — which function (§4), amplitude vs. "
+       "phase-amplitude (§4.1), and all-spins vs. protons-only (§4.2) — the answer is consistent: "
+       "arcsin_sqrt amplitude encoding into all nine spins is the best configuration. The two ways "
+       "of adding structure beyond it both reduce capacity, and both do so by losing nonlinearity "
+       "rather than memory.")
 
     _h(doc, "5. Discussion", 1)
     for head, body in [
