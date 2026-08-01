@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-08-01 | **Phase-2 2.1 sweep DONE (7 encodings) + real-GPU resume proven** | ⚠️ crash-resume proven live (stopped@73 → resumed@60, real GPU); but **numbers meaningless again** — 'screen' fidelity too small for weather-R² (fidelity wall, 3rd time). Only signal: **arcsin_sqrt best at h1** (Paper-4's choice). Recommend switching encoding metric to **memory-capacity/NARMA** (fidelity-robust) | `phase2-97d971ed` |
 | 2026-07-31 | **Phase 2 launcher-integrated + UI-visible; quick subset launched** | 🔵 phase2 is now a launcher task with live progress (validated: shows in dashboard, per-encoding phase/step/ETA, stoppable). Quick subset `phase2-8d981eb8` (3 encodings @ quick fidelity, ~1.7 h) running via API. Also: **ASK-FIRST rule** added to CLAUDE.md+memory after auto-launching a long run | `7ebbd4c` |
 | 2026-07-31 | **Phase 2 encoding runner built + screening sweep launched** | 🔵 `qrc_phase2.py` (re-evolves per encoding; blocked-CV; streaming/resumable; sweep-level resume). 2.1 screening (7 encodings, 9-spin) running ~5 h | `5601406` |
 | 2026-07-31 | **Figure 8** — Phase-1 feature-representation plot (reproducible) | ✅ `fig8_phase1_features.png` + §5.2 in Reproduction Results; 2 panels (standalone CV bands · paired per-fold Δ) | `e9517da` |
@@ -49,7 +50,7 @@ state, so we always know *what is left*.
 |-------|-------|-------|---------------------|
 | **0** | Instrumentation: trace cache + FID/progress UI + run control | ✅ **Done** (both gaps closed) | — |
 | **1** | Flag-level feature experiments (phase / multimodal / selection incl. UMAP) | ✅ **Done (rigorous v2)** — standalone/null/dim-matched/blocked-CV. Multimodal carries real (small, significant) signal; phase redundant; reps indistinguishable within CV error; signal low-dimensional. Gate → Phase 2 | (optional: reservoir-seed variance = extra GPU traces) |
-| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🔵 **In progress** — `qrc_phase2.py` built + **launcher-integrated (UI-visible, live progress, stoppable)**. Quick 3-encoding sanity subset running (~1.7 h); full 7-encoding + 2.2/2.3 after | full 7-encoding sweep + 2.2/2.3 (on user go-ahead) |
+| **2** | Encoding sweep (7 functions / phase-amp / protons-only) | 🟡 **Runner done; 2.1 run but metric inconclusive** — full 7-encoding sweep completed (crash-resume proven live), but weather-R² needs near-full fidelity (screen too small → noise). Only arcsin_sqrt-best-at-h1 signal. **Next: switch to memory-capacity/NARMA metric** | build fidelity-robust encoding metric |
 | **3** | External feature libraries (tsfresh, nmrglue) | ⬜ **Not started** | new deps + integration code |
 | **4** | Dimensionality-reduction benchmark (R0–R6 × Ridge/SVR) | 🟡 **Partial — reducers exist, no full grid** | best feature set from Phase 3 |
 | **5** | Self-supervised representation learning (autoencoder, TS2Vec) | ⬜ **Not started** (gated) | only if Phase 4 shows headroom |
