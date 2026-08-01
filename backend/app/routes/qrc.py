@@ -335,10 +335,16 @@ def qrc_run_fid(run_id: str):
     except ValueError:
         return jsonify({"error": "step must be an integer", "code": "BAD_STEP"}), 400
     if not (0 <= step < n_avail):
-        return jsonify({
-            "error": f"step {step} out of range [0, {n_avail - 1}]",
-            "code": "STEP_OUT_OF_RANGE",
-        }), 400
+        if live:
+            # A running sweep advances through separate encodings, each with its
+            # own fresh step range — clamp to the latest computed step rather
+            # than erroring (a stale slider value must not break the live view).
+            step = max(0, min(step, n_avail - 1))
+        else:
+            return jsonify({
+                "error": f"step {step} out of range [0, {n_avail - 1}]",
+                "code": "STEP_OUT_OF_RANGE",
+            }), 400
 
     cfg = entry.get("config") or {}
     n_peaks = int(cfg.get("n_peaks") or 653)

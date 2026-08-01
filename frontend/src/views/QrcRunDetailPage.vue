@@ -106,10 +106,11 @@ const followLive = ref(true)
 
 async function pollLiveFid() {
   if (!followLive.value) return
-  const s = qrc.currentProgress?.step
-  const k = s && s > 1 ? s - 1 : 0
-  step.value = k
-  await fetchFid(k).catch(() => {}) // 404 while a step isn't computed yet is fine
+  // Request "latest": the backend clamps an over-range step to the newest
+  // computed one, so this follows the current encoding regardless of transitions.
+  await fetchFid(1_000_000).catch(() => {}) // 404 while nothing computed yet is fine
+  const k = qrc.currentFid?.step
+  if (typeof k === 'number') step.value = k
 }
 
 function startLiveFid() {
@@ -175,6 +176,7 @@ async function stopRun() {
 onMounted(async () => {
   loading.value = true
   qrc.reset()
+  followLive.value = true // page load = follow the live FID again
   try {
     await Promise.all([
       qrc.loadRuns().catch(() => {}),
@@ -342,6 +344,16 @@ onBeforeUnmount(() => {
         <v-card class="pa-4 my-4">
           <div class="d-flex align-center mb-1">
             <div class="text-subtitle-2 flex-grow-1">Input step</div>
+            <v-chip
+              v-if="isActive"
+              size="x-small"
+              variant="flat"
+              :color="followLive ? 'success' : 'warning'"
+              class="mr-2"
+              :prepend-icon="followLive ? 'mdi-record' : 'mdi-pause'"
+              style="cursor: pointer"
+              @click="followLive = true"
+            >{{ followLive ? 'LIVE — following' : 'paused · resume' }}</v-chip>
             <span class="text-caption text-medium-emphasis">
               step {{ step }} / {{ (qrc.currentFid?.n_steps || 1) - 1 }}
             </span>
