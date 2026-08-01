@@ -117,24 +117,30 @@ matched · RidgeCV alpha · **blocked-CV mean±std, all horizons**) replaces it.
 
 ---
 
-## Phase 2 — Encoding sweep 🔵 IN PROGRESS (runner built; screening sweep running)
+## Phase 2 — Encoding sweep ✅ COMPLETE (all 3 sub-questions; the metric pivot was key)
 
-Runner `scripts/qrc_phase2.py` re-evolves the reservoir per encoding setting
-(holding everything else fixed) and scores each with the Phase-1 v2 rigorous
-protocol (magnitude-653 readout, RidgeCV, blocked-CV mean±std, all horizons).
-Reuses the streaming/resumable `StreamingTrace`; the sweep itself resumes
-(cached-result settings are skipped). Fidelity presets: `screen` (rank) / `full`
-(confirm) / `tiny` (smoke). Validated end-to-end.
+The original runner `scripts/qrc_phase2.py` scored encodings by **weather-R²**,
+which hit a **fidelity wall** three times (screen fidelity too small → the R²
+gaps were pure noise). The fix was to switch to **intrinsic, fidelity-robust
+metrics** — linear memory capacity (MC), nonlinear information-processing
+capacity (IPC), and NARMA-10 — computed **offline from persisted waveforms**
+(`scripts/qrc_memcap.py` + `scripts/qrc_judge.py`). Every encoding evolves once
+(waveform saved to `artifacts/traces/…npz`); any metric is recomputed offline
+forever. Head-to-head comparisons use identical MC settings on both saved
+waveforms. Result: **`arcsin_sqrt` amplitude encoding into all nine spins wins
+all three sub-questions.**
 
-| Exp | What | Runner | Status |
-|-----|------|--------|--------|
-| 2.1 | Encoding-function sweep (arcsin√, arccos, linear, sinusoidal, logarithmic, polynomial, exponential) | ✅ `qrc_phase2.py --experiment 2.1` | 🔵 **screening sweep running** (7 encodings, 9-spin, ~5 h) |
-| 2.2 | Phase-amplitude encoding off/on | ✅ `--experiment 2.2` | ⬜ queued after 2.1 |
-| 2.3 | Protons-only vs all-spins | ⬜ (needs `target_qubits` wiring for the weather multi-channel encoder) | ⬜ follow-up |
+| Exp | What | Result | Evidence |
+|-----|------|--------|----------|
+| 2.1 | Encoding-function sweep (arcsin√, arccos, linear, sinusoidal, logarithmic, polynomial, exponential) | ✅ **arcsin_sqrt wins decisively** (totCap 5.51 vs 3.66 #2; linMC 3.66, nlIPC 1.86, NARMA NMSE 0.595 — only one below 1). Ranking **readout-independent** (same order under magnitude653 & multimodal) | Fig 9 · `memcap-a82a02a7` · `qrc_judge.py` |
+| 2.2 | Phase-amplitude `R_z(2πs)·R_x(θ)` off/on | ✅ **HURTS −72%** (totMC 10.81→3.06; lin −76%, nl −69% — not a trade). Phase channel collapses FID dynamic range, scrambles states | Fig 10 · `memcap-36e4d1b0` · §4.1 |
+| 2.3 | Protons-only vs all-spins injection | ✅ **HURTS −23%** (totMC 10.81→8.28). Clean dissociation: **linear memory unchanged** (protons carry it) but **nonlinear −39%** (carbons feed nonlinearity via J-couplings) | Fig 11 · `memcap-f225906f` · §4.2 |
 
-**Next:** read 2.1 screening ranking → confirm top encoding(s) at `--fidelity full`
-→ run 2.2 → wire 2.3. (Compute: each setting is a fresh reservoir pass; screening
-~40 min/setting, full ~hours.)
+**Through-line:** both ways of adding structure beyond the baseline lose
+**nonlinearity, not memory**. Manuscript addendum `QRC_Encoding_Study.md/.docx`
+documents methodology + all three results. **Remaining rigor gap:** single-seed /
+`quick` fidelity — a multi-seed firm-up would attach formal error bars (fast; the
+gaps are large enough that the ranking is already robust to noise).
 
 ---
 
@@ -197,17 +203,24 @@ PCA + UMAP both working). **Presentation approved by user 2026-07-28.**
 
 ## What is left, in priority order
 
-*(Done: Phase 0, Phase 1, Feature-Lab UI — see activity log up top.)*
+*(Done: Phase 0, Phase 1, **Phase 2 (all 3 sub-questions)**, Feature-Lab UI —
+see activity log up top.)*
 
-1. **(optional, fast) Phase-1 firm-up** — multi-seed + full-horizon re-run to
-   make the "baseline near-optimal" negative result defensible (trace cached,
-   no GPU, minutes). Also fix Exp-1.3 to score the horizon profile, not h=30.
-2. **Phase 2 — encoding runner** (`qrc_phase2.py`): 2.1 encoding-function sweep ·
-   2.2 phase-amplitude · 2.3 protons-only. **The next real lever** (per the
-   gate). Re-evolves the reservoir → multi-hour GPU runs (now resumable).
-3. **Ship remote access** — deployer serves the branch at
-   `quantum.cira-core.com/qrc` + Cloudflare Access (build handed off). Parallel.
-4. **Phase 3** (tsfresh, nmrglue) → **Phase 4 full grid** → gated **Phase 5 / 6**.
-
-*(Done since v1 of this tracker: Phase-0 progress gap, the Feature-Lab UI, and
-the UMAP/PCA embedding view — see the activity log at the top.)*
+1. **Ship remote access** — deployer serves the branch at
+   `quantum.cira-core.com/qrc` + Cloudflare Access (build handed off). The page is
+   dark until shipped; there is now a complete, figure-backed result to show.
+   Independent of the science, can proceed in parallel.
+2. **(optional, fast) Multi-seed firm-up** — re-run the Phase-1 negative result
+   and the Phase-2 encoding rankings across a few reservoir seeds to attach formal
+   error bars. Cheap (short runs); turns "single-seed, quick" into a definitive
+   claim for the manuscript.
+3. **Phase 3** — external feature libraries (`tsfresh` §3.1, `nmrglue` §3.2): add
+   deps + integration. First unstarted science phase.
+4. **Phase 4** — full R0–R6 × {Ridge, SVR} dim-reduction grid (reducers exist;
+   grid harness + heatmap deliverable do not). Uses best features from Phase 3.
+5. **Gated Phase 5** (self-supervised reps) — only if Phase 4 shows headroom.
+6. **Gated Phase 6** — encoding×feature interaction (now has the P2 winner) + τ
+   sweep (knob exists, runner doesn't).
+7. **GRAPE / learned encoding** (deferred, §8.6.1/§8.8) — the differentiable-QRC
+   direction; the torch GPU backend is autodiff-capable and the MC metric is a
+   ready-made objective. Its own dedicated study, later.
