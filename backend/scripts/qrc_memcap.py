@@ -38,7 +38,7 @@ from app.qrc.evolution import Reservoir
 from app.qrc.feature_methods import build_features
 from app.qrc.features import FeatureConfig
 from app.qrc.system import QRCSystem
-from qrc_gen_traces import _CKPT_ROOT, StreamingTrace, _ckpt_hash
+from qrc_gen_traces import _CKPT_ROOT, StreamingTrace, _ckpt_hash, _resolve_system
 from qrc_phase2 import (  # reuse encoding configs + sweep plumbing
     ENCODINGS,
     QUICK_ENCODINGS,
@@ -139,9 +139,13 @@ def run_encoding_memcap(cfg, label, *, kmax=KMAX, logger=None, phase_label=""):
 
     # PERSIST the waveform (never discard reservoir compute) — a random-input
     # trace so MC / any other intrinsic metric can be recomputed offline.
-    # Display name distinguishes phase-amplitude variants of the same function
-    # (fn stays 'arcsin_sqrt'; '_pa' marks R_z(2πs)·R_x(θ) enabled).
-    disp = cfg.encoding.fn + ("_pa" if cfg.encoding.phase_amplitude else "")
+    # Display name distinguishes variants of the same function (fn stays
+    # 'arcsin_sqrt'): '_pa' marks R_z(2πs)·R_x(θ) enabled; '_protons' marks a
+    # spin-subset (target_qubits) pulse. Keeps trace filenames/results distinct
+    # from the all-spins baseline so the judge separates them.
+    disp = (cfg.encoding.fn
+            + ("_pa" if cfg.encoding.phase_amplitude else "")
+            + ("_protons" if cfg.encoding.target_qubits else ""))
     traces_dir = _CKPT_ROOT.parent
     traces_dir.mkdir(parents=True, exist_ok=True)
     trace_path = traces_dir / f"memcap_{disp}_{chash}.npz"
@@ -180,6 +184,22 @@ def _plan(experiment, fidelity, seed, system):
         return [("mc_arcsin_sqrt_pa",
                  build_cfg("arcsin_sqrt", fidelity, seed=seed, system=system,
                            phase_amplitude=True))]
+    if experiment == "protons":
+        # 2.3: encode the input only into the proton spins (labels starting
+        # "H") instead of all spins — the protons are the detected readout
+        # nuclei; the carbons are a bath. The all-spins baseline is the
+        # existing ``memcap_arcsin_sqrt`` trace, so only this one new run is
+        # needed; the judge compares both saved waveforms.
+        sys_cfg = _resolve_system(system)
+        protons = [i for i, lbl in enumerate(sys_cfg.labels)
+                   if lbl.upper().startswith("H")]
+        if not protons or len(protons) >= len(sys_cfg.labels):
+            raise SystemExit(
+                f"system '{system}' has no proton subset to target "
+                f"(labels={sys_cfg.labels})")
+        return [("mc_arcsin_sqrt_protons",
+                 build_cfg("arcsin_sqrt", fidelity, seed=seed, system=system,
+                           target_qubits=protons))]
     fns = QUICK_ENCODINGS if experiment == "quick" else ENCODINGS
     return [(f"mc_{fn}", build_cfg(fn, fidelity, seed=seed, system=system)) for fn in fns]
 
@@ -198,7 +218,7 @@ def _write_manifest(out: Path, results: list[dict]) -> None:
 
 def sweep_main():
     ap = argparse.ArgumentParser(description="QRC memory-capacity encoding sweep")
-    ap.add_argument("--experiment", choices=["all", "quick", "phaseamp"], default="all")
+    ap.add_argument("--experiment", choices=["all", "quick", "phaseamp", "protons"], default="all")
     ap.add_argument("--fidelity", default="screen")
     ap.add_argument("--system", default="crotonic9_paper4")
     ap.add_argument("--kmax", type=int, default=KMAX)
