@@ -264,38 +264,79 @@ def _pick_peaks(freq, spectrum_mag, n_peaks: int) -> list[float]:
     return np.asarray(freq)[idx].tolist()
 
 
+def _live_fid_source(entry: dict[str, Any]):
+    """The LIVE streaming memmap a running reservoir is writing right now.
+
+    ``StreamingTrace`` drops a ``live_fid.json`` in the run-dir pointing at its
+    on-disk ``fids.dat`` memmap; this reads it so the FID/spectrum can be watched
+    *as each step is computed*, before any ``.npz`` is saved. Only rows already
+    computed (per the live ``status.json`` step) are exposed. Returns
+    ``(mmap, fid_dwell, trace_name, trace_ref, n_available)`` or ``None``.
+    """
+    import numpy as np
+
+    run_dir = entry.get("run_dir")
+    if not run_dir:
+        return None
+    live = Path(run_dir) / "live_fid.json"
+    if not live.exists():
+        return None
+    try:
+        info = json.loads(live.read_text(encoding="utf-8"))
+        fpath = Path(info["fids_path"])
+        if not fpath.exists():
+            return None
+        n_steps, fp = int(info["n_steps"]), int(info["fid_points"])
+        mm = np.memmap(str(fpath), dtype=np.complex64, mode="r", shape=(n_steps, fp))
+        step_done = _read_status(Path(run_dir)).get("step") or 0
+        n_avail = int(max(0, min(n_steps, int(step_done))))
+        label = info.get("label") or "live"
+        return mm, float(info.get("fid_dwell", 1.0)), f"live: {label}", str(fpath), n_avail
+    except Exception:  # noqa: BLE001 - live view is best-effort
+        return None
+
+
 @qrc_bp.route("/runs/<run_id>/fid", methods=["GET"])
 def qrc_run_fid(run_id: str):
     entry = launcher.get_run(run_id)
     if entry is None:
         return jsonify({"error": "Run not found"}), 404
 
-    trace_path = launcher.resolve_trace_path(entry)
-    if trace_path is None:
-        return jsonify({
-            "error": "No trace .npz available for this run yet.",
-            "code": "TRACE_MISSING",
-        }), 404
-
     import numpy as np
 
-    with np.load(str(trace_path), allow_pickle=False) as npz:
-        if "fids" not in npz:
+    live = False
+    trace_path = launcher.resolve_trace_path(entry)
+    if trace_path is not None:
+        with np.load(str(trace_path), allow_pickle=False) as npz:
+            if "fids" not in npz:
+                return jsonify({
+                    "error": "Trace .npz is missing the 'fids' array.",
+                    "code": "TRACE_MALFORMED",
+                }), 422
+            fids = np.asarray(npz["fids"])
+            fid_dwell = float(npz["fid_dwell"]) if "fid_dwell" in npz else 1.0
+        trace_name, trace_ref, n_avail = trace_path.name, str(trace_path), int(fids.shape[0])
+    else:
+        # Fall back to the live streaming memmap (run still computing).
+        src = _live_fid_source(entry)
+        if src is None:
             return jsonify({
-                "error": "Trace .npz is missing the 'fids' array.",
-                "code": "TRACE_MALFORMED",
-            }), 422
-        fids = npz["fids"]
-        fid_dwell = float(npz["fid_dwell"]) if "fid_dwell" in npz else 1.0
+                "error": "No trace .npz available for this run yet.",
+                "code": "TRACE_MISSING",
+            }), 404
+        fids, fid_dwell, trace_name, trace_ref, n_avail = src
+        live = True
 
-    n_steps = int(fids.shape[0])
+    if n_avail <= 0:
+        return jsonify({"error": "No FID steps computed yet.", "code": "NO_STEPS_YET"}), 404
+
     try:
         step = int(request.args.get("step", "0") or "0")
     except ValueError:
         return jsonify({"error": "step must be an integer", "code": "BAD_STEP"}), 400
-    if not (0 <= step < n_steps):
+    if not (0 <= step < n_avail):
         return jsonify({
-            "error": f"step {step} out of range [0, {n_steps - 1}]",
+            "error": f"step {step} out of range [0, {n_avail - 1}]",
             "code": "STEP_OUT_OF_RANGE",
         }), 400
 
@@ -304,11 +345,11 @@ def qrc_run_fid(run_id: str):
 
     payload = _compute_fid(fids, fid_dwell, step, n_peaks)
     payload["step"] = step
-    payload["n_steps"] = n_steps
-    # Record provenance so every FID/spectrum display names the exact saved
-    # waveform file it was constructed from — verifiable, not "trust me".
-    payload["trace_name"] = trace_path.name
-    payload["trace_path"] = str(trace_path)
+    payload["n_steps"] = n_avail
+    # Provenance: name the exact saved waveform (or live memmap) this came from.
+    payload["trace_name"] = trace_name
+    payload["trace_path"] = trace_ref
+    payload["live"] = live
     return jsonify(payload)
 
 

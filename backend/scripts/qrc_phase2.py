@@ -106,7 +106,8 @@ def run_setting(cfg: QRCConfig, label: str, weather_train, weather_test,
     # the task string so different encodings get distinct, resumable checkpoints.
     chash = _ckpt_hash(cfg, f"phase2::{label}")
     chk = StreamingTrace(_CKPT_ROOT / chash, n_steps, cfg.sim.fid_points, chash,
-                         total=n_steps, logger=logger, phase=phase_label or label)
+                         total=n_steps, logger=logger, phase=phase_label or label,
+                         fid_dwell=cfg.sim.fid_dwell)
     start_step, state0 = chk.try_resume()
     if start_step:
         print(f"  [{label}] resuming from step {start_step}/{n_steps}", flush=True)

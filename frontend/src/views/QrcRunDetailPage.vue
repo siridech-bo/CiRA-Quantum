@@ -86,6 +86,7 @@ async function fetchFid(k: number) {
 function onStepInput(v: number | number[]) {
   const k = Array.isArray(v) ? v[0] : v
   step.value = k
+  followLive.value = false // user is scrubbing manually — stop auto-following
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => fetchFid(k), 150)
 }
@@ -95,6 +96,33 @@ async function loadProgressOnce() {
     await qrc.loadProgress(runId.value)
   } catch (e: any) {
     fatal.value = e?.response?.data?.error || e?.message || 'Failed to load run progress'
+  }
+}
+
+// While the run is active, follow the live FID: re-fetch the latest computed
+// step every few seconds so the FID + spectrum stream on screen (no refresh).
+let liveFidTimer: ReturnType<typeof setInterval> | null = null
+const followLive = ref(true)
+
+async function pollLiveFid() {
+  if (!followLive.value) return
+  const s = qrc.currentProgress?.step
+  const k = s && s > 1 ? s - 1 : 0
+  step.value = k
+  await fetchFid(k).catch(() => {}) // 404 while a step isn't computed yet is fine
+}
+
+function startLiveFid() {
+  stopLiveFid()
+  liveFidTimer = setInterval(() => {
+    pollLiveFid()
+    if (status.value && status.value !== 'running') stopLiveFid()
+  }, 3000)
+}
+function stopLiveFid() {
+  if (liveFidTimer) {
+    clearInterval(liveFidTimer)
+    liveFidTimer = null
   }
 }
 
@@ -121,8 +149,13 @@ watch(status, (s, prev) => {
   if (s === 'done' && prev !== 'done') {
     loadResultsIfDone()
   }
+  if (s === 'running') {
+    startLiveFid()
+  }
   if (s && s !== 'running') {
     qrc.stopProgressPolling()
+    stopLiveFid()
+    fetchFid(step.value).catch(() => {}) // final: pick up the saved .npz if any
   }
 })
 
@@ -151,6 +184,7 @@ onMounted(async () => {
     await loadResultsIfDone()
     if (isActive.value) {
       qrc.startProgressPolling(runId.value, 3000)
+      startLiveFid()
     }
   } finally {
     loading.value = false
@@ -159,6 +193,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   qrc.stopProgressPolling()
+  stopLiveFid()
   if (debounceTimer) clearTimeout(debounceTimer)
 })
 </script>

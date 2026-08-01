@@ -239,8 +239,9 @@ def test_fid_endpoint_computes_fft(isolated_app):
     body = r.get_json()
     assert set(body) == {
         "step", "n_steps", "t", "real", "imag", "mag",
-        "freq_hz", "spectrum_mag", "peaks_hz", "trace_name", "trace_path",
+        "freq_hz", "spectrum_mag", "peaks_hz", "trace_name", "trace_path", "live",
     }
+    assert body["live"] is False  # this came from a saved .npz, not a live memmap
     assert body["step"] == 1
     assert body["n_steps"] == 4
     # provenance: the display names the exact saved waveform file it came from.

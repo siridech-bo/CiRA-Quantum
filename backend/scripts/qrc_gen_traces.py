@@ -128,7 +128,7 @@ class StreamingTrace:
     def __init__(
         self, ckpt_dir: Path, n_steps: int, fid_points: int, config_hash: str,
         *, total: int, logger: ProgressLogger | None = None, every: int = 20,
-        phase: str = "reservoir",
+        phase: str = "reservoir", fid_dwell: float = 3e-4,
     ) -> None:
         self.dir = Path(ckpt_dir)
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -139,6 +139,7 @@ class StreamingTrace:
         self.logger = logger
         self.every = max(1, every)
         self.phase = phase
+        self.fid_dwell = fid_dwell
         self.fids_path = self.dir / "fids.dat"
         self.ckpt_path = self.dir / "ckpt.npz"
         # Must end in .npz — np.savez appends '.npz' to any other name, which
@@ -156,6 +157,18 @@ class StreamingTrace:
         self.mmap = np.memmap(
             self.fids_path, dtype=np.complex64, mode=mode, shape=(n_steps, fid_points)
         )
+
+        # Point the run-dir at THIS live memmap so GET /runs/<id>/fid can read
+        # the waveform *as it streams* (before any .npz is saved). Best-effort.
+        if logger is not None:
+            try:
+                (Path(logger.dir) / "live_fid.json").write_text(json.dumps({
+                    "fids_path": str(self.fids_path), "n_steps": n_steps,
+                    "fid_points": fid_points, "fid_dwell": float(fid_dwell),
+                    "label": phase,
+                }), encoding="utf-8")
+            except Exception:  # noqa: BLE001 - live view is best-effort
+                pass
 
     def try_resume(self) -> tuple[int, np.ndarray | None]:
         """Resume from a saved checkpoint iff it matches this config. Returns
