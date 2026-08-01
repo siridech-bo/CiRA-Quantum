@@ -10,6 +10,7 @@ state, so we always know *what is left*.
 
 | When | Subtask | Result | Commit |
 |------|---------|--------|--------|
+| 2026-08-01 | **Decision: GRAPE deferred to the optimized-encoding stage** | 📌 GRAPE / gradient (or gradient-free) *learned* encoding is the §8.6.1/§8.8 direction (dedicated encoding paper), not now. Foundation note: the **torch GPU backend is autodiff-capable** → the differentiable-QRC path can be built on it (no Dynamiqs needed) when we get there. MC metric = ready-made objective | — |
 | 2026-08-01 | **Phase-2 encoding comparison DONE via MEMORY CAPACITY** (meaningful) | ✅ `memcap-a82a02a7` (7 encodings, waveforms saved, watched live). Clean ranking: **arcsin_sqrt wins decisively** (totMC 4.93 vs 3.08; nonlinear MC ~2× others) → validates Paper-4's choice quantitatively. Well-separated (not noise, unlike weather-R²). Single-seed/quick — large gap ⇒ robust | — |
 | 2026-08-01 | **LIVE FID/spectrum streaming + record-name provenance** | ✅ /fid reads live memmap (clamps over-range); frontend follows latest per encoding. Watchable + verifiable | `d2cde98`,`1115a5d` |
 | 2026-08-01 | **memory-capacity metric + persist-waveform fix** | ✅ `qrc_memcap.py` (self-test MC=8.00); hard rule: never discard waveforms | `9542253`,`9449677` |
