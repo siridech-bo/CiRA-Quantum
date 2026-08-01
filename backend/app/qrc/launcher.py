@@ -123,6 +123,18 @@ _TASKS: dict[str, dict[str, Any]] = {
         "choices": ("experiment", "fidelity"),
         "output": "run_dir",
     },
+    # memcap: intrinsic memory-capacity encoding sweep (random-input reservoir
+    # passes + MC scoring; saves waveforms). Fidelity-robust metric for ranking
+    # encodings where weather-R² is too fidelity-hungry.
+    "memcap": {
+        "script": "scripts/qrc_memcap.py",
+        "fixed": [],
+        "numeric": ("seed", "kmax"),
+        "lists": (),
+        "flags": (),
+        "choices": ("mc_experiment", "fidelity"),
+        "output": "run_dir",
+    },
 }
 
 # name -> (cli flag, python type, min, max). Applies to both scalar
@@ -141,6 +153,7 @@ _PARAM_SPEC: dict[str, tuple[str, type, float, float]] = {
     "n_virtual": ("--n-virtual", int, 1, 4096),
     "splits": ("--splits", int, 0, 1_000_000),
     "key_horizon": ("--key-horizon", int, 1, 100_000),
+    "kmax": ("--kmax", int, 1, 500),
 }
 
 _FLAG_SPEC: dict[str, str] = {
@@ -153,6 +166,7 @@ _CHOICE_SPEC: dict[str, tuple[str, tuple[str, ...]]] = {
     "subtask": ("--task", ("weather", "narma")),
     "select": ("--select", ("first", "mean")),
     "experiment": ("--experiment", ("2.1", "2.1_quick", "2.2", "all")),
+    "mc_experiment": ("--experiment", ("all", "quick")),
     "fidelity": ("--fidelity", ("quick", "screen", "full", "tiny")),
 }
 
@@ -429,6 +443,9 @@ def launch_run(task: str, config: dict[str, Any]) -> dict[str, Any]:
             # results) into its ``--run-dir``.
             trace_path = None
             results_path = run_dir / "phase2_summary.json"
+        elif task == "memcap":
+            trace_path = None
+            results_path = run_dir / "memcap_summary.json"
         else:
             trace_path = None
             results_path = run_dir / "results.json"
