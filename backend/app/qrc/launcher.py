@@ -166,7 +166,7 @@ _CHOICE_SPEC: dict[str, tuple[str, tuple[str, ...]]] = {
     "subtask": ("--task", ("weather", "narma")),
     "select": ("--select", ("first", "mean")),
     "experiment": ("--experiment", ("2.1", "2.1_quick", "2.2", "all")),
-    "mc_experiment": ("--experiment", ("all", "quick")),
+    "mc_experiment": ("--experiment", ("all", "quick", "phaseamp")),
     "fidelity": ("--fidelity", ("quick", "screen", "full", "tiny")),
 }
 

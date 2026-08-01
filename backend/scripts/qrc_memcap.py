@@ -139,10 +139,14 @@ def run_encoding_memcap(cfg, label, *, kmax=KMAX, logger=None, phase_label=""):
 
     # PERSIST the waveform (never discard reservoir compute) — a random-input
     # trace so MC / any other intrinsic metric can be recomputed offline.
+    # Display name distinguishes phase-amplitude variants of the same function
+    # (fn stays 'arcsin_sqrt'; '_pa' marks R_z(2πs)·R_x(θ) enabled).
+    disp = cfg.encoding.fn + ("_pa" if cfg.encoding.phase_amplitude else "")
     traces_dir = _CKPT_ROOT.parent
     traces_dir.mkdir(parents=True, exist_ok=True)
-    trace_path = traces_dir / f"memcap_{cfg.encoding.fn}_{chash}.npz"
-    meta = {"task": "memcap", "fn": cfg.encoding.fn, "kmax": kmax,
+    trace_path = traces_dir / f"memcap_{disp}_{chash}.npz"
+    meta = {"task": "memcap", "fn": disp, "base_fn": cfg.encoding.fn,
+            "phase_amplitude": cfg.encoding.phase_amplitude, "kmax": kmax,
             "encoding": asdict(cfg.encoding), "sim": asdict(cfg.sim),
             "training": asdict(cfg.training), "system": asdict(cfg.system)}
     np.savez_compressed(
@@ -159,7 +163,7 @@ def run_encoding_memcap(cfg, label, *, kmax=KMAX, logger=None, phase_label=""):
                          n_train=tr.n_train, seed=cfg.sim.seed)
     print(f"[memcap] {label:<24} linMC={mc['linear_MC']:.2f}  "
           f"nlMC={mc['nonlinear_MC']:.2f}  totMC={mc['total_MC']:.2f}", flush=True)
-    return {"label": label, "fn": cfg.encoding.fn,
+    return {"label": label, "fn": disp,
             "phase_amplitude": cfg.encoding.phase_amplitude,
             "n_steps": n_steps, "fid_points": cfg.sim.fid_points,
             "trace": trace_path.name,
@@ -168,6 +172,14 @@ def run_encoding_memcap(cfg, label, *, kmax=KMAX, logger=None, phase_label=""):
 
 
 def _plan(experiment, fidelity, seed, system):
+    if experiment == "phaseamp":
+        # 2.2: phase-amplitude encoding ON for the best fixed encoding
+        # (arcsin_sqrt). The phase-amp OFF baseline is the existing
+        # ``memcap_arcsin_sqrt`` trace, so only this one new run is needed;
+        # the judge compares both saved waveforms.
+        return [("mc_arcsin_sqrt_pa",
+                 build_cfg("arcsin_sqrt", fidelity, seed=seed, system=system,
+                           phase_amplitude=True))]
     fns = QUICK_ENCODINGS if experiment == "quick" else ENCODINGS
     return [(f"mc_{fn}", build_cfg(fn, fidelity, seed=seed, system=system)) for fn in fns]
 
@@ -186,7 +198,7 @@ def _write_manifest(out: Path, results: list[dict]) -> None:
 
 def sweep_main():
     ap = argparse.ArgumentParser(description="QRC memory-capacity encoding sweep")
-    ap.add_argument("--experiment", choices=["all", "quick"], default="all")
+    ap.add_argument("--experiment", choices=["all", "quick", "phaseamp"], default="all")
     ap.add_argument("--fidelity", default="screen")
     ap.add_argument("--system", default="crotonic9_paper4")
     ap.add_argument("--kmax", type=int, default=KMAX)
