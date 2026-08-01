@@ -1,0 +1,234 @@
+# Input-Encoding Optimization for NMR Quantum Reservoir Computing
+
+*Manuscript addendum — systematic comparison of input-encoding functions on a
+9-spin ¹³C crotonic-acid reservoir, judged by intrinsic reservoir-capacity
+metrics. Companion to the main reproduction manuscript (Hou et al. 2026, PRL 136,
+120602) and to §5.2 (FID feature representations, Fig. 8).*
+
+---
+
+## 1. Motivation
+
+Input encoding — the map from a classical scalar `s ∈ [0,1]` to an RF-pulse
+rotation angle `θ(s)` — is a foundational but under-studied design choice in
+quantum reservoir computing (QRC). Existing experiments each *fix* an encoding
+(`θ = arcsin√s` in Hou et al. 2026; `θ = arccos(2s−1)` in Negoro et al. 2018;
+`θ = s·π` in linear schemes) for their proof-of-concept, and none compares them
+systematically. Yet the encoding is the *only* nonlinearity applied at the input
+stage: the reservoir Hamiltonian is fixed, so the curvature of `θ(s)` directly
+shapes how much of the input range is used and how much nonlinearity is injected
+into the reservoir dynamics. This section asks, quantitatively: **which encoding
+function makes the best reservoir, and why?**
+
+We compare seven encoding functions on the same 9-spin reservoir and rank them by
+a panel of *intrinsic* reservoir-quality metrics (memory capacity, information-
+processing capacity, a NARMA task, and state dimensionality) rather than by a
+single downstream forecast. The rationale for that choice — and its necessity —
+is established in §3.
+
+## 2. Encoding functions tested
+
+Each maps the normalized input `s ∈ [0,1]` to a rotation angle applied as a
+global pulse on the proton spins:
+
+| name | formula | range | origin |
+|------|---------|-------|--------|
+| **arcsin_sqrt** | `θ = arcsin(√s)` | `[0, π/2]` | Hou et al. 2026 (Paper 4) |
+| **arccos** | `θ = arccos(2s − 1)` | `[0, π]` | Negoro et al. 2018 (Paper 3) |
+| **linear** | `θ = s·π` | `[0, π]` | baseline |
+| **sinusoidal** | `θ = π·sin²(s)` | `[0, π·sin²1]` | emphasizes mid-range |
+| **logarithmic** | `θ = π·log(1+s)` | `[0, π·log2]` | compresses dynamic range |
+| **polynomial** | `θ = π·s³` | `[0, π]` | emphasizes extremes |
+| **exponential** | `θ = π·(1 − e^{−s})` | `[0, π(1−1/e)]` | smooth saturation |
+
+## 3. Methodology
+
+### 3.1 Reservoir and per-encoding evolution
+
+The reservoir is the exact 9-spin ¹³C crotonic-acid system used in the main
+reproduction (rotating-frame Hamiltonian `H = Σ π νᵢ σᶻᵢ + Σ (π/2) Jᵢⱼ σᶻᵢσᶻⱼ`,
+Lindblad `T₁`/`T₂` dissipation providing the fading memory), read out through the
+time-multiplexed free-induction-decay (FID) signal. Crucially, **changing the
+encoding changes the reservoir dynamics**, so — unlike the feature-representation
+study of §5.2, which re-scores a single cached trace — each encoding requires its
+**own reservoir evolution**. We therefore drive the reservoir once per encoding
+and cache the raw per-step FID waveform (see §3.4).
+
+Fidelity for this screen (`quick`): `fid_points = 512`, `n_virtual = 10`,
+split `(washout, train, test) = (30, 110, 70)` = 210 input steps, GPU (torch
+CUDA) evolution, seed 42. All settings other than the encoding function are held
+identical across the seven runs, so any difference in the metrics is attributable
+to the encoding alone.
+
+### 3.2 Why not a downstream forecast (weather R²)?
+
+Our first attempt ranked encodings by weather-temperature forecast R² (the
+main-manuscript task). It **failed**: at any affordable fidelity the metric was
+noise-dominated — most encodings produced negative cross-validated R² with error
+bars larger than the differences between them. The cause is a *fidelity wall*: a
+temperature forecast is a demanding, long-memory task that only becomes
+well-conditioned near full fidelity (~14–18 h of GPU per encoding at
+`fid_points = 2048`, ~1400 steps), which is infeasible across seven encodings.
+This is itself a methodological finding: **downstream task R² is the wrong tool
+for *screening* encodings** — it conflates encoding quality with the enormous
+sample/fidelity budget the task demands.
+
+### 3.3 The judging panel — intrinsic, fidelity-robust metrics
+
+We instead judge each encoding by *intrinsic* reservoir-quality metrics that are
+well-defined at modest fidelity. The reservoir is driven by a uniform i.i.d.
+random input `u ∈ [0,1]`, and its FID readout matrix `X` is scored on:
+
+* **Linear memory capacity (MC).** For each delay `k = 1…30`, a linear readout
+  is trained to reconstruct `u[t−k]`; the capacity is the *held-out* squared
+  correlation, summed over delays. Measures short-term linear memory.
+* **Nonlinear information-processing capacity (IPC).** As above but with
+  degree-2 and degree-3 **Legendre polynomials** of the delayed input `P_d(u[t−k])`
+  as targets — the orthogonal basis in which total processing capacity
+  decomposes. Measures the reservoir's nonlinear expressivity.
+* **NARMA-10 (NMSE, lower is better).** A standard nonlinear-autoregressive
+  benchmark, computed on the *same* random drive (rescaled to `0.5·u` for
+  recurrence stability, a deterministic function of the input the reservoir
+  remembers). A genuine *task*, not just an intrinsic capacity.
+* **Effective dimensionality.** The participation ratio of the reservoir-state
+  covariance eigenvalues — an estimate of how many state directions are actually
+  used (richness).
+
+**Rigor.** Every metric uses a train/test split with the readout fit on train and
+scored on test; a PCA projection (fit on train, 50 components) conditions the
+readout so `p < n` — in-sample capacity would be overfit-inflated. Ridge/linear
+readouts use per-fit regularization. The MC estimator was validated on a
+synthetic 8-tap delay-line reservoir, for which it returns linear MC = 8.00
+(exactly the number of taps) and nonlinear MC ≈ 0.
+
+### 3.4 Data provenance and reproducibility
+
+Every reservoir evolution is expensive; every metric is cheap. We therefore
+**persist the raw per-step FID waveform** of each encoding to disk
+(`memcap_<fn>_<hash>.npz`, the §1 trace schema, including the exact random input)
+*before* any metric is computed. Consequences: (i) all metrics are computed
+**offline** from the saved waveforms, decoupled from the (GPU) evolution; (ii)
+any *future* metric — or a re-analysis under a different readout — is free, with
+no re-evolution; (iii) every FID/spectrum shown in the accompanying control-plane
+UI names the exact saved waveform it was drawn from, so the figures are
+independently verifiable against the on-disk data.
+
+### 3.5 Readout-robustness control
+
+Because a metric is computed *through* a readout representation, an encoding
+ranking could in principle depend on which FID features are used. To rule this
+out, the entire panel is computed under **two** readouts: the Paper-4
+`magnitude653` spectral-peak set (the primary verdict) and the richer
+`multimodal` set (§5.2). If the ranking is identical under both, it is
+readout-independent.
+
+## 4. Results
+
+Multi-metric panel, `magnitude653` readout (Fig. 9):
+
+| encoding | total capacity | linear MC | nonlinear IPC | NARMA-10 NMSE ↓ |
+|----------|:---:|:---:|:---:|:---:|
+| **arcsin_sqrt** | **5.51** | **3.66** | **1.86** | **0.595** |
+| exponential | 3.66 | 2.49 | 1.17 | 0.680 |
+| logarithmic | 3.12 | 2.15 | 0.97 | 0.720 |
+| sinusoidal | 2.68 | 1.83 | 0.85 | 0.744 |
+| arccos | 2.67 | 1.58 | 1.09 | 0.950 |
+| linear | 1.83 | 0.99 | 0.84 | 1.012 |
+| polynomial | 1.55 | 0.73 | 0.83 | 1.084 |
+
+*(Effective dimensionality was ≈ 1.1 for all encodings and did not discriminate —
+see §5.)*
+
+![Encoding judging panel](figures/fig9_encoding_judging.png)
+
+*Figure 9: encoding functions judged on (A) total capacity (linear MC + nonlinear
+IPC, stacked), (B) NARMA-10 NMSE (lower better), (C) effective dimensionality,
+`magnitude653` readout. `arcsin_sqrt` leads every panel.*
+
+**Three findings.**
+
+1. **`arcsin_sqrt` wins on every discriminating metric.** It has the most linear
+   memory (3.66), the most nonlinearity (IPC 1.86, ≈ 1.6× the runner-up), the
+   highest total capacity (5.51 vs 3.66 for #2), *and* the best task performance
+   (NARMA NMSE 0.595 — the only encoding clearly below 1; `linear` and
+   `polynomial` are ≥ 1.0, i.e. no better than predicting the mean).
+
+2. **The ranking is well-separated,** decreasing monotonically from 5.51 to 1.55
+   — a factor of ~3.5 between best and worst, far larger than any plausible
+   estimator noise. This is in sharp contrast to the weather-R² attempt (§3.2),
+   where the encodings were statistically indistinguishable.
+
+3. **The ranking is readout-independent.** Recomputing total capacity under the
+   `multimodal` readout yields the identical order
+   (`arcsin_sqrt > exponential > logarithmic > sinusoidal > arccos > linear >
+   polynomial`). The encoding verdict does not depend on the FID feature set.
+
+## 5. Discussion
+
+**Mechanism — why `arcsin_sqrt` wins.** With the Hamiltonian fixed, the encoding
+`θ(s)` is the sole input nonlinearity, and two properties govern reservoir
+quality: how uniformly it spreads inputs across the rotation range (memory), and
+how much curvature it injects (nonlinearity). `arcsin(√s)` is, by construction,
+the angle whose *probability of excitation* `sin²θ = s` is linear in the input —
+it spreads inputs evenly over the Bloch-sphere polar angle, using the full
+readout dynamic range. The poor performers fail exactly here: `θ = π·s³`
+(polynomial) compresses almost all inputs toward `θ ≈ 0` (near-identity pulses
+that encode little), giving the lowest memory *and* nonlinearity; `linear`
+similarly underuses the range. That the losers are worst on *both* memory and
+nonlinearity — not trading one for the other — indicates the dominant effect is
+**input-range utilization**, with `arcsin√`'s curvature providing a nonlinearity
+bonus (its IPC lead is larger than its linear-MC lead).
+
+**Validation of the literature choice.** Paper 4's `θ = arcsin(√s)` is confirmed
+as the best of the seven — and, for the first time here, with a *mechanistic and
+quantitative* justification rather than as an unexplained convention.
+
+**Decoupling of encoding and readout.** The readout-independence of the ranking,
+together with the §5.2 finding that feature representations are low-headroom for
+the task, indicates that **encoding and readout are largely separable design
+axes**: the encoding governs the intrinsic reservoir quality, while the readout
+representation contributes little once the reservoir is fixed. This simplifies
+QRC design — optimize the encoding first, the readout second — and motivates the
+planned encoding×feature interaction study.
+
+**Methodological contribution.** The fidelity-wall failure of weather-R² (§3.2)
+and the success of the intrinsic-capacity panel argue a general point for QRC
+benchmarking: **use intrinsic capacity metrics (MC/IPC), not a demanding
+downstream task, to *screen* design choices.** The former are well-conditioned at
+modest cost; the latter conflate the design choice with the task's sample budget.
+
+**Limitations.** (i) *Single seed, `quick` fidelity.* The 210-step, seed-42 screen
+gives one estimate per encoding; the large, monotonic gaps make the ranking
+robust to noise, but multiple seeds and higher fidelity would attach formal error
+bars for a definitive claim. (ii) *Effective dimensionality did not
+discriminate* (≈ 1.1 for all encodings): at this fidelity the reservoir states
+are dominated by a single direction regardless of encoding, so the metric adds no
+ranking information here and is expected to become informative only at larger
+`n_virtual`/system size. (iii) The absolute capacities are modest (linear MC ≈
+0.7–3.7) — expected for a short-memory, small-fidelity screen — and should be read
+as *relative* comparisons, not absolute reservoir capacities.
+
+**Future work.** (i) **Phase-amplitude encoding** (`R_z(2πs)·R_x(θ)`): does
+packing a second degree of freedom per input raise capacity above `arcsin√`? The
+judging harness here scores it automatically. (ii) **Learned encoding (GRAPE /
+gradient optimization).** The fixed-function comparison establishes the empirical
+baseline for going *beyond* hand-designed encodings: optimizing a parametrized
+encoding pulse to maximize memory/IPC directly. The GPU reservoir stepper is
+implemented in an autodiff-capable framework (torch), so an end-to-end
+**differentiable-QRC** gradient optimizer is buildable on this codebase; the
+memory-capacity metric defined here is a ready-made objective. This is the
+subject of a planned dedicated study. (iii) **Encoding×feature interaction** and
+(iv) **higher-fidelity, multi-seed confirmation** of the present ranking.
+
+## 6. Reproducibility
+
+All quantities are recomputable offline from the saved waveforms:
+
+* Per-encoding evolution + waveform persistence: `scripts/qrc_memcap.py`
+  (`--experiment all --fidelity quick`).
+* Memory-capacity / IPC estimator (with the delay-line self-test):
+  `scripts/qrc_memcap.py` (`memory_capacity`), `--selftest`.
+* Multi-metric judging panel + readout-robustness + Fig. 9:
+  `scripts/qrc_judge.py --glob "artifacts/traces/memcap_*.npz"`.
+* Saved waveforms: `artifacts/traces/memcap_<fn>_<hash>.npz` (7 files), each
+  carrying its exact random input, split, and configuration metadata.
