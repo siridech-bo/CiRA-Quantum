@@ -124,10 +124,13 @@ def train(enc, sysm, g, u_t, y_use, washout, n_tr, steps=90, lr=0.04):
 
 
 def main():
-    sysm = light_system(n_virtual=3)
+    # V=4, T=240: the working regime where arcsin has real skill (proto NMSE
+    # ~0.57). At V=3/T=110 the baseline collapses to ~mean-predictor (NMSE~0.99)
+    # and any "win" is noise/degenerate -- do NOT compare encodings there.
+    sysm = light_system(n_virtual=4)
     g = sysm.ensure_diff(device="cpu", cdtype=CDT)
     rng = np.random.default_rng(7)
-    T, washout, steps = 110, 15, 90
+    T, washout, steps = 240, 20, 100
     u = rng.random(T)
     y = target(u)
     u_t = torch.tensor(u, dtype=RDT)
@@ -169,22 +172,38 @@ def main():
     print(f"(C) warm-start@arcsin -> trained: start NMSE = {ws_start:.4f} "
           f"(pretrain MSE {pre:.1e}) -> final = {finW:.4f}")
     moved = float((theta_ws1 - theta_ws0).abs().mean())
+    with torch.no_grad():
+        stdR = float(encR(sg).std())          # angle-map spread (degeneracy flag)
+    stdW = float(theta_ws1.std())
+    arcs_std = float(torch.asin(torch.sqrt(sg)).std())
     print(f"    angle map moved from arcsin by mean |Δθ| = {moved:.3f} rad")
+    print(f"    angle-map std: arcsin={arcs_std:.2f}  learned-random={stdR:.2f}  "
+          f"warm-start-final={stdW:.2f}  (std≈0 = degenerate constant encoding)")
     print(f"\ntrained both in {dt:.0f}s")
 
-    # verdict
-    tol = 0.01
-    if finW < base - tol or finR < base - tol:
-        verdict = ("HEADROOM: a learned encoding beats arcsin(sqrt) "
-                   f"(best {min(finR, finW):.4f} vs {base:.4f}) -> 9-spin GPU run justified")
-    elif moved < 0.05 and abs(finW - base) <= tol:
-        verdict = ("arcsin(sqrt) is a LOCAL OPTIMUM: warm-start stayed put "
-                   f"(|Δθ|={moved:.3f}, NMSE {finW:.4f}≈{base:.4f}) -> methods result, "
-                   "GPU unlikely to change the verdict")
+    # verdict, with guardrails against (i) an under-powered baseline and
+    # (ii) a degenerate near-constant 'win'.
+    tol, DEGEN = 0.02, 0.10
+    best = min(finR, finW)
+    winner_std = stdW if finW <= finR else stdR
+    if base > 0.80:
+        verdict = (f"UNDER-POWERED: arcsin baseline NMSE {base:.3f} ≈ mean-predictor "
+                   "— config too weak to compare encodings; NOT a valid test")
+    elif best < base - tol and winner_std > DEGEN:
+        verdict = (f"HEADROOM (non-degenerate): a real learned encoding beats arcsin "
+                   f"({best:.4f} vs {base:.4f}, angle std {winner_std:.2f}) "
+                   "-> 9-spin GPU run justified")
+    elif best < base - tol and winner_std <= DEGEN:
+        verdict = (f"DEGENERATE WIN — DISCARD: learned 'beats' arcsin ({best:.4f}) only "
+                   f"via a near-constant encoding (std {winner_std:.2f}) that ignores the "
+                   "input; not a real improvement — arcsin stands")
+    elif moved < 0.10 and finW <= base + tol:
+        verdict = (f"arcsin(sqrt) is a LOCAL OPTIMUM: warm-start barely moved "
+                   f"(|Δθ|={moved:.2f}) and did not beat it ({finW:.4f} vs {base:.4f}) "
+                   "-> methods result; GPU unlikely to change the verdict")
     else:
-        verdict = (f"INCONCLUSIVE at this scale: learned ties/loses "
-                   f"(random {finR:.4f}, warm {finW:.4f} vs base {base:.4f}); "
-                   "warm-start moved but did not beat arcsin")
+        verdict = (f"TIE / INCONCLUSIVE: learned does not beat arcsin (random {finR:.4f}, "
+                   f"warm {finW:.4f} vs base {base:.4f}; warm |Δθ|={moved:.2f})")
     print("VERDICT:", verdict)
 
     _figure(curveR, curveW, base, sg.numpy(), theta_ws0.numpy(), theta_ws1.numpy(),
