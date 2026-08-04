@@ -384,7 +384,93 @@ shown for NARMA-2; the claim is specifically about encoding-sensitive tasks.
 via the parameter-shift rule) is designed and validated in simulation but not yet
 run — see the companion concept document.
 
-## 7. Reproducibility
+## 7. The output side: correlation readout and the decoherence limit
+
+§6 improved the *input* (encoding). The complementary lever is the *readout*. The
+standard QRC readout takes **single-qubit** observables `⟨σᵢ⟩` — which discards
+almost all of the `2ⁿ`-dimensional joint state that `n` coupled qubits can hold.
+Reading **multi-qubit correlations** `⟨σᵢσⱼ⟩` accesses the joint (entangled) state.
+We tested this on the 6-spin reservoir (fixed `arcsin√` encoding, NARMA-2),
+measuring both **effective dimensionality** (participation ratio of the feature
+covariance — *is the `2ⁿ` space actually used?*) and task NMSE.
+
+| readout / drive | effective dim | NARMA-2 test NMSE |
+|-----------------|:---:|:---:|
+| single-qubit, baseline `τ` | 1.4 | 0.373 |
+| **+2-body correlations**, baseline `τ` | 1.8 | **0.304** |
+| single-qubit, long `τ` | 1.1 | 0.334 |
+| **+2-body correlations**, long `τ` | 1.1 | **0.207** |
+
+![Correlation readout + drive](figures/fig16_correlation_readout.png)
+
+*Figure 16: correlation readout lowers NARMA-2 error (~44% best case) but effective
+dimensionality stays ~1–2; longer coherent evolution reduces it further.*
+
+Two findings that point in opposite directions:
+
+1. **Correlation readout genuinely helps** — NARMA-2 NMSE falls 0.373 → **0.207**
+   (~44%). Reading the joint state extracts information single-qubit readout throws
+   away; it is a real, cheap performance lever, comparable to the learned encoding.
+2. **But the effective dimensionality stays ≈ 1–2** — even with 126 correlation
+   features, the reservoir lives in ~1–2 directions. The `2ⁿ` space is *not* used;
+   the parallel qubits are not functioning as an exponential resource.
+
+**Why (the mechanism).** Giving the system *more* coherent evolution to entangle
+*lowered* the effective dimension (1.4 → 1.1). Decoherence (T₂) collapses the state
+**faster** than the (moderate Ising) dynamics can spread it across the `2ⁿ` space.
+The two physical resources — many qubits (width) and coherence time (depth) — are
+therefore in **tension, not additive**: on crotonic-acid NMR the reservoir *loses
+the entangling-vs-decoherence race*, which is the mechanistic reason its effective
+dimensionality is ~1. A genuine exponential-width advantage would require
+`T₂ × coupling` large enough to populate the space before it decoheres — longer
+coherence and/or stronger, faster couplings than this molecule provides.
+
+## 8. Where quantum stands: the classical comparison
+
+An encoding/readout improvement matters only if the substrate it improves is worth
+using. We therefore compared the quantum reservoir against two *different* classes
+of classical model, and the distinction is essential.
+
+**vs. a classical *reservoir* (ESN) — the fair, same-paradigm comparison.** Both a
+quantum reservoir and a classical Echo State Network use *fixed* dynamics plus a
+trained linear readout. On **real weather forecasting** (Delhi climate; our
+simulation reproduced against Hou et al. 2026, with ESN baselines of 500–10 000
+nodes), the quantum reservoir **matches or beats** the classical ESN, most clearly
+at long horizons for temperature (R² ≈ 0.8 at 45 days vs. ESN’s ~0.4–0.7). So *as a
+reservoir*, the quantum system is competitive-to-better on a real task. (Caveats:
+the core curve is partly digitized from the paper; the ESN tuning and matched
+conditions warrant independent verification.)
+
+**vs. a *trained-recurrence* model (RNN/LSTM) — a harder, different bar.** A trained
+RNN learns its recurrence by backpropagation; a reservoir does not. On the
+deterministic **NARMA-2**, a small trained feedback RNN reaches NMSE **0.011** —
+~20× better than the quantum reservoir’s 0.216 — and a classical ESN would lose to
+it too. This is a limitation of *reservoir computing in general*, not of quantum
+specifically. We confirmed it decisively with two controls that also guard against
+over-claiming quantum results:
+
+- **Windowed encoding** (injecting an explicit `k`-step input window) beats
+  `arcsin√` on NARMA-10, but a **classical linear ridge on the same window matches
+  it** — the win is the classical window, not the quantum reservoir.
+- **Closed-loop feedback** (a controller reading back the reservoir readout) reaches
+  0.137, but with the **quantum memory disabled (τ→0)** the *classical* feedback
+  loop alone reaches **0.011** — it is a classical RNN, and the quantum memory is
+  redundant (even mildly harmful). The τ→0 ablation is what separates genuine
+  quantum-mediated results (the §6 open-loop encoding, which *collapses* to a
+  mean-predictor without the reservoir) from classically-explainable ones.
+
+**The honest bound.** (i) Learned per-spin encoding and correlation readout are
+real, quantum-mediated improvements *to the quantum reservoir* (§6, §7). (ii) As a
+reservoir, the quantum system beats a classical reservoir (ESN) on real forecasting
+(§8). (iii) It is **not** competitive with a trained RNN/LSTM on classical-friendly
+tasks — and it *cannot* be, because it is decoherence-limited to effective
+dimension ~1 (§7). A quantum *advantage* — not merely a quantum *improvement* —
+must therefore be sought where classical models cannot cheaply reach: tasks
+requiring the exponential state space, quantum-native/quantum-sensor data, or
+hardware/energy-efficiency arguments — on a platform whose coherence outlasts its
+entangling dynamics.
+
+## 9. Reproducibility
 
 All quantities are recomputable offline from the saved waveforms:
 
@@ -404,3 +490,12 @@ Learnable encoding (§6):
 * 6-spin NARMA-2 training + benchmark: `scripts/qrc_learnable_9spin.py`
   (`--mode train --system 6 --task narma2`, `--seed <s>`).
 * Multi-seed aggregate + Fig. 15: `scripts/qrc_6spin_aggregate.py`.
+
+Correlation readout / decoherence limit (§7) and classical comparison (§8):
+* Correlation readout + effective-dim + drive sweep + Fig. 16:
+  `scripts/qrc_correlation_readout.py`.
+* τ→0 quantum-memory ablation, windowed encoding, closed-loop feedback controls:
+  `scripts/qrc_learnable_9spin.py` (`--no-memory`, `--window <k>`,
+  `--conditions arcsin,perspin,closedloop`).
+* Weather QRC-vs-ESN (Fig. 6): reproduction under `scripts/` weather-forecast path
+  (see `benchmarks.py` / `qrc_phase2.py`), values digitized from Hou et al. 2026.

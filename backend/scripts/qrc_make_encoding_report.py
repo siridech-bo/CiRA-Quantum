@@ -18,6 +18,8 @@ FIG9 = ROOT / "figures" / "fig9_encoding_judging.png"
 FIG10 = ROOT / "figures" / "fig10_phaseamp.png"
 FIG11 = ROOT / "figures" / "fig11_protons.png"
 FIG15 = ROOT / "figures" / "fig15_6spin_multiseed.png"
+FIG16 = ROOT / "figures" / "fig16_correlation_readout.png"
+FIG6 = ROOT / "figures" / "fig6_weather_sim_vs_expt.png"
 OUT = ROOT / "QRC_Encoding_Study.docx"
 
 ENCODINGS = [
@@ -350,7 +352,82 @@ def main() -> None:
        "(NARMA-2). (iv) The hardware realization (parameter-shift rule on a real spectrometer) is "
        "designed and validated in simulation but not yet run.")
 
-    _h(doc, "7. Reproducibility", 1)
+    _h(doc, "7. The output side: correlation readout and the decoherence limit", 1)
+    _p(doc,
+       "§6 improved the input (encoding); the complementary lever is the readout. The standard QRC "
+       "readout takes single-qubit observables <sigma_i>, discarding almost all of the 2^n-dim joint "
+       "state n coupled qubits can hold. Reading multi-qubit correlations <sigma_i sigma_j> accesses "
+       "the joint (entangled) state. On the 6-spin reservoir (fixed arcsin√, NARMA-2) we measured "
+       "effective dimensionality (participation ratio of the feature covariance) and task NMSE:")
+    _table(doc, ["readout / drive", "effective dim", "NARMA-2 test NMSE"],
+           [("single-qubit, baseline τ", "1.4", "0.373"),
+            ("+2-body correlations, baseline τ", "1.8", "0.304"),
+            ("single-qubit, long τ", "1.1", "0.334"),
+            ("+2-body correlations, long τ", "1.1", "0.207")])
+    if FIG16.exists():
+        doc.add_picture(str(FIG16), width=Inches(6.2))
+        cap = _p(doc, "Figure 16: correlation readout lowers NARMA-2 error (~44% best case) but "
+                 "effective dimensionality stays ~1-2; longer coherent evolution reduces it further.",
+                 italic=True, size=9)
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for txt in [
+        "Correlation readout genuinely helps: NARMA-2 NMSE 0.373 -> 0.207 (~44%). Reading the joint "
+        "state extracts information single-qubit readout throws away -- a real, cheap performance "
+        "lever, comparable to the learned encoding.",
+        "But effective dimensionality stays ~1-2: even with 126 correlation features the reservoir "
+        "lives in ~1-2 directions. The 2^n space is NOT used; the parallel qubits are not an "
+        "exponential resource here.",
+    ]:
+        doc.add_paragraph(style="List Bullet").add_run(txt)
+    _p(doc,
+       "Mechanism: more coherent evolution LOWERED effective dim (1.4 -> 1.1). Decoherence (T2) "
+       "collapses the state faster than the moderate Ising dynamics spread it across the 2^n space. "
+       "The two resources -- many qubits (width) and coherence time (depth) -- are in TENSION, not "
+       "additive: on crotonic-acid NMR the reservoir loses the entangling-vs-decoherence race, which "
+       "is the mechanistic reason effective dimensionality is ~1. An exponential-width advantage "
+       "needs T2 x coupling large enough to populate the space before it decoheres -- longer "
+       "coherence and/or stronger, faster couplings than this molecule provides.")
+
+    _h(doc, "8. Where quantum stands: the classical comparison", 1)
+    _p(doc,
+       "An encoding/readout improvement matters only if the substrate is worth using. We compared "
+       "the quantum reservoir against two different classes of classical model.")
+    _p(doc,
+       "vs. a classical RESERVOIR (ESN) -- the fair, same-paradigm comparison. Both use fixed "
+       "dynamics + a trained linear readout. On real weather forecasting (Delhi climate; our sim "
+       "reproduced against Hou et al. 2026, ESN baselines 500-10000 nodes) the quantum reservoir "
+       "matches or beats the ESN, most clearly at long horizons for temperature (R2 ~0.8 at 45 days "
+       "vs ESN ~0.4-0.7). As a reservoir, the quantum system is competitive-to-better on a real "
+       "task. (Caveats: the core curve is partly digitized from the paper; ESN tuning and matched "
+       "conditions warrant independent verification.)")
+    if FIG6.exists():
+        doc.add_picture(str(FIG6), width=Inches(6.2))
+        cap = _p(doc, "Figure 6: weather forecasting R2 vs horizon -- quantum reservoir (QRC) vs "
+                 "classical ESN, simulation and experiment (Hou et al. 2026).", italic=True, size=9)
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _p(doc,
+       "vs. a TRAINED-recurrence model (RNN/LSTM) -- a harder, different bar. On the deterministic "
+       "NARMA-2 a small trained feedback RNN reaches NMSE 0.011 (~20x better than the quantum "
+       "reservoir's 0.216); a classical ESN would lose to it too. This is a limitation of reservoir "
+       "computing in general, not of quantum specifically. Two controls confirm it and guard against "
+       "over-claiming: (a) windowed encoding beats arcsin√ on NARMA-10 but a classical linear ridge "
+       "on the same window matches it -- the win is the classical window; (b) a closed-loop feedback "
+       "controller reaches 0.137, but with the quantum memory disabled (τ→0) the classical feedback "
+       "loop alone reaches 0.011 -- it is a classical RNN, quantum memory redundant. The τ→0 "
+       "ablation separates genuine quantum-mediated results (the §6 open-loop encoding, which "
+       "collapses to a mean-predictor without the reservoir) from classically-explainable ones.")
+    _p(doc,
+       "The honest bound. (i) Learned per-spin encoding and correlation readout are real, "
+       "quantum-mediated improvements to the quantum reservoir (§6, §7). (ii) As a reservoir, the "
+       "quantum system beats a classical reservoir (ESN) on real forecasting (§8). (iii) It is NOT "
+       "competitive with a trained RNN/LSTM on classical-friendly tasks -- and cannot be, because it "
+       "is decoherence-limited to effective dimension ~1 (§7). A quantum ADVANTAGE (not merely a "
+       "quantum improvement) must be sought where classical models cannot cheaply reach: tasks "
+       "needing the exponential state space, quantum-native/quantum-sensor data, or "
+       "hardware/energy-efficiency arguments -- on a platform whose coherence outlasts its "
+       "entangling dynamics.")
+
+    _h(doc, "9. Reproducibility", 1)
     for item in [
         "Per-encoding evolution + waveform persistence: scripts/qrc_memcap.py "
         "(--experiment all --fidelity quick).",
