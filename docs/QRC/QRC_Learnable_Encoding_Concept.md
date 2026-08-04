@@ -357,7 +357,8 @@ measure by shifting pulses equals the one the simulator computes by backprop.
 | A learnable encoder trains end-to-end | ✅ loss ↓, gradients flow | `qrc_learnable_proto.py`, Fig. 12 |
 | Learned encoding beats `arcsin(√s)`? | 🟢 **task-dependent** — 3-spin *synthetic/global*: ties (Fig 13). **6-spin NARMA-2, per-spin: YES — test NMSE 0.175 vs 0.395 (2.3× better)**, leakage-free, non-degenerate, all guardrails pass (single-seed) | Figs 13–14 |
 | Where does the win come from? | 🟢 **per-spin (frequency-selective) encoding** on an encoding-sensitive task. Learned *global* barely beats arcsin (0.346 vs 0.395); per-spin (each spin its own learned angle — arcsin can't) roughly halves the error | Fig. 14 |
-| Multi-seed confirmation of the 6-spin win | ⬜ pending (cheap, ~min/seed with the dense propagator) | — |
+| Multi-seed confirmation of the 6-spin win | ✅ **confirmed** — per-spin 0.246±0.107 vs arcsin 0.423±0.058, 4/5 seeds, ~42% mean, paired t=−3.12 (p≈0.036) | Fig. 15 |
+| Is learned *global* encoding reliable? | ❌ **no** — training diverges across seeds (0.28–1.75); only *per-spin* is a robust win | Fig. 15 |
 | **PSR reproduces the sim gradient** (hardware recipe) | ✅ machine precision; global-pulse caveat confirmed | `qrc_psr_sim.py` |
 | Converged / 9-spin / multi-seed verdict | ⬜ open | go-gated GPU campaign |
 
