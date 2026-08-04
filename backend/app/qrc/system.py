@@ -434,6 +434,90 @@ class QRCSystem:
         feats = torch.sparse.mm(g["M"], Vmat).real    # (n_obs, V)
         return feats.T.reshape(-1).cpu().numpy(), x
 
+    # -- differentiable reservoir step (learnable encoding, plan §8) ------
+
+    def ensure_diff(self, which=("x", "y", "z"), device="cpu", cdtype=None):
+        """Build (once, per which/device/dtype) the torch tensors for a
+        *differentiable* reservoir step — the same sparse Liouvillian ``L`` and
+        observable row-matrix ``M`` as the GPU hot loop, as ``sparse_csr``
+        tensors, plus the Taylor/sub-stepping schedule.
+
+        Unlike :meth:`_ensure_gpu` this is **device-agnostic** (CPU or CUDA):
+        it is the basis for gradient-based *learnable encoding* (the "molecule
+        as a Quantum Neural ODE" direction). Autograd through the resulting op
+        sequence is verified correct to ~1e-9 (complex128) in
+        ``scripts/qrc_grad_prod_check.py``. Returns a config dict for
+        :meth:`step_diff`.
+        """
+        import torch
+        import scipy.sparse as sp
+        from scipy.sparse.linalg import onenormest
+
+        if cdtype is None:
+            cdtype = torch.complex64
+        key = (tuple(which), str(device), str(cdtype))
+        cache = getattr(self, "_diff_cache", None)
+        if cache is None:
+            cache = self._diff_cache = {}
+        if key in cache:
+            return cache[key]
+        np_dt = np.complex64 if cdtype == torch.complex64 else np.complex128
+
+        def _to_csr(m):
+            m = sp.csr_matrix(m).astype(np_dt)
+            return torch.sparse_csr_tensor(
+                torch.tensor(m.indptr, dtype=torch.int64),
+                torch.tensor(m.indices, dtype=torch.int64),
+                torch.tensor(m.data, dtype=cdtype), size=m.shape, device=device,
+            )
+
+        Lsp = self._ensure_liouvillian()
+        V = self.sim.n_virtual
+        nrm = float(onenormest(self.sim.tau * Lsp))
+        base = max(V, int(np.ceil(nrm)))
+        substeps = V * int(np.ceil(base / V))       # multiple of V, ‖hL‖≲1
+        g = {
+            "which": tuple(which), "device": device, "cdtype": cdtype,
+            "torch": torch, "L": _to_csr(Lsp),
+            "M": _to_csr(self._ensure_obs_rows(which)),
+            "V": V, "substeps": substeps, "per": substeps // V,
+            "h": self.sim.tau / substeps, "K": 18,
+        }
+        cache[key] = g
+        return g
+
+    def step_diff(self, vec, U, g):
+        """One **differentiable** reservoir step — autograd-preserving sibling
+        of :meth:`step_observables_gpu`.
+
+        ``vec`` (column-stacked ``dim²`` state) and ``U`` (``dim×dim`` pulse,
+        built from encoding parameters so gradients flow) are torch tensors on
+        ``g['device']``; ``g`` comes from :meth:`ensure_diff`. Same op sequence
+        as the production hot loop (pulse ρ→UρU†, Taylor-substepped ``exp(τL)``
+        via sparse matvecs, observables via ``M``) but returns torch tensors
+        ``(feats, vec_end)`` — **no** ``.cpu().numpy()`` detach, so the gradient
+        reaches ``U`` and thence the encoding network.
+        """
+        torch = g["torch"]
+        d = self.dim
+        rho = vec.reshape(d, d).T
+        rho = U @ rho @ U.conj().T
+        x = rho.T.reshape(-1)
+        L, h, K, per = g["L"], g["h"], g["K"], g["per"]
+        node_vecs = []
+        for step in range(1, g["substeps"] + 1):
+            term = x
+            acc = x
+            for k in range(1, K + 1):
+                term = (h / k) * torch.mv(L, term)
+                acc = acc + term
+            x = acc
+            if step % per == 0:
+                node_vecs.append(x)
+        Vmat = torch.stack(node_vecs, dim=1)
+        feats = torch.sparse.mm(g["M"], Vmat).real
+        return feats.T.reshape(-1), x
+
     # -- FID spectral readout (Paper 4, Hou et al. 2026) -----------------
 
     def _readout_indices(self) -> list[int]:
