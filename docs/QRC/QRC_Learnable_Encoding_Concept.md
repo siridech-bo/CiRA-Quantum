@@ -372,7 +372,67 @@ the gradient escapes). Only escalate to the expensive 9-spin GPU campaign if the
 small-scale test shows real headroom. Our accumulating evidence (Phase-2 +
 prototype) leans toward "confirms arcsin," i.e. a methods result.
 
-## 9. References
+## 9. Input-encoding architectures: from scalar to a quantum-memory RNN
+
+The encoding is the input layer of the QRC "network". Its expressivity is a
+design axis with a clear ladder, each rung more powerful and each with a distinct
+rigor concern.
+
+| Encoder | Own (classical) memory? | Injects | QRC premise intact? |
+|---------|:---:|---------|:---:|
+| **Scalar MLP** (baseline / §6) | none | per-spin nonlinear map of `s_t` | ✅ fully |
+| **B — Windowed MLP** | none (bounded) | explicit last-`k` history across spins | ✅ mostly |
+| **RNN encoder** | unbounded, learned | history-aware stateful drive | ⚠️ at risk |
+| **Quantum-memory RNN** | **none (memory is quantum)** | drive conditioned on the quantum state | ✅ by construction |
+
+**Strategy B — windowed encoder (implemented).** Feed a sliding window
+`[s_t, …, s_{t-k+1}]` through a fully-connected encoder `k → hidden → n` to the
+per-spin angles. It is *memoryless* (a bounded `k`-tap window, no recurrent state
+of its own), so it is unambiguously "just an encoding". It targets the
+**memory-bound regime** where the scalar encoder ties `arcsin√`: instead of
+relying on the reservoir's fading memory, it injects recent history *explicitly*.
+`sliding_windows()` + `EncoderPerSpin(input_dim=k)` in `qrc_learnable_9spin.py`.
+
+**The reframe: QRC *is* an RNN whose hidden state is the quantum reservoir.**
+An RNN cell is (input map, recurrent memory update, readout); in QRC these are
+(the encoding `θ(s)`, the quantum evolution `ρ_t = exp(τL)·U(θ_t)ρ_{t-1}U(θ_t)†`,
+the ridge readout). The recurrence is fixed physics; only the input map (and
+readout) are trained.
+
+**The confound, and its clean resolution.** A *classical* RNN encoder has its own
+hidden state, which can do the sequence-modeling itself — making the quantum part
+decorative and the "quantum RC works" claim unfalsifiable (an LSTM solves NARMA by
+itself). The resolution is to keep the **memory quantum**: route *all* recurrence
+through `ρ`, and keep every learnable classical piece **memoryless**. Then the
+quantum reservoir is the load-bearing memory *by construction*, and killing it
+(τ→0) must break any memory task — a falsifiable test.
+
+**Closed-loop quantum-memory RNN (design).** Once the memory is quantum, a
+**feedback controller** adds expressivity without a classical crutch: the drive at
+step `t` depends on the input *and the current readout of the quantum memory*,
+
+  `θ_t = controller(s_t, f_{t-1})`,  `f_{t-1} = features(ρ_{t-1})`,
+
+with `controller` **memoryless** (feedforward). This is a learned closed-loop
+policy on the quantum reservoir — strictly more expressive than an open-loop
+encoder, yet all sequence memory stays quantum. **NMR makes it physical:**
+liquid-state NMR reads the bulk-ensemble magnetization *continuously* (the FID) —
+a weak, non-projective measurement — so the reservoir can be read and fed back
+without the state collapse that would kill this on gate-model qubits.
+
+**Ablation protocol (what makes any win meaningful).**
+1. **τ→0 / no-quantum-memory** — reset the reservoir each step (`reset_each_step`,
+   implemented): a memoryless encoder+readout must fail on memory tasks → proves
+   the quantum reservoir carries the memory.
+2. **Matched classical RNN** — same parameter budget, classical hidden state:
+   does quantum-memory beat it?
+3. **Feedforward vs feedback** — does the closed-loop controller beat the
+   open-loop encoder? Isolates the value of feedback.
+
+**Status.** Rungs 1–2 (scalar, windowed) and ablation (1) are implemented;
+closed-loop (feedback controller) + ablations (2)–(3) are the next build.
+
+## 10. References
 
 - Chen, Rubanova, Bettencourt, Duvenaud (2018). *Neural Ordinary Differential
   Equations.* NeurIPS (Best Paper).
@@ -389,7 +449,7 @@ prototype) leans toward "confirms arcsin," i.e. a methods result.
 
 ---
 
-## 10. Reproduction pointers
+## 11. Reproduction pointers
 
 | Artifact | What |
 |----------|------|
