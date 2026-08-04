@@ -88,6 +88,19 @@ The first two are simulation tools; **PSR is the hardware method** and the subje
 of §6. Crucially, all three compute the *same* gradient — the simulator learns the
 encoding by backprop, and the machine reproduces that gradient by the shift rule.
 
+**The memory wall is real at 9 spins (measured, no GPU).** The crotonic-9 system
+needs **5,336 sub-steps** for `exp(τL)` (large carbon chemical shifts → stiff `L`).
+Reverse-mode autograd stores every intermediate state (2.1 MB each at dim²=262144)
+× Taylor terms × sub-steps → **~201 GB for a single input step's backward graph**,
+vs. a 16 GB card. So **Way-1 backprop is infeasible at 9 spins** (off by 100–1000×);
+9-spin learnable encoding requires one of: **(a) PSR *in simulation*** — forward-only,
+no stored graph, O(state) memory (reuses the validated PSR; compute-heavy: ~2·n·T
+forwards per gradient step); **(b) gradient checkpointing** — nested (step + sub-step)
+recompute brings peak memory to ~O(sub-steps·state) ≈ 11 GB at ~2–3× compute;
+**(c) the adjoint method** — O(state) memory, the principled solution, most
+engineering. A smaller system (≤ ~5 spins) still fits plain backprop and is the
+cheap stepping stone.
+
 ---
 
 ## 4. What we validated in simulation (no framework migration needed)
