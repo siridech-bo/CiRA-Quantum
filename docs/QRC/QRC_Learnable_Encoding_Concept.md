@@ -342,7 +342,8 @@ measure by shifting pulses equals the one the simulator computes by backprop.
 | Autograd survives the **production** op family (sparse-CSR complex) | ✅ correct to 3.5e-9 | `qrc_grad_prod_check.py` |
 | No JAX/Dynamiqs migration needed | ✅ one detach lifted | `system.py: ensure_diff/step_diff` |
 | A learnable encoder trains end-to-end | ✅ loss ↓, gradients flow | `qrc_learnable_proto.py`, Fig. 12 |
-| Learned encoding beats `arcsin(√s)`? | ⚠️ **not yet** — short run loses; learned θ(s) trends *toward* arcsin | Fig. 12 |
+| Learned encoding beats `arcsin(√s)`? | ⚠️ **no — it ties** — converged 3-spin: random-init learned NMSE 0.570 ≈ arcsin 0.574 (a *different-shaped* but equally-good map) | Fig. 13 |
+| Is performance encoding-shape-sensitive? | ⚠️ **no** — a monotonic-*decreasing* learned map ties arcsin → reservoir (not encoding) is the bottleneck (echoes Phase 1) | Fig. 13 |
 | **PSR reproduces the sim gradient** (hardware recipe) | ✅ machine precision; global-pulse caveat confirmed | `qrc_psr_sim.py` |
 | Converged / 9-spin / multi-seed verdict | ⬜ open | go-gated GPU campaign |
 
