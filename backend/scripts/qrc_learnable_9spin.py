@@ -219,7 +219,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
     results = {"arcsin": (base, None, None, None)}   # (test, val_curve, std, angle_map)
 
     def run_learned(label, n_out):
-        torch.manual_seed(1)
+        torch.manual_seed(seed)          # vary encoder init with the run seed
         enc = EncoderPerSpin(n_out).to(device)
         opt = torch.optim.Adam(enc.parameters(), lr=lr)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
@@ -310,6 +310,7 @@ def main():
     ap.add_argument("--washout", type=int, default=30)
     ap.add_argument("--steps", type=int, default=100)
     ap.add_argument("--lr", type=float, default=0.04)
+    ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--conditions", default="arcsin,perspin",
                     help="comma list from: arcsin,global,perspin")
     args = ap.parse_args()
@@ -326,7 +327,7 @@ def main():
         benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T)
     else:
         train(sysm, g, args.device, cdt, task=args.task, T=args.T,
-              washout=args.washout, steps=args.steps, lr=args.lr,
+              washout=args.washout, steps=args.steps, lr=args.lr, seed=args.seed,
               conditions=tuple(args.conditions.split(",")))
 
 
