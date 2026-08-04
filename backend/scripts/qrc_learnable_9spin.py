@@ -188,7 +188,7 @@ def _ridge_fit_eval(F, y, device, alpha=1e-3):
 
 
 def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
-          lr=0.04, seed=7, conditions=("arcsin", "perspin")):
+          lr=0.02, seed=7, conditions=("arcsin", "perspin")):
     """Learned encoding vs global arcsin(sqrt) baseline on an encoding-sensitive
     task (NARMA-2), leakage-free 3-way split, with under-powered/degenerate
     guardrails. conditions may include 'global' (learned scalar angle) and
@@ -224,21 +224,30 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
         opt = torch.optim.Adam(enc.parameters(), lr=lr)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
         curve = []
+        best_val, best_state = float("inf"), None   # best-validation checkpoint
         t0 = time.time()
         for it in range(steps):
             opt.zero_grad()
             nmse_val, _ = _ridge_fit_eval(feats(lambda s: enc_angles(enc, s, sysm.n)), y_use, device)
-            nmse_val.backward(); opt.step(); sched.step()
-            curve.append(float(nmse_val))
+            nmse_val.backward()
+            torch.nn.utils.clip_grad_norm_(enc.parameters(), 1.0)   # stabilize
+            opt.step(); sched.step()
+            v = float(nmse_val)
+            curve.append(v)
+            if v < best_val:                         # keep the best-val encoder
+                best_val = v
+                best_state = {k: t.detach().clone() for k, t in enc.state_dict().items()}
             if it % 20 == 0 or it == steps - 1:
-                print(f"  [{label}] step {it:3d}: val NMSE={float(nmse_val):.4f}")
+                print(f"  [{label}] step {it:3d}: val NMSE={v:.4f}")
+        if best_state is not None:                   # report test at best-val, not final
+            enc.load_state_dict(best_state)
         dt = time.time() - t0
         with torch.no_grad():
             _, nmse_test = _ridge_fit_eval(feats(lambda s: enc_angles(enc, s, sysm.n)), y_use, device)
             amap = torch.stack([enc_angles(enc, float(s), sysm.n) for s in sg]).cpu().numpy()
         fin, std = float(nmse_test), float(amap.std())
-        print(f"({label}) learned: test NMSE={fin:.4f} | angle-map std={std:.2f} "
-              f"| {dt:.0f}s ({dt/steps:.1f}s/step)")
+        print(f"({label}) learned: test NMSE={fin:.4f} (best val {best_val:.4f}) "
+              f"| angle-map std={std:.2f} | {dt:.0f}s ({dt/steps:.1f}s/step)")
         results[label] = (fin, curve, std, amap)
 
     if "global" in conditions:
@@ -309,7 +318,7 @@ def main():
     ap.add_argument("--T", type=int, default=300)
     ap.add_argument("--washout", type=int, default=30)
     ap.add_argument("--steps", type=int, default=100)
-    ap.add_argument("--lr", type=float, default=0.04)
+    ap.add_argument("--lr", type=float, default=0.02)   # lower + grad-clip + best-val = stabler
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--conditions", default="arcsin,perspin",
                     help="comma list from: arcsin,global,perspin")
