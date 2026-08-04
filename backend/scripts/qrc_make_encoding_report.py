@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2] / "docs" / "QRC"
 FIG9 = ROOT / "figures" / "fig9_encoding_judging.png"
 FIG10 = ROOT / "figures" / "fig10_phaseamp.png"
 FIG11 = ROOT / "figures" / "fig11_protons.png"
+FIG15 = ROOT / "figures" / "fig15_6spin_multiseed.png"
 OUT = ROOT / "QRC_Encoding_Study.docx"
 
 ENCODINGS = [
@@ -275,18 +276,81 @@ def main() -> None:
         ("Future work",
          "(i) Phase-amplitude encoding R_z(2πs)·R_x(θ) — resolved (§4.1): it lowers capacity "
          "by ≈72%, so a second (phase) channel is not the way to beat arcsin√ on this system. "
-         "(ii) Learned encoding (GRAPE / gradient optimization): this "
-         "fixed-function comparison is the empirical baseline for optimizing a parametrized "
-         "encoding pulse directly; the GPU stepper is autodiff-capable (torch), so an "
-         "end-to-end differentiable-QRC optimizer is buildable here with the MC metric as "
-         "objective — a planned dedicated study. (iii) Encoding×feature interaction. "
-         "(iv) Higher-fidelity, multi-seed confirmation."),
+         "(ii) Learned encoding (gradient optimization) — resolved in §6: a gradient-learned "
+         "per-spin encoding beats arcsin√ by ~40% on an encoding-sensitive task at 6 spins. "
+         "(iii) Encoding×feature interaction. (iv) Higher-fidelity, multi-seed confirmation."),
     ]:
         p = doc.add_paragraph()
         p.add_run(head + ". ").bold = True
         p.add_run(body)
 
-    _h(doc, "6. Reproducibility", 1)
+    _h(doc, "6. Beyond fixed encodings: a gradient-learned per-spin encoding", 1)
+    _p(doc,
+       "The comparison so far ranks hand-designed encodings and finds arcsin√ best. The next "
+       "question is whether a gradient-learned encoding can beat it. We make the reservoir step "
+       "differentiable and train an encoding network by gradient descent through the quantum "
+       "evolution (the 'molecule as a Quantum Neural ODE'; full methodology + the real-hardware "
+       "gradient are in the companion QRC_Learnable_Encoding_Concept document).")
+    _h(doc, "6.1 Method", 2)
+    _p(doc,
+       "What is trained: only the encoding network W (a small MLP s → pulse angles) is "
+       "gradient-trained (Adam). The Hamiltonian and dissipation are fixed by the molecule (the "
+       "'hidden layers'); the readout is a closed-form ridge (differentiable). Autograd through "
+       "the Lindblad evolution was verified against finite differences to ~1e-9 (complex128) and "
+       "independently reproduced by the hardware parameter-shift rule in simulation to machine "
+       "precision. Two encodings are learned: a global angle θ(s) (arcsin√'s structure) and a "
+       "per-spin angle vector θᵢ(s) (frequency-selective — each spin its own learned map, which "
+       "a global pulse cannot express).")
+    _p(doc,
+       "Task and cost: NARMA-2, deliberately not NARMA-10. NARMA-10 is memory-dominated (its "
+       "difficulty is a 10-step autoregression), and memory lives in the fixed reservoir, so the "
+       "encoding has almost no leverage there; NARMA-2 has short memory but a strong cubic input "
+       "nonlinearity, so the encoding is the bottleneck — the fair test. Cost = NMSE via ridge on "
+       "a leakage-free 3-way split (readout fit on train, encoder optimized on validation, test "
+       "NMSE the held-out verdict). A dense exact-propagator formulation of the differentiable "
+       "step makes the 6-spin runs ~1000× faster (minutes).")
+    _h(doc, "6.2 Result — per-spin learning beats arcsin√ (6 spins, 5 seeds)", 2)
+    _table(doc, ["encoding", "NARMA-2 test NMSE (5 seeds)", "vs arcsin√"],
+           [("arcsin√ (baseline)", "0.42 ± 0.06", "—"),
+            ("learned global", "0.78 ± 0.59", "unreliable"),
+            ("learned per-spin", "0.25 ± 0.11", "−40%, beats 4/5 seeds")])
+    if FIG15.exists():
+        doc.add_picture(str(FIG15), width=Inches(6.2))
+        cap = _p(doc,
+                 "Figure 15: NARMA-2 test NMSE over 5 seeds. Per-spin learning beats arcsin√ in "
+                 "4/5 seeds (~40% mean, paired t≈−3.0, p≈0.04), robust to the optimizer recipe; "
+                 "learned global is unreliable.", italic=True, size=9)
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for txt in [
+        "Per-spin learnable encoding beats arcsin√ — ~40% lower NARMA-2 error, 4/5 seeds, paired "
+        "p≈0.04, and optimizer-robust (same verdict under loose lr 0.04 and a stabilized lr 0.02 "
+        "+ grad-clip + best-val optimizer). First case in this study where any encoding beats arcsin√.",
+        "The win is the per-spin (frequency-selective) degree of freedom, not 'learning' per se: a "
+        "learned global angle map only marginally beats arcsin√ and its training is unreliable "
+        "(diverges to ≈4× a mean-predictor on some seeds, regardless of LR/clipping). Only giving "
+        "each spin its own learned input map — which arcsin√'s global pulse cannot — reliably helps.",
+        "It is conditional, not universal: the advantage appears only for an encoding-sensitive "
+        "task (NARMA-2) AND a rich enough reservoir. At 3 spins, with a global learned encoding, "
+        "or on a memory-bound task, learning merely ties arcsin√. One 6-spin seed also only tied.",
+    ]:
+        doc.add_paragraph(style="List Bullet").add_run(txt)
+    _h(doc, "6.3 Interpretation and limits", 2)
+    _p(doc,
+       "The result matches the §5 mechanism: arcsin√ is the optimal global amplitude map, so "
+       "learning a global map cannot beat it by much (and is unstable). A per-spin encoding "
+       "injects the input into different spins with different nonlinear maps, building a richer, "
+       "higher-dimensional input embedding than any single global rotation — and on a task whose "
+       "difficulty is the input nonlinearity (NARMA-2), that converts directly into lower error. "
+       "It does nothing for memory-bound tasks, where the fixed reservoir is the bottleneck.")
+    _p(doc,
+       "Limits: (i) 6 spins — the full 9-spin system is out of reach for reverse-mode backprop "
+       "(stiff dynamics need ~5300 sub-steps → ~200 GB autograd graph per input-step, measured); "
+       "a 9-spin test needs the adjoint method, gradient checkpointing, or the memory-free hardware "
+       "parameter-shift rule. (ii) Seed variance — one of five seeds tied. (iii) One task family "
+       "(NARMA-2). (iv) The hardware realization (parameter-shift rule on a real spectrometer) is "
+       "designed and validated in simulation but not yet run.")
+
+    _h(doc, "7. Reproducibility", 1)
     for item in [
         "Per-encoding evolution + waveform persistence: scripts/qrc_memcap.py "
         "(--experiment all --fidelity quick).",

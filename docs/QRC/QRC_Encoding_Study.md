@@ -286,17 +286,105 @@ as *relative* comparisons, not absolute reservoir capacities.
 
 **Future work.** (i) ~~Phase-amplitude encoding~~ — **resolved (§4.1): it lowers
 capacity by ≈ 72%**, so a second (phase) channel is not the way to beat `arcsin√`
-on this system. (ii) **Learned encoding (GRAPE /
-gradient optimization).** The fixed-function comparison establishes the empirical
-baseline for going *beyond* hand-designed encodings: optimizing a parametrized
-encoding pulse to maximize memory/IPC directly. The GPU reservoir stepper is
-implemented in an autodiff-capable framework (torch), so an end-to-end
-**differentiable-QRC** gradient optimizer is buildable on this codebase; the
-memory-capacity metric defined here is a ready-made objective. This is the
-subject of a planned dedicated study. (iii) **Encoding×feature interaction** and
+on this system. (ii) **Learned encoding (gradient optimization)** — **resolved
+in §6**: a gradient-learned *per-spin* encoding beats `arcsin√` by ~40% on an
+encoding-sensitive task at 6 spins. (iii) **Encoding×feature interaction** and
 (iv) **higher-fidelity, multi-seed confirmation** of the present ranking.
 
-## 6. Reproducibility
+## 6. Beyond fixed encodings: a gradient-learned per-spin encoding
+
+The comparison so far ranks *hand-designed* encodings and finds `arcsin√` best.
+The natural next question is whether a **gradient-learned** encoding can beat it.
+We make the reservoir step differentiable and train an encoding network by
+gradient descent through the quantum evolution — the "molecule as a Quantum
+Neural ODE" (a full methodology + the real-hardware gradient is in the companion
+`QRC_Learnable_Encoding_Concept.md`).
+
+### 6.1 Method
+
+**What is trained.** Only the **encoding network** `W` — a small MLP mapping each
+scalar input `s` to pulse angles — is gradient-trained (Adam). The reservoir's
+Hamiltonian and dissipation are *fixed by the molecule* (the "hidden layers"),
+and the readout is a closed-form **ridge** (the always-optimal linear layer,
+differentiable through the normal equations). Autograd through the Lindblad
+evolution was verified against finite differences to ~1e-9 (complex128) and,
+independently, reproduced by the hardware **parameter-shift rule** in simulation
+to machine precision — so the simulator's gradient equals the one a real NMR
+machine would measure by shifting pulses.
+
+**Two encodings are learned:** a **global** angle `θ(s)` (same structure as
+`arcsin√`, one angle broadcast to all spins) and a **per-spin** angle vector
+`θᵢ(s)` (frequency-selective — each spin gets its own learned input map, which a
+global pulse structurally cannot do).
+
+**Task and cost.** We use **NARMA-2**, deliberately *not* NARMA-10: NARMA-10 is
+*memory-dominated* (its difficulty is a 10-step autoregression), and memory lives
+in the fixed reservoir, so the encoding has almost no leverage there. NARMA-2 has
+short memory but a strong *cubic input* nonlinearity, so the **encoding is the
+bottleneck** — the fair place to test whether learning it helps. The cost is
+**NMSE via ridge on a leakage-free 3-way split**: the readout is fit on *train*,
+the encoder is optimized on *validation*, and *test* NMSE is the held-out
+verdict. A dense exact-propagator formulation of the differentiable step
+(`exp(τL)` precomputed once, valid at small dim) makes the 6-spin runs ~1000×
+faster (minutes, not hours).
+
+### 6.2 Result — per-spin learning beats `arcsin√` (6 spins, 5 seeds)
+
+| encoding | NARMA-2 test NMSE (5 seeds) | vs `arcsin√` |
+|----------|:---:|:---:|
+| `arcsin√` (baseline) | 0.42 ± 0.06 | — |
+| learned **global** | 0.78 ± 0.59 | **unreliable** |
+| learned **per-spin** | **0.25 ± 0.11** | **−40%, beats in 4/5 seeds** |
+
+![Learnable encoding, 6-spin, multi-seed](figures/fig15_6spin_multiseed.png)
+
+*Figure 15: NARMA-2 test NMSE over 5 seeds. Per-spin learning beats `arcsin√` in
+4/5 seeds (~40% mean, paired t≈−3.0, p≈0.04) and is robust to the optimizer
+recipe (loose lr 0.04 and stabilized lr 0.02 + grad-clip + best-val give the same
+verdict). Learned global is unreliable. Fig. 14 shows a representative run's
+training curves and the learned angle maps.*
+
+Three findings, stated with their limits:
+
+1. **Per-spin learnable encoding beats `arcsin√`** — ~40% lower NARMA-2 error,
+   4 of 5 seeds, paired p≈0.04, and **optimizer-robust** (same result under a
+   loose and a stabilized optimizer). This is the first case in this study where
+   *any* encoding beats `arcsin√`.
+2. **The win is the per-spin (frequency-selective) degree of freedom**, not
+   "learning" per se: a learned *global* angle map only marginally beats `arcsin√`
+   on the best seeds and its training is *unreliable* (it diverges to ≈4× a
+   mean-predictor on some data draws, regardless of learning rate/clipping). Only
+   giving each spin its own learned input map — which `arcsin√`'s global pulse
+   cannot express — reliably helps.
+3. **It is conditional, not universal.** The advantage appears only when the task
+   is encoding-sensitive (NARMA-2) *and* the reservoir is rich enough: at 3 spins,
+   or with a *global* learned encoding, or on a memory-bound task, learning merely
+   *ties* `arcsin√` (consistent with §4–§5). One 6-spin seed also only tied — a
+   genuine hard data draw, not an optimization failure.
+
+### 6.3 Interpretation and limits
+
+The result is exactly what the mechanism of §5 predicts. `arcsin√` is the optimal
+*global* amplitude map, so learning a *global* map cannot beat it by much (and is
+unstable). But a **per-spin** encoding injects the input into different spins with
+different nonlinear maps, building a richer, higher-dimensional input embedding
+than any single global rotation — and on a task whose difficulty *is* the input
+nonlinearity (NARMA-2), that extra embedding capacity converts directly into
+lower error. It does nothing for memory-bound tasks, where the fixed reservoir,
+not the encoding, is the bottleneck.
+
+**Limits.** (i) *6 spins.* The full 9-spin system is out of reach for
+reverse-mode backprop here — its stiff dynamics need ~5300 evolution sub-steps, so
+the autograd graph would be ~200 GB per input-step (measured); a 9-spin test needs
+the adjoint method or gradient checkpointing (or the hardware parameter-shift
+rule, which is memory-free). (ii) *Seed variance* — one of five seeds tied; the
+effect is significant on average but not universal. (iii) *One task family* —
+shown for NARMA-2; the claim is specifically about encoding-sensitive tasks.
+(iv) The **hardware realization** (learning this encoding on a real spectrometer
+via the parameter-shift rule) is designed and validated in simulation but not yet
+run — see the companion concept document.
+
+## 7. Reproducibility
 
 All quantities are recomputable offline from the saved waveforms:
 
@@ -308,3 +396,11 @@ All quantities are recomputable offline from the saved waveforms:
   `scripts/qrc_judge.py --glob "artifacts/traces/memcap_*.npz"`.
 * Saved waveforms: `artifacts/traces/memcap_<fn>_<hash>.npz` (7 files), each
   carrying its exact random input, split, and configuration metadata.
+
+Learnable encoding (§6):
+* Differentiable reservoir step: `QRCSystem.ensure_diff`/`step_diff` (dense
+  exact-propagator path for small systems); autograd correctness
+  `scripts/qrc_grad_prod_check.py`; parameter-shift-rule check `scripts/qrc_psr_sim.py`.
+* 6-spin NARMA-2 training + benchmark: `scripts/qrc_learnable_9spin.py`
+  (`--mode train --system 6 --task narma2`, `--seed <s>`).
+* Multi-seed aggregate + Fig. 15: `scripts/qrc_6spin_aggregate.py`.
