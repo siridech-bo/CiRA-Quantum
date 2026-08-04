@@ -429,8 +429,24 @@ without the state collapse that would kill this on gate-model qubits.
 3. **Feedforward vs feedback** — does the closed-loop controller beat the
    open-loop encoder? Isolates the value of feedback.
 
-**Status.** Rungs 1–2 (scalar, windowed) and ablation (1) are implemented;
-closed-loop (feedback controller) + ablations (2)–(3) are the next build.
+**Status / result.** All rungs and the ablations are implemented and run. The
+verdict, on NARMA-2 at 6 spins:
+- **Open-loop scalar per-spin** is the *only clean quantum result*: it beats
+  `arcsin√` ~40% (multi-seed) and the τ→0 ablation collapses it to a
+  mean-predictor (1.01) → the quantum reservoir provably carries the memory.
+- **Windowed (B)** and **closed-loop feedback (3) are classical.** A classical
+  linear ridge on the 12-window matches the windowed win (0.14 vs 0.12); and the
+  closed-loop with quantum memory *off* (τ→0) scores **0.011** — near-perfect and
+  *better* than with quantum memory (0.137) — because the feature-feedback channel
+  is itself a classical RNN that solves NARMA-2 on its own. A tiny classical RNN
+  beats the quantum reservoir ~20× (0.011 vs 0.216).
+
+**Bottom line:** learnable encoding genuinely helps a *fixed quantum reservoir*
+(open-loop, quantum-clean), but the quantum reservoir is **not competitive with
+classical recurrent models** on these benchmarks — any classical memory channel
+(window or feedback) makes it redundant. A quantum advantage would have to come
+from regimes classical models cannot reach (exponential state space, quantum-data
+tasks, hardware/energy efficiency), not from beating a classical RNN on NARMA.
 
 ## 10. References
 
