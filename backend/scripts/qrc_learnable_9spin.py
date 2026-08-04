@@ -122,6 +122,50 @@ def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False):
     return torch.stack(rows)
 
 
+class ClosedLoopController(torch.nn.Module):
+    """Memoryless feedback controller for the quantum-memory RNN (strategy 3):
+    [s_t, f_{t-1}] -> n per-spin angles in (0, pi), where f_{t-1} is the readout
+    of the quantum reservoir at the previous step. The controller has NO recurrent
+    state of its own — the intended sequence memory lives in the quantum state ρ.
+
+    NOTE: feeding back f_{t-1} does create a *classical* recurrence through the
+    feature vector (f_t = G(f_{t-1}, s_t)); the open-loop and τ→0 ablations isolate
+    what the quantum reservoir actually contributes."""
+
+    def __init__(self, n, feat_dim, hidden=32):
+        super().__init__()
+        self.n = n
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(1 + feat_dim, hidden, dtype=RDT), torch.nn.Tanh(),
+            torch.nn.Linear(hidden, n, dtype=RDT))
+
+    def forward(self, s_scalar, f_prev):
+        dev = self.net[0].weight.device
+        x = torch.cat([torch.as_tensor(s_scalar, dtype=RDT, device=dev).reshape(1),
+                       f_prev.reshape(-1)]).reshape(1, -1)
+        return torch.pi * torch.sigmoid(self.net(x)).reshape(-1)
+
+
+def forward_features_closedloop(ctrl, u, sysm, g, device, cdt, reset_each_step=False):
+    """Closed-loop quantum-memory RNN forward: θ_t = ctrl(s_t, f_{t-1}); the pulse
+    drives the reservoir, whose readout f_t is fed back next step. Memory is meant
+    to live in ρ; ``reset_each_step`` (τ→0) leaves only the classical f-feedback."""
+    vec0 = init_state(sysm, device, cdt)
+    vec = vec0
+    feat_dim = 3 * sysm.n * g["V"]
+    f_prev = torch.zeros(feat_dim, dtype=RDT, device=device)
+    rows = []
+    for s in u:
+        theta = ctrl(float(s), f_prev)
+        U = per_spin_pulse(theta, sysm.n, cdt)
+        feat, vec = sysm.step_diff(vec, U, g)
+        rows.append(feat)
+        f_prev = feat                    # feedback (keeps the BPTT graph)
+        if reset_each_step:
+            vec = vec0
+    return torch.stack(rows)
+
+
 def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None):
     """Time forward+backward and report peak memory — the go/no-go for the campaign.
     If ``baseline_T`` is set, also compute the arcsin NARMA-2 baseline at that T to
@@ -285,12 +329,50 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
               f"| enc std={std:.2f} | {dt:.0f}s ({dt/steps:.1f}s/step)")
         results[label] = (fin, curve, std, amap)
 
+    def run_closedloop(label):
+        """Closed-loop quantum-memory RNN: a memoryless feedback controller."""
+        torch.manual_seed(seed)
+        feat_dim = 3 * sysm.n * g["V"]
+        ctrl = ClosedLoopController(sysm.n, feat_dim).to(device)
+        opt = torch.optim.Adam(ctrl.parameters(), lr=lr)
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
+        curve, best_val, best_state = [], float("inf"), None
+        t0 = time.time()
+        for it in range(steps):
+            opt.zero_grad()
+            F = forward_features_closedloop(ctrl, u, sysm, g, device, cdt,
+                                            reset_each_step=no_memory)[washout:]
+            nmse_val, _ = _ridge_fit_eval(F, y_use, device)
+            nmse_val.backward()
+            torch.nn.utils.clip_grad_norm_(ctrl.parameters(), 1.0)
+            opt.step(); sched.step()
+            v = float(nmse_val); curve.append(v)
+            if v < best_val:
+                best_val = v
+                best_state = {k: t.detach().clone() for k, t in ctrl.state_dict().items()}
+            if it % 20 == 0 or it == steps - 1:
+                print(f"  [{label}] step {it:3d}: val NMSE={v:.4f}")
+        if best_state is not None:
+            ctrl.load_state_dict(best_state)
+        dt = time.time() - t0
+        with torch.no_grad():
+            F = forward_features_closedloop(ctrl, u, sysm, g, device, cdt,
+                                            reset_each_step=no_memory)[washout:]
+            _, nmse_test = _ridge_fit_eval(F, y_use, device)
+        fin = float(nmse_test)
+        print(f"({label}) closed-loop: test NMSE={fin:.4f} (best val {best_val:.4f}) "
+              f"| {dt:.0f}s ({dt/steps:.1f}s/step)")
+        results[label] = (fin, curve, 1.0, None)   # std=1.0 placeholder (not degenerate)
+
     if "global" in conditions:
         run_learned("global", 1)
     if "perspin" in conditions:
         run_learned("perspin", sysm.n)
+    if "closedloop" in conditions:
+        run_closedloop("closedloop")
 
-    learned = [k for k in ("global", "perspin") if results.get(k, (None, None))[1] is not None]
+    learned = [k for k in ("global", "perspin", "closedloop")
+               if results.get(k, (None, None))[1] is not None]
     best = min(learned, key=lambda k: results[k][0]) if learned else None
     tol = 0.02
     if base > 0.80:
