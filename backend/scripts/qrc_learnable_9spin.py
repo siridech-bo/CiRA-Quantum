@@ -59,20 +59,23 @@ def per_spin_pulse(thetas, n, cdt):
 
 
 class EncoderPerSpin(torch.nn.Module):
-    """s -> n_out pulse angles in (0, pi). n_out=n gives per-spin (frequency-
-    selective) encoding; n_out=1 gives a single global angle (broadcast to all
-    spins, same structure as arcsin)."""
+    """input (dim `input_dim`) -> n_out pulse angles in (0, pi). n_out=n gives
+    per-spin (frequency-selective) encoding; n_out=1 gives a single global angle
+    (broadcast to all spins). input_dim=1 is the scalar-per-step encoder;
+    input_dim=k feeds a sliding window of the last k inputs (strategy B) — a
+    fully-connected weight over the input window."""
 
-    def __init__(self, n_out, hidden=16):
+    def __init__(self, n_out, hidden=16, input_dim=1):
         super().__init__()
         self.n_out = n_out
+        self.input_dim = input_dim
         self.net = torch.nn.Sequential(
-            torch.nn.Linear(1, hidden, dtype=RDT), torch.nn.Tanh(),
+            torch.nn.Linear(input_dim, hidden, dtype=RDT), torch.nn.Tanh(),
             torch.nn.Linear(hidden, n_out, dtype=RDT))
 
     def forward(self, s):
         dev = self.net[0].weight.device
-        x = torch.as_tensor(s, dtype=RDT, device=dev).reshape(1, 1)
+        x = torch.as_tensor(s, dtype=RDT, device=dev).reshape(1, -1)   # (1, input_dim)
         return torch.pi * torch.sigmoid(self.net(x)).reshape(-1)
 
 
@@ -82,6 +85,18 @@ def enc_angles(enc, s, n):
     return a if a.shape[0] == n else a.expand(n)
 
 
+def sliding_windows(u, k):
+    """Sliding windows [u[t], u[t-1], ..., u[t-k+1]] (zero-padded at the start),
+    shape (T, k). k=1 reduces to the scalar-per-step input."""
+    T = len(u)
+    W = np.zeros((T, k), dtype=float)
+    for t in range(T):
+        for j in range(k):
+            if t - j >= 0:
+                W[t, j] = u[t - j]
+    return W
+
+
 def init_state(sysm, device, cdt):
     rho0 = sysm.qt.basis(sysm.dim, 0) * sysm.qt.basis(sysm.dim, 0).dag()
     np_dt = np.complex64 if cdt == torch.complex64 else np.complex128
@@ -89,14 +104,21 @@ def init_state(sysm, device, cdt):
                         device=device)
 
 
-def forward_features(angles_seq, sysm, g, device, cdt):
-    """angles_seq: list of angle-vectors (one per input step) -> feature matrix."""
-    vec = init_state(sysm, device, cdt)
+def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False):
+    """angles_seq: list of angle-vectors (one per step) -> feature matrix.
+
+    ``reset_each_step`` re-initializes the reservoir state before each step,
+    DISABLING the cross-step quantum memory — the τ→0 ablation control that
+    proves the quantum reservoir (not a classical crutch) carries the memory."""
+    vec0 = init_state(sysm, device, cdt)
+    vec = vec0
     rows = []
     for th in angles_seq:
         U = per_spin_pulse(th, sysm.n, cdt)
         feat, vec = sysm.step_diff(vec, U, g)
         rows.append(feat)
+        if reset_each_step:
+            vec = vec0
     return torch.stack(rows)
 
 
@@ -155,9 +177,10 @@ def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None):
 
 def make_task(task, T, seed):
     """Return (u, y): reservoir driving input u and target y."""
-    if task == "narma2":
-        from app.qrc.tasks import narma_sequence  # u~U[0,0.5]; cubic input term 0.6 u^3
-        return narma_sequence(T, order=2, seed=seed)
+    if task in ("narma2", "narma10"):
+        from app.qrc.tasks import narma_sequence  # u~U[0,0.5]
+        order = 2 if task == "narma2" else 10       # narma10 = memory-bound (strategy-B test)
+        return narma_sequence(T, order=order, seed=seed)
     # synthetic memory-2 polynomial (legacy fallback)
     rng = np.random.default_rng(seed)
     u = rng.random(T)
@@ -188,29 +211,38 @@ def _ridge_fit_eval(F, y, device, alpha=1e-3):
 
 
 def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
-          lr=0.02, seed=7, conditions=("arcsin", "perspin")):
-    """Learned encoding vs global arcsin(sqrt) baseline on an encoding-sensitive
-    task (NARMA-2), leakage-free 3-way split, with under-powered/degenerate
-    guardrails. conditions may include 'global' (learned scalar angle) and
-    'perspin' (learned per-spin angles)."""
+          lr=0.02, seed=7, conditions=("arcsin", "perspin"), window=1, no_memory=False):
+    """Learned encoding vs global arcsin(sqrt) baseline, leakage-free 3-way split,
+    with under-powered/degenerate guardrails. conditions: 'global' (learned scalar
+    angle) / 'perspin' (learned per-spin angles). window>1 feeds a sliding window
+    of the last `window` inputs to a fully-connected encoder (strategy B).
+    no_memory disables the cross-step quantum memory (the tau->0 ablation)."""
     u, y = make_task(task, T, seed)
     y_use = y[washout:]
     tr, va, te = _three_way(len(y_use))
     n_tr, n_va, n_te = tr.stop - tr.start, va.stop - va.start, te.stop - te.start
     nfeat = 3 * sysm.n * g["V"] + 1
     print(f"task={task} T={T} usable={len(y_use)} tr/va/te={n_tr}/{n_va}/{n_te} "
-          f"n_feat={nfeat} (n_train>2*n_feat: {n_tr > 2 * nfeat})")
+          f"n_feat={nfeat} (n_train>2*n_feat: {n_tr > 2 * nfeat}) | window={window} "
+          f"quantum-memory={'OFF (ablation)' if no_memory else 'ON'}")
 
-    def feats(angle_fn):
-        return forward_features([angle_fn(s) for s in u], sysm, g, device, cdt)[washout:]
+    # encoder inputs: scalars (window=1) or sliding windows (window=k)
+    Uwin = sliding_windows(u, window) if window > 1 else None
+    enc_inputs = [Uwin[t] for t in range(len(u))] if window > 1 else list(u)
+    input_dim = window
 
-    # (A) global arcsin(sqrt) baseline
+    def feats(angle_fn, inputs):
+        return forward_features([angle_fn(x) for x in inputs], sysm, g, device, cdt,
+                                reset_each_step=no_memory)[washout:]
+
+    # (A) arcsin(sqrt) baseline: raw scalar input, standard QRC (with memory)
     def arcsin_ang(s):
-        a = float(np.arcsin(np.sqrt(min(max(float(s), 0.0), 1.0))))
+        v = float(np.ravel(s)[0])
+        a = float(np.arcsin(np.sqrt(min(max(v, 0.0), 1.0))))
         return torch.full((sysm.n,), a, dtype=RDT, device=device)
 
     with torch.no_grad():
-        _, base_te = _ridge_fit_eval(feats(arcsin_ang), y_use, device)
+        _, base_te = _ridge_fit_eval(feats(arcsin_ang, list(u)), y_use, device)
     base = float(base_te)
     print(f"(A) arcsin baseline: test NMSE = {base:.4f}")
 
@@ -220,7 +252,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
 
     def run_learned(label, n_out):
         torch.manual_seed(seed)          # vary encoder init with the run seed
-        enc = EncoderPerSpin(n_out).to(device)
+        enc = EncoderPerSpin(n_out, input_dim=input_dim).to(device)
         opt = torch.optim.Adam(enc.parameters(), lr=lr)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
         curve = []
@@ -228,7 +260,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
         t0 = time.time()
         for it in range(steps):
             opt.zero_grad()
-            nmse_val, _ = _ridge_fit_eval(feats(lambda s: enc_angles(enc, s, sysm.n)), y_use, device)
+            nmse_val, _ = _ridge_fit_eval(feats(lambda x: enc_angles(enc, x, sysm.n), enc_inputs), y_use, device)
             nmse_val.backward()
             torch.nn.utils.clip_grad_norm_(enc.parameters(), 1.0)   # stabilize
             opt.step(); sched.step()
@@ -243,11 +275,14 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
             enc.load_state_dict(best_state)
         dt = time.time() - t0
         with torch.no_grad():
-            _, nmse_test = _ridge_fit_eval(feats(lambda s: enc_angles(enc, s, sysm.n)), y_use, device)
-            amap = torch.stack([enc_angles(enc, float(s), sysm.n) for s in sg]).cpu().numpy()
-        fin, std = float(nmse_test), float(amap.std())
+            _, nmse_test = _ridge_fit_eval(feats(lambda x: enc_angles(enc, x, sysm.n), enc_inputs), y_use, device)
+            # degeneracy std over the actual encoder inputs (any input dim)
+            std = float(torch.stack([enc_angles(enc, x, sysm.n) for x in enc_inputs]).cpu().numpy().std())
+            amap = (torch.stack([enc_angles(enc, float(s), sysm.n) for s in sg]).cpu().numpy()
+                    if window == 1 else None)
+        fin = float(nmse_test)
         print(f"({label}) learned: test NMSE={fin:.4f} (best val {best_val:.4f}) "
-              f"| angle-map std={std:.2f} | {dt:.0f}s ({dt/steps:.1f}s/step)")
+              f"| enc std={std:.2f} | {dt:.0f}s ({dt/steps:.1f}s/step)")
         results[label] = (fin, curve, std, amap)
 
     if "global" in conditions:
@@ -314,7 +349,7 @@ def main():
     ap.add_argument("--n-virtual", type=int, default=4)
     ap.add_argument("--dtype", default="complex64", choices=list(CDT_MAP))
     ap.add_argument("--seq-len", type=int, default=8)
-    ap.add_argument("--task", default="narma2", choices=["narma2", "synthetic"])
+    ap.add_argument("--task", default="narma2", choices=["narma2", "narma10", "synthetic"])
     ap.add_argument("--T", type=int, default=300)
     ap.add_argument("--washout", type=int, default=30)
     ap.add_argument("--steps", type=int, default=100)
@@ -322,6 +357,10 @@ def main():
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--conditions", default="arcsin,perspin",
                     help="comma list from: arcsin,global,perspin")
+    ap.add_argument("--window", type=int, default=1,
+                    help="encoder input = sliding window of last k inputs (strategy B)")
+    ap.add_argument("--no-memory", action="store_true",
+                    help="disable cross-step quantum memory (tau->0 ablation)")
     args = ap.parse_args()
 
     if args.device == "cuda" and not torch.cuda.is_available():
@@ -337,7 +376,8 @@ def main():
     else:
         train(sysm, g, args.device, cdt, task=args.task, T=args.T,
               washout=args.washout, steps=args.steps, lr=args.lr, seed=args.seed,
-              conditions=tuple(args.conditions.split(",")))
+              conditions=tuple(args.conditions.split(",")),
+              window=args.window, no_memory=args.no_memory)
 
 
 if __name__ == "__main__":
