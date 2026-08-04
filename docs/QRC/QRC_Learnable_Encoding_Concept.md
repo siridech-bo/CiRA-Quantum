@@ -262,6 +262,20 @@ It keeps PSR at its cheap 2-term form *and* is strictly more expressive than a
 single global angle — a natural fit for a learnable encoder that outputs one angle
 per addressable nucleus.
 
+**Validated in simulation** (`qrc_psr_sim.py`, CPU): the simulated PSR gradient
+(forward runs at shifted angles only — the hardware recipe) matches the autograd
+gradient of the reservoir features to **machine precision** for the *correct* rule
+per generator, and empirically confirms the caveat:
+
+| pulse (generator) | 2-term PSR `[±π/2]` | generalized 2n-term PSR |
+|-------------------|--------------------|-------------------------|
+| single-spin (σ_x/2, 2 eigenvalues) | **8×10⁻¹⁶** ✓ exact | 9×10⁻¹⁶ ✓ |
+| global 3-spin (Σσ_x/2, 4 eigenvalues) | **0.56 — WRONG** | **3×10⁻¹⁵** ✓ exact |
+
+The naive 2-term rule on a global pulse is off by 56%; the generalized `2n`-term
+rule is exact. This closes the sim↔hardware loop: the gradient a spectrometer would
+measure by shifting pulses equals the one the simulator computes by backprop.
+
 ### 6.6 NMR-specific advantages and what is actually measured
 
 - **Ensemble readout ⇒ low noise.** Unlike gate-model qubits, where each `⟨M⟩`
@@ -344,6 +358,7 @@ per addressable nucleus.
 | `backend/scripts/qrc_grad_smoketest.py` | dense-CPU proof autograd flows through a Lindblad reservoir (FD match 1.9e-8) |
 | `backend/scripts/qrc_grad_prod_check.py` | autograd through the **production** op family (sparse-CSR complex, FD match 3.5e-9 in complex128) |
 | `backend/app/qrc/system.py` → `ensure_diff` / `step_diff` | the differentiable reservoir step (detach lifted, device-agnostic) |
+| `backend/scripts/qrc_psr_sim.py` | **simulates the PSR** and checks it against autograd: 2-term exact for single-spin (8e-16), wrong for global (56%), generalized 2n-term exact (3e-15) |
 | `backend/scripts/qrc_learnable_proto.py` | end-to-end learnable encoder trained by Adam (Fig. 12) |
 | `docs/QRC/figures/fig12_learnable_proto.png` | training curve + the encoding the gradient discovered |
 | `docs/QRC/QRC_Encoding_Study.md` | the Phase-2 fixed-function result this builds on |
