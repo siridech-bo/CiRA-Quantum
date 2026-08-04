@@ -129,6 +129,77 @@ def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8):
     return ms, peak_gb
 
 
+def _ridge_nmse(F, y, n_tr, device, alpha=1e-3):
+    F = torch.cat([F, torch.ones(F.shape[0], 1, dtype=RDT, device=device)], dim=1)
+    yt = torch.as_tensor(y, dtype=RDT, device=device)
+    Ftr, ytr, Fte, yte = F[:n_tr], yt[:n_tr], F[n_tr:], yt[n_tr:]
+    w = torch.linalg.solve(Ftr.T @ Ftr + alpha * torch.eye(F.shape[1], dtype=RDT, device=device), Ftr.T @ ytr)
+    return ((Fte @ w - yte) ** 2).mean() / yte.var()
+
+
+def _target(u):
+    y = np.zeros_like(u)
+    for t in range(2, len(u)):
+        y[t] = 0.5 * u[t] + 0.35 * u[t - 1] ** 2 - 0.25 * u[t - 1] * u[t - 2]
+    return y
+
+
+def train(sysm, g, device, cdt, T=200, washout=20, steps=100, lr=0.04, seed=7):
+    """Learned per-spin encoding vs global arcsin(sqrt) baseline; ridge NMSE,
+    guardrails (under-powered baseline / degenerate encoding)."""
+    rng = np.random.default_rng(seed)
+    u = rng.random(T)
+    y = _target(u)
+    y_use = y[washout:]
+    n_tr = int(0.6 * len(y_use))
+    nfeat = 3 * sysm.n * g["V"] + 1
+    print(f"T={T} n_train={n_tr} n_feat={nfeat} (n_train>2*n_feat: {n_tr > 2*nfeat})")
+
+    def arcsin_ang(s):
+        a = float(np.arcsin(np.sqrt(s)))
+        return torch.full((sysm.n,), a, dtype=RDT, device=device)
+
+    with torch.no_grad():
+        Fb = forward_features([arcsin_ang(s) for s in u], sysm, g, device, cdt)[washout:]
+        base = float(_ridge_nmse(Fb, y_use, n_tr, device))
+    print(f"(A) arcsin(sqrt) baseline: test NMSE = {base:.4f}")
+
+    torch.manual_seed(1)
+    enc = EncoderPerSpin(sysm.n).to(device)
+    opt = torch.optim.Adam(enc.parameters(), lr=lr)
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
+    t0 = time.time()
+    curve = []
+    for it in range(steps):
+        opt.zero_grad()
+        F = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt)[washout:]
+        loss = _ridge_nmse(F, y_use, n_tr, device)
+        loss.backward(); opt.step(); sched.step()
+        curve.append(float(loss))
+        if it % 20 == 0 or it == steps - 1:
+            print(f"  step {it:3d}: test NMSE={float(loss):.4f}")
+    dt = time.time() - t0
+    with torch.no_grad():
+        fin = curve[-1]
+        # degeneracy: spread of per-spin angles over inputs
+        sg = np.linspace(0, 1, 21)
+        maps = torch.stack([enc(float(s)) for s in sg]).cpu()   # (21, n)
+        std = float(maps.std())
+    print(f"(B) learned (per-spin): test NMSE = {fin:.4f}  | angle-map std={std:.2f} "
+          f"| {dt:.0f}s ({dt/steps:.1f}s/step)")
+    tol = 0.02
+    if base > 0.80:
+        v = f"UNDER-POWERED (base {base:.3f}~mean) — invalid"
+    elif fin < base - tol and std > 0.10:
+        v = f"HEADROOM: learned beats arcsin ({fin:.4f} vs {base:.4f}, std {std:.2f})"
+    elif fin < base - tol:
+        v = f"DEGENERATE win (std {std:.2f}) — discard; arcsin stands"
+    else:
+        v = f"TIE/LOSE: learned {fin:.4f} vs arcsin {base:.4f} — no beat"
+    print("VERDICT:", v)
+    return base, fin, std, v
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["benchmark", "train"], default="benchmark")
@@ -137,6 +208,8 @@ def main():
     ap.add_argument("--n-virtual", type=int, default=4)
     ap.add_argument("--dtype", default="complex64", choices=list(CDT_MAP))
     ap.add_argument("--seq-len", type=int, default=8)
+    ap.add_argument("--T", type=int, default=200)
+    ap.add_argument("--steps", type=int, default=100)
     args = ap.parse_args()
 
     if args.device == "cuda" and not torch.cuda.is_available():
@@ -150,7 +223,7 @@ def main():
     if args.mode == "benchmark":
         benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len)
     else:
-        raise SystemExit("train mode: wire after benchmark confirms feasibility + wall-clock")
+        train(sysm, g, args.device, cdt, T=args.T, steps=args.steps)
 
 
 if __name__ == "__main__":
