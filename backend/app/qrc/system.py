@@ -436,17 +436,28 @@ class QRCSystem:
 
     # -- differentiable reservoir step (learnable encoding, plan §8) ------
 
-    def ensure_diff(self, which=("x", "y", "z"), device="cpu", cdtype=None):
-        """Build (once, per which/device/dtype) the torch tensors for a
-        *differentiable* reservoir step — the same sparse Liouvillian ``L`` and
-        observable row-matrix ``M`` as the GPU hot loop, as ``sparse_csr``
-        tensors, plus the Taylor/sub-stepping schedule.
+    def ensure_diff(self, which=("x", "y", "z"), device="cpu", cdtype=None,
+                    dense=None):
+        """Build (once, per which/device/dtype/dense) the torch tensors for a
+        *differentiable* reservoir step — the sparse Liouvillian ``L`` and
+        observable row-matrix ``M`` as ``sparse_csr`` tensors, plus the
+        Taylor/sub-stepping schedule.
 
         Unlike :meth:`_ensure_gpu` this is **device-agnostic** (CPU or CUDA):
         it is the basis for gradient-based *learnable encoding* (the "molecule
         as a Quantum Neural ODE" direction). Autograd through the resulting op
         sequence is verified correct to ~1e-9 (complex128) in
-        ``scripts/qrc_grad_prod_check.py``. Returns a config dict for
+        ``scripts/qrc_grad_prod_check.py``.
+
+        ``dense`` (auto when ``None``: on for ``dim² ≤ 8192``, i.e. ≤ 6 spins):
+        precompute the **exact dense node propagator** ``P = exp((τ/V)·L)`` once
+        and let :meth:`step_diff` apply it as ``V`` big matmuls per step instead
+        of the ``substeps·K`` tiny sparse matvecs of the Taylor loop. For small
+        systems this is ~1000× faster (the Taylor loop is launch-overhead-bound
+        at small dim) and exact (no Taylor truncation), while remaining
+        differentiable — ``P`` is a constant, gradients still flow through the
+        encoding pulse ``U``. Not usable at large dim (``P`` is ``dim²×dim²``
+        dense: 134 MB at 6 spins, 2 GB at 7). Returns a config dict for
         :meth:`step_diff`.
         """
         import torch
@@ -455,7 +466,9 @@ class QRCSystem:
 
         if cdtype is None:
             cdtype = torch.complex64
-        key = (tuple(which), str(device), str(cdtype))
+        if dense is None:
+            dense = self.dim ** 2 <= 8192       # ≤ 6 spins
+        key = (tuple(which), str(device), str(cdtype), bool(dense))
         cache = getattr(self, "_diff_cache", None)
         if cache is None:
             cache = self._diff_cache = {}
@@ -481,8 +494,15 @@ class QRCSystem:
             "torch": torch, "L": _to_csr(Lsp),
             "M": _to_csr(self._ensure_obs_rows(which)),
             "V": V, "substeps": substeps, "per": substeps // V,
-            "h": self.sim.tau / substeps, "K": 18,
+            "h": self.sim.tau / substeps, "K": 18, "P": None,
         }
+        if dense:
+            import scipy.linalg as sla
+            Ld = np.asarray(Lsp.todense(), dtype=np.complex128)
+            Pnode = sla.expm((self.sim.tau / V) * Ld)      # exact node propagator
+            g["P"] = torch.tensor(Pnode, dtype=cdtype, device=device)
+            Md = np.asarray(self._ensure_obs_rows(which).todense(), dtype=np_dt)
+            g["Mdense"] = torch.tensor(Md, dtype=cdtype, device=device)
         cache[key] = g
         return g
 
@@ -503,6 +523,17 @@ class QRCSystem:
         rho = vec.reshape(d, d).T
         rho = U @ rho @ U.conj().T
         x = rho.T.reshape(-1)
+        if g.get("P") is not None:
+            # dense exact-propagator path (small systems): V big matmuls,
+            # ~1000× faster than the Taylor loop, still differentiable in U.
+            P = g["P"]
+            node_vecs = []
+            for _ in range(g["V"]):
+                x = torch.mv(P, x)
+                node_vecs.append(x)
+            Vmat = torch.stack(node_vecs, dim=1)
+            feats = (g["Mdense"] @ Vmat).real
+            return feats.T.reshape(-1), x
         L, h, K, per = g["L"], g["h"], g["K"], g["per"]
         node_vecs = []
         for step in range(1, g["substeps"] + 1):
