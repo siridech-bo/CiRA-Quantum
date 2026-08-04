@@ -334,6 +334,28 @@ measure by shifting pulses equals the one the simulator computes by backprop.
 
 ---
 
+## 8b. Current status — what is proven (all in simulation, zero GPU)
+
+| Claim | Status | Evidence |
+|-------|--------|----------|
+| Autograd flows through a Lindblad reservoir | ✅ correct to 1.9e-8 | `qrc_grad_smoketest.py` |
+| Autograd survives the **production** op family (sparse-CSR complex) | ✅ correct to 3.5e-9 | `qrc_grad_prod_check.py` |
+| No JAX/Dynamiqs migration needed | ✅ one detach lifted | `system.py: ensure_diff/step_diff` |
+| A learnable encoder trains end-to-end | ✅ loss ↓, gradients flow | `qrc_learnable_proto.py`, Fig. 12 |
+| Learned encoding beats `arcsin(√s)`? | ⚠️ **not yet** — short run loses; learned θ(s) trends *toward* arcsin | Fig. 12 |
+| **PSR reproduces the sim gradient** (hardware recipe) | ✅ machine precision; global-pulse caveat confirmed | `qrc_psr_sim.py` |
+| Converged / 9-spin / multi-seed verdict | ⬜ open | go-gated GPU campaign |
+
+**Recommendation.** The direction is fully de-risked as a *capability* and a
+*methods* contribution (differentiable Quantum Neural ODE + a validated hardware
+PSR bridge), publishable independent of the performance verdict. The remaining
+open question — *does a learned encoding ever beat `arcsin(√s)`?* — should be
+approached cheaply first: **converge the small-scale experiment on CPU and test
+whether `arcsin(√s)` is a local optimum** (warm-start the encoder there and see if
+the gradient escapes). Only escalate to the expensive 9-spin GPU campaign if the
+small-scale test shows real headroom. Our accumulating evidence (Phase-2 +
+prototype) leans toward "confirms arcsin," i.e. a methods result.
+
 ## 9. References
 
 - Chen, Rubanova, Bettencourt, Duvenaud (2018). *Neural Ordinary Differential
