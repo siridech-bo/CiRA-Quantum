@@ -76,11 +76,20 @@ const readoutInfo = computed(() => {
   return { label: cat.fid653?.label, D: cat.fid653?.D, detail: cat.fid653?.note }
 })
 
+/** Deep-copy a schema default, unwrapping Vue reactive proxies (the schema is
+ *  stored in a reactive ref, so nested arrays are Proxies — structuredClone
+ *  can't clone those). All defaults are JSON-safe (primitives / number arrays). */
+function cloneDefault(v: any): any {
+  if (Array.isArray(v)) return v.map((x) => x)
+  if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v))
+  return v
+}
+
 function initValues() {
   const t = task.value
   Object.keys(values).forEach((k) => delete values[k])
   if (!t) return
-  for (const f of t.fields) values[f.name] = structuredClone(f.default)
+  for (const f of t.fields) values[f.name] = cloneDefault(f.default)
 }
 
 function onTaskChange() {
