@@ -454,6 +454,8 @@ def main():
                     help="scale the qubit J-couplings (2.0 = strong coupling)")
     ap.add_argument("--correlation", action="store_true",
                     help="use 2-body correlation readout instead of single-qubit")
+    ap.add_argument("--run-dir", default=None, help="progress/events dir (launcher-managed)")
+    ap.add_argument("--out", default=None, help="results JSON path (launcher-managed)")
     args = ap.parse_args()
 
     if args.device == "cuda" and not torch.cuda.is_available():
@@ -473,10 +475,47 @@ def main():
     if args.mode == "benchmark":
         benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T)
     else:
-        train(sysm, g, args.device, cdt, task=args.task, T=args.T,
-              washout=args.washout, steps=args.steps, lr=args.lr, seed=args.seed,
-              conditions=tuple(args.conditions.split(",")),
-              window=args.window, no_memory=args.no_memory)
+        # Optional launcher plumbing: a run-dir gives live progress + a results
+        # JSON so the run is visible/comparable in the QRC dashboard.
+        log = None
+        if args.run_dir:
+            from qrc_progress import ProgressLogger
+            log = ProgressLogger(run_dir=args.run_dir,
+                                 title=f"QRC learnable encoding ({args.task}, {args.system})")
+            log.event("config", f"system={args.system} N={sysm.n} task={args.task} "
+                      f"T={args.T} steps={args.steps} conditions={args.conditions} "
+                      f"coupling={args.coupling_scale}x correlation={args.correlation}")
+        try:
+            results, base, verdict = train(
+                sysm, g, args.device, cdt, task=args.task, T=args.T,
+                washout=args.washout, steps=args.steps, lr=args.lr, seed=args.seed,
+                conditions=tuple(args.conditions.split(",")),
+                window=args.window, no_memory=args.no_memory)
+            if args.run_dir or args.out:
+                import json
+                payload = {
+                    "experiment": "learnable_encoding",
+                    "regime": "B (trained readout + trained encoding)",
+                    "readout": "correlation" if args.correlation else "observable",
+                    "system": args.system, "task": args.task, "n_spins": sysm.n,
+                    "coupling_scale": args.coupling_scale, "T": args.T, "steps": args.steps,
+                    "quantum_memory": not args.no_memory,
+                    "arcsin_baseline_test_nmse": float(base),
+                    "verdict": verdict,
+                    "conditions": {k: {"test_nmse": float(v[0]), "enc_std": (float(v[2]) if v[2] is not None else None)}
+                                   for k, v in results.items()},
+                }
+                out = args.out or str(Path(args.run_dir) / "results.json")
+                Path(out).parent.mkdir(parents=True, exist_ok=True)
+                Path(out).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+                if log:
+                    log.event("results", f"verdict: {verdict}")
+                    log.close("done")
+        except Exception as e:  # noqa: BLE001
+            if log:
+                log.event("error", f"{type(e).__name__}: {e}")
+                log.close("error")
+            raise
 
 
 if __name__ == "__main__":

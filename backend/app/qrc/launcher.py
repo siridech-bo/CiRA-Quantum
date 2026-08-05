@@ -135,7 +135,33 @@ _TASKS: dict[str, dict[str, Any]] = {
         "choices": ("mc_experiment", "fidelity"),
         "output": "run_dir",
     },
+    # memory: STM/Parity-Check time-multiplexing benchmark. Forward-only, CPU.
+    # Two readouts (choice): "observable" (⟨σ⟩×V) or "fid_reduced" (physics-
+    # informed reduced FID, projected onto the D_eff analytic lines — SOP §3.2).
+    # ``Vs`` sweeps virtual nodes (observable); ``Ms`` sweeps FID samples (fid).
+    "memory": {
+        "script": "scripts/qrc_memory_benchmark.py",
+        "fixed": [],
+        "numeric": ("n_spins", "T", "washout", "n_train", "kmax", "seed", "coupling_scale"),
+        "lists": ("Vs", "Ms"),
+        "flags": (),
+        "choices": ("readout",),
+    },
+    # learnable: differentiable learnable-encoding training (regime B, §3.1) vs
+    # the arcsin baseline, leakage-free 3-way split. GPU-bound (see gpu_tasks).
+    "learnable": {
+        "script": "scripts/qrc_learnable_9spin.py",
+        "fixed": ["--mode", "train"],
+        "numeric": ("T", "washout", "steps", "seed", "n_virtual", "lr", "coupling_scale"),
+        "lists": (),
+        "flags": ("no_memory", "correlation"),
+        "choices": ("task_learn", "device", "conditions", "system_learn"),
+    },
 }
+
+# Tasks whose runner is GPU-bound — the setup UI surfaces a wall-clock estimate
+# and requires an explicit confirm before launching (CLAUDE.md GPU hard rule).
+GPU_TASKS = frozenset({"learnable"})
 
 # name -> (cli flag, python type, min, max). Applies to both scalar
 # ``numeric`` params and per-element ``lists`` params.
@@ -154,10 +180,20 @@ _PARAM_SPEC: dict[str, tuple[str, type, float, float]] = {
     "splits": ("--splits", int, 0, 1_000_000),
     "key_horizon": ("--key-horizon", int, 1, 100_000),
     "kmax": ("--kmax", int, 1, 500),
+    # memory / learnable runners
+    "n_spins": ("--n-spins", int, 1, 12),
+    "T": ("--T", int, 1, 1_000_000),
+    "steps": ("--steps", int, 1, 100_000),
+    "lr": ("--lr", float, 1e-6, 10.0),
+    "coupling_scale": ("--coupling-scale", float, 0.0, 100.0),
+    "Vs": ("--Vs", int, 1, 4096),
+    "Ms": ("--Ms", int, 16, 65536),
 }
 
 _FLAG_SPEC: dict[str, str] = {
     "no_esn": "--no-esn",
+    "no_memory": "--no-memory",
+    "correlation": "--correlation",
 }
 
 # name -> (cli flag, allowed string values). String params can never smuggle
@@ -168,6 +204,15 @@ _CHOICE_SPEC: dict[str, tuple[str, tuple[str, ...]]] = {
     "experiment": ("--experiment", ("2.1", "2.1_quick", "2.2", "all")),
     "mc_experiment": ("--experiment", ("all", "quick", "phaseamp", "protons")),
     "fidelity": ("--fidelity", ("quick", "screen", "full", "tiny")),
+    # memory runner
+    "readout": ("--readout", ("observable", "fid_reduced")),
+    # learnable runner (separate keys so --task/--system don't collide with the
+    # narma/weather/trace-gen runners' fixed values)
+    "task_learn": ("--task", ("narma2", "narma10", "synthetic")),
+    "device": ("--device", ("cpu", "cuda")),
+    "conditions": ("--conditions", ("arcsin,perspin", "arcsin,global",
+                                    "arcsin,global,perspin")),
+    "system_learn": ("--system", ("crotonic9_paper4", "3", "6")),
 }
 
 # Only names/dots/dashes — never a path separator or "..". Blocks traversal
