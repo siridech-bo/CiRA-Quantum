@@ -36,8 +36,14 @@ RDT = torch.float64
 CDT_MAP = {"complex64": torch.complex64, "complex128": torch.complex128}
 
 
-def build_system(name, n_virtual):
+def build_system(name, n_virtual, coupling_scale=1.0):
     sysc = _resolve_system(name)
+    if coupling_scale != 1.0:                       # scale the qubit couplings
+        from app.qrc.config import SystemConfig
+        sysc = SystemConfig(
+            n_qubits=sysc.n_qubits, chemical_shifts=list(sysc.chemical_shifts),
+            j_coupling=(np.asarray(sysc.j_coupling) * coupling_scale).tolist(),
+            t1=list(sysc.t1), t2=list(sysc.t2), labels=list(sysc.labels))
     sim = SimConfig(tau=0.03, n_virtual=n_virtual, evolution_mode="action")
     return QRCSystem(sysc, sim)
 
@@ -265,7 +271,8 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
     y_use = y[washout:]
     tr, va, te = _three_way(len(y_use))
     n_tr, n_va, n_te = tr.stop - tr.start, va.stop - va.start, te.stop - te.start
-    nfeat = 3 * sysm.n * g["V"] + 1
+    n_obs = g["Mdense"].shape[0] if g.get("Mdense") is not None else 3 * sysm.n
+    nfeat = n_obs * g["V"] + 1
     print(f"task={task} T={T} usable={len(y_use)} tr/va/te={n_tr}/{n_va}/{n_te} "
           f"n_feat={nfeat} (n_train>2*n_feat: {n_tr > 2 * nfeat}) | window={window} "
           f"quantum-memory={'OFF (ablation)' if no_memory else 'ON'}")
@@ -443,15 +450,25 @@ def main():
                     help="encoder input = sliding window of last k inputs (strategy B)")
     ap.add_argument("--no-memory", action="store_true",
                     help="disable cross-step quantum memory (tau->0 ablation)")
+    ap.add_argument("--coupling-scale", type=float, default=1.0,
+                    help="scale the qubit J-couplings (2.0 = strong coupling)")
+    ap.add_argument("--correlation", action="store_true",
+                    help="use 2-body correlation readout instead of single-qubit")
     args = ap.parse_args()
 
     if args.device == "cuda" and not torch.cuda.is_available():
         raise SystemExit("cuda requested but not available")
     cdt = CDT_MAP[args.dtype]
-    sysm = build_system(args.system, args.n_virtual)
+    sysm = build_system(args.system, args.n_virtual, coupling_scale=args.coupling_scale)
     g = sysm.ensure_diff(device=args.device, cdtype=cdt)
+    if args.correlation:                             # swap in 2-body correlation readout
+        from qrc_correlation_readout import build_readout
+        M, n_obs, _ = build_readout(sysm, True)
+        g["Mdense"] = M.to(device=args.device, dtype=cdt)
+        print(f"correlation readout: {n_obs} observables (was {3*sysm.n})")
     print(f"system={args.system} N={sysm.n} dim={sysm.dim} | V={g['V']} "
-          f"substeps={g['substeps']} K={g['K']} | device={args.device} dtype={args.dtype}")
+          f"substeps={g['substeps']} K={g['K']} coupling={args.coupling_scale}x "
+          f"corr={args.correlation} | device={args.device} dtype={args.dtype}")
 
     if args.mode == "benchmark":
         benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T)
