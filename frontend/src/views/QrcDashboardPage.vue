@@ -10,7 +10,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useQrcStore, type QrcRunStatus, type QrcRunSummary } from '@/stores/qrc'
 import CiraLogo from '@/components/CiraLogo.vue'
-import QrcNewRunDialog from '@/components/QrcNewRunDialog.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -18,7 +17,6 @@ const qrc = useQrcStore()
 
 const loading = ref(true)
 const fatal = ref<string | null>(null)
-const newRunDialog = ref(false)
 const stoppingId = ref<string | null>(null)
 const stopError = ref<string | null>(null)
 
@@ -66,10 +64,6 @@ async function stopRun(run: QrcRunSummary) {
   }
 }
 
-function onCreated(id: string) {
-  router.push(`/qrc/runs/${id}`)
-}
-
 const sortedRuns = computed(() =>
   [...qrc.runs].sort(
     (a, b) => new Date(b.created_utc).getTime() - new Date(a.created_utc).getTime(),
@@ -101,6 +95,7 @@ onBeforeUnmount(() => {
       <span class="text-subtitle-1 ml-3 text-medium-emphasis">— QRC</span>
     </div>
     <v-spacer />
+    <v-btn variant="text" prepend-icon="mdi-compare" @click="router.push('/qrc/compare')">Compare</v-btn>
     <v-btn variant="text" @click="router.push('/')">Home</v-btn>
     <v-btn v-if="!auth.user" variant="outlined" class="ml-2" @click="router.push('/login')">
       Log in
@@ -161,13 +156,11 @@ onBeforeUnmount(() => {
           @click="refresh"
         >Refresh</v-btn>
         <v-btn
-          v-if="auth.user"
           color="primary"
           variant="flat"
           prepend-icon="mdi-play-circle"
-          :disabled="qrc.anyRunActive"
-          @click="newRunDialog = true"
-        >New run</v-btn>
+          @click="router.push('/qrc/new')"
+        >New experiment</v-btn>
       </div>
       <div v-if="auth.user && qrc.anyRunActive" class="text-caption text-medium-emphasis mb-2">
         A run is already active — only one heavy job may run at a time.
@@ -239,8 +232,6 @@ onBeforeUnmount(() => {
         </v-table>
       </v-card>
     </v-container>
-
-    <QrcNewRunDialog v-model="newRunDialog" @created="onCreated" />
   </v-main>
 </template>
 

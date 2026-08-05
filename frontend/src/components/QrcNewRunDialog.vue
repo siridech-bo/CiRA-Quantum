@@ -36,7 +36,10 @@ const TASKS: { value: QrcTask; title: string; hint: string }[] = [
 // Keys MUST match the backend launcher allow-list (app/qrc/launcher.py _TASKS);
 // any extra key is rejected with HTTP 400. `subtask` chooses the trace-gen
 // target; `trace` (phase1) is a cached-trace NAME → artifacts/traces/<name>.npz.
-const DEFAULT_CONFIGS: Record<QrcTask, Record<string, any>> = {
+// Legacy quick-launch dialog (the full /qrc/new page is now the canonical setup).
+// Only the four original tasks are offered here; Partial<> because QrcTask has
+// since grown to include the schema-driven tasks (memory/learnable/phase2/memcap).
+const DEFAULT_CONFIGS: Partial<Record<QrcTask, Record<string, any>>> = {
   'trace-gen': {
     subtask: 'weather',
     fid_points: 2048,

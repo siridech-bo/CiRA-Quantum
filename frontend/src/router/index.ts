@@ -27,6 +27,8 @@ import QldpcLearnPage from '@/views/QldpcLearnPage.vue'
 import QldpcCodeFamilyDetailPage from '@/views/QldpcCodeFamilyDetailPage.vue'
 import QrcDashboardPage from '@/views/QrcDashboardPage.vue'
 import QrcRunDetailPage from '@/views/QrcRunDetailPage.vue'
+import QrcExperimentSetupPage from '@/views/QrcExperimentSetupPage.vue'
+import QrcComparePage from '@/views/QrcComparePage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -105,6 +107,8 @@ const routes: RouteRecordRaw[] = [
   // against ``auth.user``, mirroring the qLDPC/QML public-gallery
   // pattern rather than a route-level guard).
   { path: '/qrc', component: QrcDashboardPage },
+  { path: '/qrc/new', component: QrcExperimentSetupPage },
+  { path: '/qrc/compare', component: QrcComparePage },
   { path: '/qrc/runs/:id', component: QrcRunDetailPage },
   // Phase 7 — Admin read-only views. Operator visibility into users,
   // jobs, and BYOK provider distribution. requiresAdmin pushes

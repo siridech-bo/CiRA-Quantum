@@ -33,7 +33,85 @@ function isNetworkError(e: unknown): boolean {
 // Types — mirror §3 JSON shapes exactly.
 // ---------------------------------------------------------------------
 
-export type QrcTask = 'trace-gen' | 'narma' | 'weather' | 'phase1'
+export type QrcTask =
+  | 'trace-gen'
+  | 'narma'
+  | 'weather'
+  | 'phase1'
+  | 'phase2'
+  | 'memcap'
+  | 'memory'
+  | 'learnable'
+
+// ---- Experiment-setup schema (GET /api/qrc/schema) ------------------------
+
+export interface QrcField {
+  name: string
+  kind: 'number' | 'choice' | 'flag' | 'list'
+  label: string
+  group: string
+  default: any
+  help?: string | null
+  role?: string | null
+  ntype?: 'int' | 'float'
+  min?: number
+  max?: number
+  options?: string[]
+}
+
+export interface QrcTaskSchema {
+  key: string
+  label: string
+  desc: string
+  gpu: boolean
+  dataset_field: string | null
+  fields: QrcField[]
+}
+
+export interface QrcSchema {
+  groups: { key: string; label: string }[]
+  tasks: QrcTaskSchema[]
+  readouts: Record<string, any>
+  single_active_job: boolean
+}
+
+// ---- References (benchmarks / tiers) + comparison -------------------------
+
+export interface QrcReference {
+  id: string
+  kind: 'benchmark' | 'tier'
+  label: string
+  task: string
+  readout: string
+  D: number | null
+  regime?: string
+  metrics?: Record<string, any>
+  source?: string
+  builtin?: boolean
+}
+
+export interface QrcCompareItem {
+  id: string
+  kind: 'run' | 'reference'
+  label: string
+  missing?: boolean
+  status?: string
+  task?: string
+  readout?: string
+  D?: number | null
+  regime?: string
+  config?: Record<string, any>
+  metrics?: Record<string, number>
+  note?: string
+}
+
+export interface QrcCompareResult {
+  items: QrcCompareItem[]
+  config_diff: Record<string, Record<string, any>>
+  metric_keys: string[]
+  comparable: boolean
+  warnings: string[]
+}
 
 // Must match the backend launcher vocabulary exactly (app/qrc/launcher.py):
 // a run is 'running', then 'done' | 'stopped' | 'error'.
@@ -455,10 +533,52 @@ export const useQrcStore = defineStore('qrc', () => {
     return r.data
   }
 
+  // ---- Experiment setup + comparison ------------------------------------
+
+  const schema = ref<QrcSchema | null>(null)
+  const references = ref<QrcReference[]>([])
+
+  /** GET /api/qrc/schema — the form schema (tasks, fields, readout catalogue). */
+  async function loadSchema(): Promise<QrcSchema> {
+    const r = await api.get<QrcSchema>('/api/qrc/schema')
+    schema.value = r.data
+    return r.data
+  }
+
+  /** GET /api/qrc/references — named benchmarks & tiers to compare against. */
+  async function loadReferences(): Promise<QrcReference[]> {
+    const r = await api.get<QrcReference[]>('/api/qrc/references')
+    references.value = r.data
+    return r.data
+  }
+
+  /** POST /api/qrc/references — auth-gated. Save a user benchmark/tier. */
+  async function addReference(entry: Partial<QrcReference>): Promise<QrcReference> {
+    const r = await api.post<QrcReference>('/api/qrc/references', entry)
+    await loadReferences().catch(() => {})
+    return r.data
+  }
+
+  /** POST /api/qrc/compare — side-by-side of N runs (+ references). */
+  async function compareRuns(runIds: string[], referenceIds: string[] = []): Promise<QrcCompareResult> {
+    const r = await api.post<QrcCompareResult>('/api/qrc/compare', {
+      runs: runIds,
+      references: referenceIds,
+    })
+    return r.data
+  }
+
+  /** GET results for one run WITHOUT clobbering the singleton currentResults
+   *  (used by the compare page to fetch several runs). */
+  async function loadResultsFor(id: string): Promise<QrcResults> {
+    const r = await api.get<QrcResults>(`/api/qrc/runs/${id}/results`)
+    return r.data
+  }
+
   /** POST /api/qrc/runs — auth-gated. Enforces (server-side) a single
    *  active heavy job; a 409 response is surfaced with a clear message
    *  rather than the raw axios error. */
-  async function createRun(task: QrcTask, config: Record<string, any>): Promise<{ id: string }> {
+  async function createRun(task: QrcTask | string, config: Record<string, any>): Promise<{ id: string }> {
     error.value = null
     try {
       const r = await api.post<{ id: string }>('/api/qrc/runs', { task, config })
@@ -517,6 +637,13 @@ export const useQrcStore = defineStore('qrc', () => {
     usingMockEmbedding,
     error,
     anyRunActive,
+    schema,
+    references,
+    loadSchema,
+    loadReferences,
+    addReference,
+    compareRuns,
+    loadResultsFor,
     loadRuns,
     startRunsPolling,
     stopRunsPolling,
