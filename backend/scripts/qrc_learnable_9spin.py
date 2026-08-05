@@ -163,6 +163,48 @@ def make_fid_reduced_post(sysm, g, device, readout_qubits=None):
     return post, 2 * ls.d_eff, ls
 
 
+def capture_fid(angle_fn, inputs, sysm, g, device, cdt):
+    """Forward-only pass returning the per-step transverse-magnetization FID
+    ``(T, V)`` complex — ``fid[t,v] = Σ_k ⟨σx_k⟩ + i⟨σy_k⟩`` over the V dense
+    nodes. Reconstructed from the x/y/z observables (needs which=('x','y','z')),
+    so it works for either readout. Used to persist the final learned-encoding
+    waveform (SOP persist-waveform rule) so the FID/spectrum viewer + offline
+    metrics work without a retrain."""
+    with torch.no_grad():
+        F = forward_features([angle_fn(x) for x in inputs], sysm, g, device, cdt)
+    V, n = g["V"], sysm.n
+    Fr = F.reshape(F.shape[0], V, 3, n).cpu().numpy()          # t, v, axis, spin
+    fid = Fr[:, :, 0, :].sum(2) + 1j * Fr[:, :, 1, :].sum(2)   # (T, V)
+    return fid.astype(np.complex64)
+
+
+def _save_learned_trace(trace_dir, label, angle_fn, inputs, u, washout, n_tr,
+                        sysm, g, device, cdt, seed, task, log=None):
+    """Persist the final encoding's FID waveform as a §1-schema trace .npz in the
+    run-dir (``resolve_trace_path`` finds any .npz there), so ``/fid`` renders it."""
+    import json
+    from pathlib import Path
+
+    fid = capture_fid(angle_fn, inputs, sysm, g, device, cdt)
+    T = int(fid.shape[0])
+    path = Path(trace_dir) / "learned_encoding_fid.npz"
+    np.savez(
+        str(path),
+        fids=fid,
+        fid_dwell=np.float64(sysm.sim.tau / g["V"]),
+        narma_input=np.asarray(u, dtype=float),
+        split=np.array([washout, n_tr, max(0, T - washout - n_tr)], dtype=np.int64),
+        seed=np.int64(seed),
+        meta_json=json.dumps({"experiment": "learnable_encoding", "condition": label,
+                              "task": task, "n_spins": sysm.n, "V": g["V"],
+                              "trace_readout": "transverse_FID"}),
+    )
+    msg = f"saved final-encoding FID trace ({label}, {T}x{g['V']}) -> {path.name}"
+    if log:
+        log.event("trace", msg)
+    print(msg)
+
+
 class ClosedLoopController(torch.nn.Module):
     """Memoryless feedback controller for the quantum-memory RNN (strategy 3):
     [s_t, f_{t-1}] -> n per-spin angles in (0, pi), where f_{t-1} is the readout
@@ -299,7 +341,8 @@ def _ridge_fit_eval(F, y, device, alpha=1e-3):
 
 def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
           lr=0.02, seed=7, conditions=("arcsin", "perspin"), window=1, no_memory=False,
-          post=None, readout_label="observable", n_feat_override=None):
+          post=None, readout_label="observable", n_feat_override=None,
+          log=None, trace_dir=None):
     """Learned encoding vs global arcsin(sqrt) baseline, leakage-free 3-way split,
     with under-powered/degenerate guardrails. conditions: 'global' (learned scalar
     angle) / 'perspin' (learned per-spin angles). window>1 feeds a sliding window
@@ -343,6 +386,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
     smax = float(np.max(u))
     sg = np.linspace(0.0, smax, 21)
     results = {"arcsin": (base, None, None, None)}   # (test, val_curve, std, angle_map)
+    trained_angle_fns = {}                           # label -> (angle_fn, inputs) for tracing
 
     def run_learned(label, n_out):
         torch.manual_seed(seed)          # vary encoder init with the run seed
@@ -351,6 +395,8 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
         curve = []
         best_val, best_state = float("inf"), None   # best-validation checkpoint
+        if log:
+            log.event("condition", f"training {label} ({steps} Adam steps)")
         t0 = time.time()
         for it in range(steps):
             opt.zero_grad()
@@ -363,10 +409,16 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
             if v < best_val:                         # keep the best-val encoder
                 best_val = v
                 best_state = {k: t.detach().clone() for k, t in enc.state_dict().items()}
+            if log:                                  # live per-step progress bar + ETA
+                el = time.time() - t0
+                eta = (steps - it - 1) * (el / (it + 1))
+                log.status(phase=f"train {label} (best val {best_val:.3f})",
+                           step=it + 1, total=steps, eta_s=eta)
             if it % 20 == 0 or it == steps - 1:
                 print(f"  [{label}] step {it:3d}: val NMSE={v:.4f}")
         if best_state is not None:                   # report test at best-val, not final
             enc.load_state_dict(best_state)
+        trained_angle_fns[label] = (lambda x, e=enc: enc_angles(e, x, sysm.n), enc_inputs)
         dt = time.time() - t0
         with torch.no_grad():
             _, nmse_test = _ridge_fit_eval(feats(lambda x: enc_angles(enc, x, sysm.n), enc_inputs), y_use, device)
@@ -438,6 +490,23 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
              "(arcsin optimal even on an encoding-favorable task)")
     print("VERDICT:", v)
     _fig14(results, base, sg, task, sysm.n)
+
+    # Persist the FINAL encoding's FID waveform (best learned condition, else
+    # arcsin) so the FID/spectrum viewer works and metrics are recomputable
+    # without a retrain (SOP persist-waveform rule).
+    if trace_dir:
+        try:
+            if best and best in trained_angle_fns:
+                af, inp = trained_angle_fns[best]
+                trace_label = best
+            else:
+                af, inp, trace_label = arcsin_ang, list(u), "arcsin"
+            _save_learned_trace(trace_dir, trace_label, af, inp, u, washout, n_tr,
+                                sysm, g, device, cdt, seed, task, log)
+        except Exception as e:  # noqa: BLE001 - tracing must not fail the run
+            print(f"WARN: trace save failed: {type(e).__name__}: {e}")
+            if log:
+                log.event("warn", f"trace save failed: {e}")
     return results, base, v
 
 
@@ -549,7 +618,8 @@ def main():
                 washout=args.washout, steps=args.steps, lr=args.lr, seed=args.seed,
                 conditions=tuple(args.conditions.split(",")),
                 window=args.window, no_memory=args.no_memory,
-                post=post, readout_label=readout_label, n_feat_override=n_feat_override)
+                post=post, readout_label=readout_label, n_feat_override=n_feat_override,
+                log=log, trace_dir=args.run_dir)
             if args.run_dir or args.out:
                 import json
                 payload = {
