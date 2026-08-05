@@ -155,7 +155,7 @@ _TASKS: dict[str, dict[str, Any]] = {
         "numeric": ("T", "washout", "steps", "seed", "n_virtual", "lr", "coupling_scale"),
         "lists": (),
         "flags": ("no_memory", "correlation"),
-        "choices": ("task_learn", "device", "conditions", "system_learn"),
+        "choices": ("task_learn", "device", "conditions", "system_learn", "readout"),
     },
 }
 

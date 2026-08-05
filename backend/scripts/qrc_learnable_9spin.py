@@ -110,22 +110,57 @@ def init_state(sysm, device, cdt):
                         device=device)
 
 
-def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False):
+def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False, post=None):
     """angles_seq: list of angle-vectors (one per step) -> feature matrix.
 
     ``reset_each_step`` re-initializes the reservoir state before each step,
     DISABLING the cross-step quantum memory — the τ→0 ablation control that
-    proves the quantum reservoir (not a classical crutch) carries the memory."""
+    proves the quantum reservoir (not a classical crutch) carries the memory.
+
+    ``post`` (optional) maps each step's raw observable feature vector to a
+    different readout — e.g. :func:`make_fid_reduced_post` projects the
+    transverse-magnetization FID onto the physics-informed D_eff lines (SOP
+    §3.2). It is applied inside the autograd graph, so gradients still reach the
+    encoding pulse."""
     vec0 = init_state(sysm, device, cdt)
     vec = vec0
     rows = []
     for th in angles_seq:
         U = per_spin_pulse(th, sysm.n, cdt)
         feat, vec = sysm.step_diff(vec, U, g)
-        rows.append(feat)
+        rows.append(post(feat) if post is not None else feat)
         if reset_each_step:
             vec = vec0
     return torch.stack(rows)
+
+
+def make_fid_reduced_post(sysm, g, device, readout_qubits=None):
+    """Build a differentiable per-step readout that projects the FID onto the
+    physics-informed D_eff analytic lines (SOP §3.2).
+
+    ``step_diff`` returns the observable vector laid out v-major, axis-major
+    (x,y,z), qubit-inner. We reconstruct the transverse-magnetization FID
+    ``fid[v] = Σ_k ⟨σx_k⟩[v] + i⟨σy_k⟩[v]`` over the V=M dense nodes in τ, then
+    matmul the fixed direct-DFT projection Φ (V × D_eff). Returns
+    ``(post, D_features, LineSet)`` where ``D_features = 2·D_eff`` (Re/Im per
+    line). Requires ``g['which'] == ('x','y','z')`` and V large enough to
+    resolve the lines (V ≳ 2·D_eff — set ``--n-virtual`` accordingly)."""
+    from app.qrc.spectral_lines import physics_informed_lines
+
+    if tuple(g["which"]) != ("x", "y", "z"):
+        raise ValueError("fid_reduced readout needs which=('x','y','z')")
+    ls = physics_informed_lines(sysm.system, readout_qubits)
+    V, n = g["V"], sysm.n
+    dwell = sysm.sim.tau / V
+    phi = ls.projection(V, dwell, backend="torch").to(device=device)   # (V, D_eff) c128
+
+    def post(feat):
+        fr = feat.reshape(V, 3, n)                     # v, axis, spin
+        fid = torch.complex(fr[:, 0, :].sum(1), fr[:, 1, :].sum(1)).to(torch.complex128)
+        X = fid @ phi                                  # (D_eff,) complex
+        return torch.cat([X.real, X.imag]).to(RDT)     # (2*D_eff,) real
+
+    return post, 2 * ls.d_eff, ls
 
 
 class ClosedLoopController(torch.nn.Module):
@@ -261,21 +296,27 @@ def _ridge_fit_eval(F, y, device, alpha=1e-3):
 
 
 def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
-          lr=0.02, seed=7, conditions=("arcsin", "perspin"), window=1, no_memory=False):
+          lr=0.02, seed=7, conditions=("arcsin", "perspin"), window=1, no_memory=False,
+          post=None, readout_label="observable", n_feat_override=None):
     """Learned encoding vs global arcsin(sqrt) baseline, leakage-free 3-way split,
     with under-powered/degenerate guardrails. conditions: 'global' (learned scalar
     angle) / 'perspin' (learned per-spin angles). window>1 feeds a sliding window
     of the last `window` inputs to a fully-connected encoder (strategy B).
-    no_memory disables the cross-step quantum memory (the tau->0 ablation)."""
+    no_memory disables the cross-step quantum memory (the tau->0 ablation).
+    ``post``/``readout_label`` select the readout (observable or physics-informed
+    fid_reduced); baseline and learned conditions share it for a fair comparison."""
     u, y = make_task(task, T, seed)
     y_use = y[washout:]
     tr, va, te = _three_way(len(y_use))
     n_tr, n_va, n_te = tr.stop - tr.start, va.stop - va.start, te.stop - te.start
-    n_obs = g["Mdense"].shape[0] if g.get("Mdense") is not None else 3 * sysm.n
-    nfeat = n_obs * g["V"] + 1
+    if n_feat_override is not None:
+        nfeat = n_feat_override + 1
+    else:
+        n_obs = g["Mdense"].shape[0] if g.get("Mdense") is not None else 3 * sysm.n
+        nfeat = n_obs * g["V"] + 1
     print(f"task={task} T={T} usable={len(y_use)} tr/va/te={n_tr}/{n_va}/{n_te} "
-          f"n_feat={nfeat} (n_train>2*n_feat: {n_tr > 2 * nfeat}) | window={window} "
-          f"quantum-memory={'OFF (ablation)' if no_memory else 'ON'}")
+          f"readout={readout_label} n_feat={nfeat} (n_train>2*n_feat: {n_tr > 2 * nfeat}) | "
+          f"window={window} quantum-memory={'OFF (ablation)' if no_memory else 'ON'}")
 
     # encoder inputs: scalars (window=1) or sliding windows (window=k)
     Uwin = sliding_windows(u, window) if window > 1 else None
@@ -284,7 +325,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
 
     def feats(angle_fn, inputs):
         return forward_features([angle_fn(x) for x in inputs], sysm, g, device, cdt,
-                                reset_each_step=no_memory)[washout:]
+                                reset_each_step=no_memory, post=post)[washout:]
 
     # (A) arcsin(sqrt) baseline: raw scalar input, standard QRC (with memory)
     def arcsin_ang(s):
@@ -454,6 +495,9 @@ def main():
                     help="scale the qubit J-couplings (2.0 = strong coupling)")
     ap.add_argument("--correlation", action="store_true",
                     help="use 2-body correlation readout instead of single-qubit")
+    ap.add_argument("--readout", choices=["observable", "fid_reduced"], default="observable",
+                    help="fid_reduced = physics-informed reduced FID (D_eff lines, SOP 3.2); "
+                         "set --n-virtual >= ~2*D_eff so the FID resolves the lines")
     ap.add_argument("--run-dir", default=None, help="progress/events dir (launcher-managed)")
     ap.add_argument("--out", default=None, help="results JSON path (launcher-managed)")
     args = ap.parse_args()
@@ -468,9 +512,21 @@ def main():
         M, n_obs, _ = build_readout(sysm, True)
         g["Mdense"] = M.to(device=args.device, dtype=cdt)
         print(f"correlation readout: {n_obs} observables (was {3*sysm.n})")
+
+    # Physics-informed reduced-FID readout (differentiable): project each step's
+    # FID onto the D_eff analytic lines. Needs the plain x/y/z observables.
+    post, readout_label, n_feat_override = None, "observable", None
+    if args.readout == "fid_reduced":
+        if args.correlation:
+            raise SystemExit("--readout fid_reduced is incompatible with --correlation")
+        post, n_feat_override, ls = make_fid_reduced_post(sysm, g, args.device)
+        readout_label = f"fid_reduced (D_eff={ls.d_eff}, {n_feat_override} feats)"
+        if g["V"] < ls.d_eff:
+            print(f"  WARNING: V={g['V']} < D_eff={ls.d_eff} — FID under-samples the "
+                  f"lines; raise --n-virtual to >= ~{2*ls.d_eff}")
     print(f"system={args.system} N={sysm.n} dim={sysm.dim} | V={g['V']} "
           f"substeps={g['substeps']} K={g['K']} coupling={args.coupling_scale}x "
-          f"corr={args.correlation} | device={args.device} dtype={args.dtype}")
+          f"corr={args.correlation} readout={args.readout} | device={args.device} dtype={args.dtype}")
 
     if args.mode == "benchmark":
         benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T)
@@ -490,13 +546,16 @@ def main():
                 sysm, g, args.device, cdt, task=args.task, T=args.T,
                 washout=args.washout, steps=args.steps, lr=args.lr, seed=args.seed,
                 conditions=tuple(args.conditions.split(",")),
-                window=args.window, no_memory=args.no_memory)
+                window=args.window, no_memory=args.no_memory,
+                post=post, readout_label=readout_label, n_feat_override=n_feat_override)
             if args.run_dir or args.out:
                 import json
                 payload = {
                     "experiment": "learnable_encoding",
                     "regime": "B (trained readout + trained encoding)",
-                    "readout": "correlation" if args.correlation else "observable",
+                    "readout": ("correlation" if args.correlation else args.readout),
+                    "D_eff": (n_feat_override // 2 if args.readout == "fid_reduced" else None),
+                    "feature_count": n_feat_override,
                     "system": args.system, "task": args.task, "n_spins": sysm.n,
                     "coupling_scale": args.coupling_scale, "T": args.T, "steps": args.steps,
                     "quantum_memory": not args.no_memory,
