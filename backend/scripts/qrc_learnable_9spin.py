@@ -207,23 +207,25 @@ def forward_features_closedloop(ctrl, u, sysm, g, device, cdt, reset_each_step=F
     return torch.stack(rows)
 
 
-def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None):
+def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None, post=None):
     """Time forward+backward and report peak memory — the go/no-go for the campaign.
     If ``baseline_T`` is set, also compute the arcsin NARMA-2 baseline at that T to
-    confirm the config is powered (test NMSE < 0.8) before any full training run."""
+    confirm the config is powered (test NMSE < 0.8) before any full training run.
+    ``post`` selects the readout (observable or physics-informed fid_reduced), so the
+    timing/memory reflect the readout the full run will actually use."""
     enc = EncoderPerSpin(sysm.n).to(device)
     opt = torch.optim.Adam(enc.parameters(), lr=0.01)
     u = np.random.default_rng(0).random(seq_len)
     if device == "cuda":
         torch.cuda.reset_peak_memory_stats()
     # warm-up (build caches / CUDA kernels)
-    t_fwd = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt)
+    t_fwd = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt, post=post)
     (t_fwd.real.sum()).backward()
     times = []
     for _ in range(n_steps):
         opt.zero_grad()
         t0 = time.time()
-        F = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt)
+        F = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt, post=post)
         loss = (F ** 2).mean()
         loss.backward()
         opt.step()
@@ -252,7 +254,7 @@ def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None):
             return torch.full((sysm.n,), a, dtype=RDT, device=device)
 
         with torch.no_grad():
-            F = forward_features([arc(s) for s in u], sysm, g, device, cdt)[wo:]
+            F = forward_features([arc(s) for s in u], sysm, g, device, cdt, post=post)[wo:]
             _, base_te = _ridge_fit_eval(F, y[wo:], device)
         b = float(base_te)
         print(f"\n  arcsin NARMA-2 baseline @ T={baseline_T}: test NMSE={b:.4f}  "
@@ -529,7 +531,7 @@ def main():
           f"corr={args.correlation} readout={args.readout} | device={args.device} dtype={args.dtype}")
 
     if args.mode == "benchmark":
-        benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T)
+        benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T, post=post)
     else:
         # Optional launcher plumbing: a run-dir gives live progress + a results
         # JSON so the run is visible/comparable in the QRC dashboard.
