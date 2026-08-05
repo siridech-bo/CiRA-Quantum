@@ -65,15 +65,41 @@ smaller readout. Unify on 653 (§7) before quoting production numbers.
 - **Linear ridge**, closed form: `W = (XᵀX + αI)⁻¹ Xᵀy`, α ≈ 1e-3 (paper 0.05).
 - `X` is `T × D` (D = feature count). **Weights per scalar target = D+1** (incl.
   bias). Multiple targets (e.g. MC delays) → `(D+1) × n_targets`, one column each.
-- **The readout is the ONLY trained object in standard QRC.** In learnable
-  encoding, `W` is still closed-form ridge (recomputed each forward); the encoder
-  is the extra trained part.
 - **`D` for the standard readout = 653.** So the readout weight vector is length
   **654** per target. Capacity ceiling `MC ≤ D = 653`.
 - **p≫n rule (critical):** need `n_train ≫ D`. For D=653 use large sets
   (paper: washout 1000 / train 1500 / test 1000). **Do not fit 653 features on a
   few-hundred-sample train split** — that overfits and inflates capacity (this is
   the Phase-1 p≫n trap). For the small observable readout (D≤180), `T≈600` is fine.
+
+### 3.1 What is "learned" — two regimes (label every result)
+
+There are exactly two training regimes; **state which one every result uses.**
+
+- **(A) Standard QRC — readout only** (the Das-Giorgi-Zambrini paper and all
+  canonical QRC, e.g. Fujii-Nakajima). The reservoir *and the encoding are FIXED*;
+  the **only** trained object is the linear readout `W`, fit by one closed-form
+  ridge solve (`XW ≈ y`, their Eq. 7; Scikit ridge, α=0.05). No gradients enter the
+  quantum dynamics. This is the *whole point* of reservoir computing — cheap
+  training, and no barren plateaus / variational-training pathologies. **This is our
+  honest baseline.**
+- **(B) Learnable encoding — our extension** (beyond the paper). Keep the *same*
+  closed-form ridge readout `W`, but *additionally* train the **input encoding**
+  (an MLP `s → θ`) by backpropagating through the differentiable reservoir step.
+  This is strictly more than the paper does — and it is *why* we hit
+  differentiability/memory costs (dense-FID backprop, the 9-spin memory wall) that
+  standard QRC never sees.
+
+| | (A) standard QRC | (B) our learnable encoding |
+|---|---|---|
+| readout `W` | trained (ridge) | trained (ridge, same) |
+| reservoir | fixed | fixed |
+| encoding | **fixed** (`arcsin√s` / paper's `β=s`) | **learned** (backprop) |
+
+**Reporting rule:** the "trained-readout-only" number (A) is the standard baseline
+to compare against the literature; the "trained-readout + trained-encoding" number
+(B) is our addition and must be labeled as such. Never present a (B) number as if
+it were the standard (A) regime.
 
 ## 4. Splits (leakage-free)
 
