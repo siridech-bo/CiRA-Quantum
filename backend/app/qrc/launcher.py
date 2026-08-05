@@ -157,11 +157,24 @@ _TASKS: dict[str, dict[str, Any]] = {
         "flags": ("no_memory", "correlation"),
         "choices": ("task_learn", "device", "conditions", "system_learn", "readout"),
     },
+    # learnable-campaign: unattended confirmation campaign (multi-dataset, multi-
+    # seed, tau->0 ablation, vs trained classical LSTM) on the reduced-FID readout.
+    # One long GPU job (~24-40 h), wall-clock-budgeted. Job plan is baked into the
+    # runner; only the shared knobs + budget are exposed.
+    "learnable-campaign": {
+        "script": "scripts/qrc_learnable_campaign.py",
+        "fixed": [],
+        "numeric": ("n_virtual", "coupling_scale", "T", "washout", "steps", "lr",
+                    "budget_hours"),
+        "lists": (),
+        "flags": (),
+        "choices": (),
+    },
 }
 
 # Tasks whose runner is GPU-bound — the setup UI surfaces a wall-clock estimate
 # and requires an explicit confirm before launching (CLAUDE.md GPU hard rule).
-GPU_TASKS = frozenset({"learnable"})
+GPU_TASKS = frozenset({"learnable", "learnable-campaign"})
 
 # name -> (cli flag, python type, min, max). Applies to both scalar
 # ``numeric`` params and per-element ``lists`` params.
@@ -188,6 +201,7 @@ _PARAM_SPEC: dict[str, tuple[str, type, float, float]] = {
     "coupling_scale": ("--coupling-scale", float, 0.0, 100.0),
     "Vs": ("--Vs", int, 1, 4096),
     "Ms": ("--Ms", int, 16, 65536),
+    "budget_hours": ("--budget-hours", float, 0.1, 72.0),
 }
 
 _FLAG_SPEC: dict[str, str] = {

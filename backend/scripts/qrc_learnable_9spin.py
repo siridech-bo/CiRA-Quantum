@@ -304,12 +304,32 @@ def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None, post=
     return ms, peak_gb
 
 
+def _mackey_glass(T, seed, tau=17, n=10.0, beta=0.2, gamma=0.1, discard=250):
+    """Mackey-Glass chaotic series (MG-17), normalized to [0,1]. Deterministic
+    given the delay ODE; ``seed`` perturbs the initial condition for multi-seed
+    variety. Returns the length-(T+1) series."""
+    rng = np.random.default_rng(seed)
+    total = T + discard + 1
+    x = [1.2 + 0.2 * (rng.random() - 0.5)] * (tau + 1)
+    for _ in range(total):
+        xt, xtau = x[-1], x[-1 - tau]
+        x.append(xt + (beta * xtau / (1.0 + xtau ** n) - gamma * xt))
+    s = np.asarray(x[discard:discard + T + 1])
+    return (s - s.min()) / (s.max() - s.min() + 1e-12)
+
+
 def make_task(task, T, seed):
-    """Return (u, y): reservoir driving input u and target y."""
+    """Return (u, y): reservoir driving input u and target y.
+
+    Tasks: narma2 (encoding-sensitive), narma10 (memory-bound), mackey_glass
+    (chaotic one-step-ahead prediction), synthetic (legacy memory-2 polynomial)."""
     if task in ("narma2", "narma10"):
         from app.qrc.tasks import narma_sequence  # u~U[0,0.5]
-        order = 2 if task == "narma2" else 10       # narma10 = memory-bound (strategy-B test)
+        order = 2 if task == "narma2" else 10       # narma10 = memory-bound
         return narma_sequence(T, order=order, seed=seed)
+    if task == "mackey_glass":
+        s = _mackey_glass(T, seed)                  # (T+1,) in [0,1]
+        return s[:-1], s[1:]                         # drive u_t, predict u_{t+1}
     # synthetic memory-2 polynomial (legacy fallback)
     rng = np.random.default_rng(seed)
     u = rng.random(T)
@@ -550,7 +570,8 @@ def main():
     ap.add_argument("--n-virtual", type=int, default=4)
     ap.add_argument("--dtype", default="complex64", choices=list(CDT_MAP))
     ap.add_argument("--seq-len", type=int, default=8)
-    ap.add_argument("--task", default="narma2", choices=["narma2", "narma10", "synthetic"])
+    ap.add_argument("--task", default="narma2",
+                    choices=["narma2", "narma10", "mackey_glass", "synthetic"])
     ap.add_argument("--T", type=int, default=300)
     ap.add_argument("--washout", type=int, default=30)
     ap.add_argument("--steps", type=int, default=100)
