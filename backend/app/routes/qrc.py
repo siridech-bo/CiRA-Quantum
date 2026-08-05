@@ -24,9 +24,53 @@ from typing import Any
 from flask import Blueprint, jsonify, request
 
 from app.auth import login_required
-from app.qrc import launcher
+from app.qrc import compare as compare_mod
+from app.qrc import launcher, references
+from app.qrc.schema import build_schema
 
 qrc_bp = Blueprint("qrc", __name__)
+
+
+# ---- Read-only: form schema / references / compare -------------------------
+
+
+@qrc_bp.route("/schema", methods=["GET"])
+def qrc_schema():
+    """Full experiment-setup form schema: tasks, grouped fields (with launcher-
+    enforced ranges/choices), the readout catalogue (incl. physics-informed
+    D_eff), and the GPU flag. Drives /qrc/new so it can never submit a bad config."""
+    return jsonify(build_schema())
+
+
+@qrc_bp.route("/references", methods=["GET"])
+def qrc_list_references():
+    """Named benchmarks & tiers a run can be compared against (built-ins + saved)."""
+    return jsonify(references.list_references())
+
+
+@qrc_bp.route("/references", methods=["POST"])
+@login_required
+def qrc_add_reference():
+    """Save a user benchmark/tier (needs id + label)."""
+    payload = request.get_json(silent=True) or {}
+    try:
+        return jsonify(references.add_reference(payload)), 201
+    except ValueError as exc:
+        return jsonify({"error": str(exc), "code": "BAD_REFERENCE"}), 400
+
+
+@qrc_bp.route("/compare", methods=["POST"])
+def qrc_compare():
+    """Assemble N runs (+ optional references) into a side-by-side comparison with
+    a config diff and the comparability guard (same task/readout/D — SOP §0).
+    Body: ``{"runs": [id, ...], "references": [id, ...]}``."""
+    payload = request.get_json(silent=True) or {}
+    runs = payload.get("runs") or []
+    refs = payload.get("references") or []
+    if not isinstance(runs, list) or not runs:
+        return jsonify({"error": "provide a non-empty 'runs' list", "code": "BAD_REQUEST"}), 400
+    return jsonify(compare_mod.compare([str(r) for r in runs],
+                                       [str(r) for r in refs]))
 
 
 # ---- Read-only: runs list --------------------------------------------------
