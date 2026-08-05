@@ -3,6 +3,18 @@
 Instructions and durable facts. Read this before reasoning about deployment,
 architecture, or where things run. If something here proves wrong, fix it here.
 
+## QRC conventions — READ `docs/QRC/QRC_STANDARD_PROCEDURES.md` FIRST (hard rule)
+
+Before running or **reporting** any QRC experiment, consult
+`docs/QRC/QRC_STANDARD_PROCEDURES.md` — the canonical conventions (readout,
+encoding, splits, tasks, metrics, rigor rules). **The standard readout is the
+653-feature FID spectrum** (`FeatureConfig(readout="fid", n_peaks=653)`), NOT the
+small `⟨σ⟩×V` observable readout. Any result on a non-standard readout MUST be
+labeled with its readout and feature count `D` — never switch the readout (or any
+convention) silently in a script. (This rule exists because that mistake was made
+once: the 2026-08 differentiable experiments ran on the 18–180-feature observable
+readout without labeling it.) If a convention changes, change the SOP `.md` first.
+
 ## Running GPU jobs — ASK + CONFIRM FIRST, EVERY TIME (hard rule)
 
 **GPU time is a real, billable cost to the user. Confirm before EVERY GPU
