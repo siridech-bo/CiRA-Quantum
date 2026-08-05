@@ -388,6 +388,21 @@ def main() -> None:
        "needs T2 x coupling large enough to populate the space before it decoheres -- longer "
        "coherence and/or stronger, faster couplings than this molecule provides.")
 
+    _h(doc, "7.1 Stacking the clean levers", 2)
+    _p(doc,
+       "The three quantum-clean levers -- learned per-spin encoding (section 6, input), coupling "
+       "strength (dynamics), and correlation readout (section 7, output) -- are complementary and "
+       "compound. On NARMA-2 (6-qubit, T=600): learned per-spin alone reaches 0.152; adding 2x "
+       "coupling and 2-body correlation readout drops it to 0.058 (a further -61%, and -73% vs the "
+       "0.216 open-loop number). None of these levers injects explicit classical memory -- the "
+       "encoding is a broadcast scalar, and coupling/correlation act only through the reservoir's "
+       "own dynamics and joint readout -- so the memory still lives in the quantum state (a tau->0 "
+       "ablation collapses it). 0.058 is thus the best honest, quantum-mediated reservoir "
+       "configuration. It narrows the gap to the best classical model (~0.011; section 8) from ~20x "
+       "(open-loop) to ~5x, without crossing it on this deterministic task: the improvements are "
+       "real and quantum-mediated, but they optimize a reservoir that remains, for classical-friendly "
+       "tasks, behind a trained recurrent model.")
+
     _h(doc, "8. Where quantum stands: the classical comparison", 1)
     _p(doc,
        "An encoding/readout improvement matters only if the substrate is worth using. We compared "

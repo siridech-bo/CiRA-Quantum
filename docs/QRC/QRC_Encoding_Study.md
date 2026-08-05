@@ -425,6 +425,23 @@ dimensionality is ~1. A genuine exponential-width advantage would require
 `T₂ × coupling` large enough to populate the space before it decoheres — longer
 coherence and/or stronger, faster couplings than this molecule provides.
 
+### 7.1 Stacking the clean levers
+
+The three *quantum-clean* levers — learned per-spin **encoding** (§6, input),
+**coupling** strength (dynamics), and **correlation readout** (§7, output) — are
+complementary and compound. On NARMA-2 (6-qubit, T=600): learned per-spin alone
+reaches 0.152; adding 2× coupling and 2-body correlation readout drops it to
+**0.058** (a further −61%, and −73% vs. the 0.216 open-loop number). Crucially,
+*none* of these levers injects explicit classical memory — the encoding is a
+broadcast scalar, and coupling/correlation act only through the reservoir's own
+dynamics and joint readout — so the memory still lives in the quantum state (a
+τ→0 ablation collapses it, as for open-loop per-spin). **0.058 is therefore the
+best honest, quantum-mediated reservoir configuration.** It narrows the gap to the
+best classical model (~0.011; §8) from ~20× (open-loop) to ~5×, without crossing
+it on this deterministic task — the improvements are real and quantum-mediated,
+but they optimize a reservoir that remains, for classical-friendly tasks, behind a
+trained recurrent model.
+
 ## 8. Where quantum stands: the classical comparison
 
 An encoding/readout improvement matters only if the substrate it improves is worth
