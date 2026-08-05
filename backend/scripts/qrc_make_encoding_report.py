@@ -392,6 +392,70 @@ def main() -> None:
     _p(doc,
        "An encoding/readout improvement matters only if the substrate is worth using. We compared "
        "the quantum reservoir against two different classes of classical model.")
+
+    _h(doc, "8.1 The Quantum RNN (closed-loop quantum-memory RNN)", 2)
+    _p(doc,
+       "A quantum reservoir is already a recurrent network: the density matrix rho_t is the hidden "
+       "state and the Lindblad evolution rho_t = exp(tau L) U(theta_t) rho_{t-1} U(theta_t)^dag is "
+       "the recurrence -- one fixed cell (encode -> evolve -> read) reused every timestep, the "
+       "physics playing the role of shared, untrained recurrent weights. The learnable-encoding work "
+       "of section 6 is thus a vanilla quantum RNN with a trained input map.")
+    _p(doc,
+       "The Quantum RNN adds a closed-loop feedback controller -- the one thing an LSTM has that a "
+       "reservoir lacks: control that adapts to the current state. Each step a small MEMORYLESS MLP "
+       "maps the input AND the previous reservoir readout to the per-spin drive angles:")
+    for line in [
+        "theta_t = controller(s_t, f_{t-1})     (memoryless MLP; f_{-1}=0)",
+        "U_t     = tensor_i R_x(theta_{t,i})    (per-spin encoding pulse)",
+        "rho_t   = exp(tau L) U_t rho_{t-1} U_t^dag   (quantum evolution = recurrence; memory in rho)",
+        "f_t     = <O>(rho_t)                   (readout, fed back next step)",
+        "y_hat   = ridge(f_t)                   (closed-form linear readout)",
+    ]:
+        mono = doc.add_paragraph()
+        r = mono.add_run(line); r.font.name = "Consolas"; r.font.size = Pt(9)
+    _p(doc,
+       "The controller has NO recurrent state of its own -- the intended memory lives entirely in "
+       "the quantum state rho. It is trained by backpropagation-through-time through the "
+       "differentiable reservoir step; the readout is closed-form ridge. So it is a hybrid: a "
+       "classical memoryless controller steering a quantum memory, with a feedback loop closed "
+       "through the reservoir readout.")
+    _p(doc,
+       "Honest architectural caveat: feeding f_{t-1} back into the controller ALSO creates a "
+       "classical recurrence -- the feature vector itself forms a hidden state f_t = G(f_{t-1}, s_t), "
+       "i.e. a classical RNN whose hidden units are the measured observables. Memory can flow through "
+       "two channels: rho (quantum) and f (classical feedback). The tau->0 ablation disentangles them.")
+
+    _h(doc, "8.2 NARMA-2 scoreboard", 2)
+    _p(doc, "All configurations on NARMA-2 (6-spin, leakage-free test NMSE, lower is better):")
+    _table(doc, ["Configuration", "quantum memory", "test NMSE", "vs arcsin"],
+           [("arcsin (fixed encoding) -- QRC baseline", "ON", "0.395", "--"),
+            ("learned per-spin (open-loop, sec 6)", "ON", "0.216", "-45%"),
+            ("Quantum RNN (closed-loop, feedback)", "ON", "0.137", "-65%"),
+            ("  classical feedback RNN (closed-loop, tau->0)", "OFF", "0.011", "-97%"),
+            ("per-spin, tau->0 (sanity)", "OFF", "1.010", "collapses")])
+    for txt in [
+        "The Quantum RNN (0.137) is the best quantum-involving configuration -- the feedback "
+        "controller improves the open-loop reservoir (0.216 -> 0.137, -37%). If one is committed to "
+        "using the quantum reservoir, this is the best way to run it.",
+        "But the tau->0 row is decisive: with the quantum memory disabled the closed loop still "
+        "reaches 0.011 -- near-perfect, and BETTER than with quantum memory on (0.137). The classical "
+        "feedback channel alone (the f-recurrence) is a classical RNN that models NARMA-2's "
+        "deterministic recurrence essentially exactly. So the Quantum RNN's gain is CLASSICAL: the "
+        "quantum memory is redundant and mildly harmful.",
+        "The clean quantum control is the last row: strip out the feedback (per-spin, tau->0) and the "
+        "model collapses to a mean-predictor (1.010) -- a scalar encoder has no classical memory, so "
+        "THAT result (the section-6 open-loop encoding) provably used the quantum reservoir; the "
+        "Quantum RNN does not.",
+    ]:
+        doc.add_paragraph(style="List Bullet").add_run(txt)
+    _p(doc,
+       "Takeaway: the Quantum RNN is a real improvement to the quantum reservoir (best "
+       "quantum-involving number), but the improvement is NOT quantum -- it is the classical feedback "
+       "loop, which on its own beats the full quantum system ~12x. This is why NARMA-2 is a "
+       "classical-friendly task and why the fair test of quantum value is reservoir-vs-reservoir "
+       "(below) and, ultimately, tasks classical memory cannot handle (section 7).")
+
+    _h(doc, "8.3 Reservoir vs. reservoir, and reservoir vs. trained RNN", 2)
     _p(doc,
        "vs. a classical RESERVOIR (ESN) -- the fair, same-paradigm comparison. Both use fixed "
        "dynamics + a trained linear readout. On real weather forecasting (Delhi climate; our sim "
@@ -406,16 +470,15 @@ def main() -> None:
                  "classical ESN, simulation and experiment (Hou et al. 2026).", italic=True, size=9)
         cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _p(doc,
-       "vs. a TRAINED-recurrence model (RNN/LSTM) -- a harder, different bar. On the deterministic "
-       "NARMA-2 a small trained feedback RNN reaches NMSE 0.011 (~20x better than the quantum "
-       "reservoir's 0.216); a classical ESN would lose to it too. This is a limitation of reservoir "
-       "computing in general, not of quantum specifically. Two controls confirm it and guard against "
-       "over-claiming: (a) windowed encoding beats arcsin√ on NARMA-10 but a classical linear ridge "
-       "on the same window matches it -- the win is the classical window; (b) a closed-loop feedback "
-       "controller reaches 0.137, but with the quantum memory disabled (τ→0) the classical feedback "
-       "loop alone reaches 0.011 -- it is a classical RNN, quantum memory redundant. The τ→0 "
-       "ablation separates genuine quantum-mediated results (the §6 open-loop encoding, which "
-       "collapses to a mean-predictor without the reservoir) from classically-explainable ones.")
+       "vs. a TRAINED-recurrence model (RNN/LSTM) -- a harder, different bar. As the scoreboard "
+       "(8.2) shows, on deterministic NARMA-2 a small trained feedback RNN reaches NMSE 0.011 (~20x "
+       "better than the quantum reservoir's 0.216); a classical ESN would lose to it too. This is a "
+       "limitation of reservoir computing in general, not of quantum specifically. A second control "
+       "reinforces it: windowed encoding beats arcsin√ on NARMA-10 but a classical linear ridge on "
+       "the same window matches it -- again the win is the classical window, not the quantum "
+       "reservoir. Together with the Quantum RNN's tau->0 result, the tau->0 ablation separates "
+       "genuine quantum-mediated results (the section-6 open-loop encoding, which collapses to a "
+       "mean-predictor without the reservoir) from classically-explainable ones.")
     _p(doc,
        "The honest bound. (i) Learned per-spin encoding and correlation readout are real, "
        "quantum-mediated improvements to the quantum reservoir (§6, §7). (ii) As a reservoir, the "

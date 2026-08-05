@@ -431,6 +431,78 @@ An encoding/readout improvement matters only if the substrate it improves is wor
 using. We therefore compared the quantum reservoir against two *different* classes
 of classical model, and the distinction is essential.
 
+### 8.1 The Quantum RNN (closed-loop quantum-memory RNN)
+
+A quantum reservoir *is already a recurrent network*: the density matrix `ρₜ` is
+the hidden state, and the Lindblad evolution
+`ρₜ = exp(τL)·U(θₜ)·ρₜ₋₁·U(θₜ)†` is the recurrence — one fixed "cell" (encode →
+evolve → read) reused at every timestep, with the physics playing the role of the
+(shared, untrained) recurrent weights. In this view the *learnable-encoding* work
+of §6 is a vanilla quantum RNN with a trained input map.
+
+The **Quantum RNN** adds a **closed-loop feedback controller** on top, to give the
+cell the one thing an LSTM has that a reservoir lacks — *control that adapts to the
+current state*. At each step a small **memoryless** MLP maps the input **and the
+previous reservoir readout** to the per-spin drive angles:
+
+```
+θₜ = controller(sₜ , fₜ₋₁)                 memoryless MLP; f₋₁ = 0
+Uₜ = ⊗ᵢ R_x(θₜ,ᵢ)                          per-spin encoding pulse
+ρₜ = exp(τL)·Uₜ ρₜ₋₁ Uₜ†                    quantum evolution = recurrence (memory in ρ)
+fₜ = ⟨O⟩(ρₜ)                                readout, fed back into the next step
+ŷ  = ridge(fₜ)                              closed-form linear readout
+```
+
+The controller has **no recurrent state of its own** — the *intended* memory lives
+entirely in the quantum state `ρ`. It is trained by backpropagation-through-time
+through the differentiable reservoir step (§6.1); the linear readout is the
+closed-form ridge. So it is a hybrid: a classical *memoryless* controller steering
+a *quantum* memory, with a feedback loop closed through the reservoir's readout.
+
+**Honest architectural caveat.** Feeding the readout `fₜ₋₁` back into the
+controller *also* creates a **classical** recurrence — the feature vector itself
+forms a hidden state `fₜ = G(fₜ₋₁, sₜ)`, i.e. a classical RNN whose hidden units
+are the measured observables. So memory can flow through **two** channels: `ρ`
+(quantum) and `f` (classical feedback). The τ→0 ablation below is what disentangles
+them.
+
+### 8.2 NARMA-2 scoreboard
+
+All configurations on NARMA-2 (6-spin, leakage-free test NMSE, lower is better):
+
+| Configuration | quantum memory | test NMSE | vs. arcsin |
+|---------------|:---:|:---:|:---:|
+| arcsin (fixed encoding) — QRC baseline | ON | 0.395 | — |
+| learned per-spin (open-loop, §6) | ON | 0.216 | −45% |
+| **Quantum RNN (closed-loop, feedback)** | ON | **0.137** | **−65%** |
+| — classical feedback RNN (closed-loop, τ→0) | OFF | **0.011** | −97% |
+| per-spin, τ→0 (sanity) | OFF | 1.010 | collapses |
+
+Reading the scoreboard:
+
+- **The Quantum RNN (0.137) is the best quantum-involving configuration** — the
+  feedback controller improves the open-loop reservoir (0.216 → 0.137, −37%). *If
+  one is committed to using the quantum reservoir, this is the best way to run it.*
+- **But the τ→0 row is decisive.** With the quantum memory disabled (reset `ρ` each
+  step), the closed loop *still* reaches **0.011** — near-perfect, and *better* than
+  with the quantum memory on (0.137). The **classical feedback channel alone** (the
+  `f`-recurrence) is a classical RNN that models NARMA-2's deterministic recurrence
+  essentially exactly. So the Quantum RNN's gain is **classical**: the quantum
+  memory is redundant, and mildly *harmful* (it dilutes the clean classical loop).
+- **The clean quantum control** is the last row: strip out the feedback (`per-spin,
+  τ→0`) and the model collapses to a mean-predictor (1.010) — a scalar encoder has
+  no classical memory, so *that* result (the §6 open-loop encoding) provably used
+  the quantum reservoir. The Quantum RNN does not.
+
+**Takeaway.** The Quantum RNN is a real improvement *to the quantum reservoir*
+(best quantum-involving number), but its improvement is **not quantum** — it is the
+classical feedback loop, which on its own beats the full quantum system ~12×. This
+is exactly why NARMA-2 is a *classical-friendly* task and why the fair test of
+quantum value is the reservoir-vs-reservoir comparison (§8.3) and, ultimately,
+tasks classical memory cannot handle (§7).
+
+### 8.3 Reservoir vs. reservoir, and reservoir vs. trained RNN
+
 **vs. a classical *reservoir* (ESN) — the fair, same-paradigm comparison.** Both a
 quantum reservoir and a classical Echo State Network use *fixed* dynamics plus a
 trained linear readout. On **real weather forecasting** (Delhi climate; our
@@ -442,22 +514,22 @@ the core curve is partly digitized from the paper; the ESN tuning and matched
 conditions warrant independent verification.)
 
 **vs. a *trained-recurrence* model (RNN/LSTM) — a harder, different bar.** A trained
-RNN learns its recurrence by backpropagation; a reservoir does not. On the
-deterministic **NARMA-2**, a small trained feedback RNN reaches NMSE **0.011** —
-~20× better than the quantum reservoir’s 0.216 — and a classical ESN would lose to
-it too. This is a limitation of *reservoir computing in general*, not of quantum
-specifically. We confirmed it decisively with two controls that also guard against
-over-claiming quantum results:
+RNN learns its recurrence by backpropagation; a reservoir does not. As the
+scoreboard (§8.2) shows, on the deterministic **NARMA-2** a small trained feedback
+RNN reaches NMSE **0.011** — ~20× better than the quantum reservoir’s 0.216 — and a
+classical ESN would lose to it too. This is a limitation of *reservoir computing in
+general*, not of quantum specifically. A second control reinforces the point and
+guards against over-claiming quantum results:
 
 - **Windowed encoding** (injecting an explicit `k`-step input window) beats
   `arcsin√` on NARMA-10, but a **classical linear ridge on the same window matches
   it** — the win is the classical window, not the quantum reservoir.
-- **Closed-loop feedback** (a controller reading back the reservoir readout) reaches
-  0.137, but with the **quantum memory disabled (τ→0)** the *classical* feedback
-  loop alone reaches **0.011** — it is a classical RNN, and the quantum memory is
-  redundant (even mildly harmful). The τ→0 ablation is what separates genuine
-  quantum-mediated results (the §6 open-loop encoding, which *collapses* to a
-  mean-predictor without the reservoir) from classically-explainable ones.
+
+Together with the Quantum RNN's τ→0 result (§8.2), these confirm the pattern: the
+τ→0 ablation separates genuine quantum-mediated results (the §6 open-loop encoding,
+which *collapses* to a mean-predictor without the reservoir) from
+classically-explainable ones (any encoder given its own classical memory — a window
+or a feedback loop — makes the quantum reservoir redundant).
 
 **The honest bound.** (i) Learned per-spin encoding and correlation readout are
 real, quantum-mediated improvements *to the quantum reservoir* (§6, §7). (ii) As a
