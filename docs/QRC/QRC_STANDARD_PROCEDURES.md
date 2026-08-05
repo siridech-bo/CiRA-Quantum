@@ -101,6 +101,44 @@ to compare against the literature; the "trained-readout + trained-encoding" numb
 (B) is our addition and must be labeled as such. Never present a (B) number as if
 it were the standard (A) regime.
 
+### 3.2 Physics-informed reduced FID (for differentiable training)
+
+The full 653-FID readout is memory-heavy to backprop through (regime B). "Fewer"
+features is **not** guessed or top-K-by-magnitude — it is the reservoir's *actual*
+resolvable line count, computed from the Hamiltonian.
+
+Because `H` is all-`σz` (diagonal), the FID `⟨Σσx⟩` oscillates at a **finite,
+analytic** set of single-quantum transition frequencies. Flipping readout spin `k`
+against the other spins gives (first-order weak coupling, Hz):
+
+> **`f_k(z) = ν_k + ½ Σ_{j≠k} J_kj z_j`,  `z_j ∈ {±1}`**
+
+— each resonance `ν_k` split into a `2^{n-1}` J-multiplet. Every one of the 653 FFT
+peaks *is* one of these lines (or an FFT skirt of one). The encoding sets only the
+line **amplitudes**; the frequencies are fixed by `H`, so this basis is a constant
+of the reservoir (no reference run, no peak-finding).
+
+**Selection = enumerate the lines, then merge any closer than the decoherence
+linewidth `Δf = 1/(π T₂)`** (physically unresolvable). The survivors are `D_eff`
+features at *known* frequencies. Read them by a fixed **direct-DFT projection**
+`X = fid_samples · Φ`, `Φ[m,k] = exp(i·2π f_k t_m)` — differentiable (`torch.matmul`),
+so cheap enough to backprop through, unlike the dense 653-FID.
+
+Measured floors (`app/qrc/spectral_lines.py` → `report_deff()`):
+
+| system (readout) | raw transitions | linewidth | **`D_eff`** | `f_max` | dwell / M |
+|---|---|---|---|---|---|
+| crotonic-9 (protons 4–8) | 1280 | 1.57 Hz | **100** | 1157 Hz | ~0.17 ms / ~200 |
+| generic 6-spin (all) | 192 | 1.59 Hz | **137** | 358 Hz | ~0.56 ms / ~274 |
+
+So the standard 653 readout **oversamples crotonic-9 ~6.5×**; the physics floor is
+~100. Rules: (i) keep *all* resolvable lines — don't amplitude-prune, since a line
+that's dark for arcsin can carry signal for a learned encoding; (ii) `f_max` sets a
+Nyquist-safe `dwell < 1/(2 f_max)`, and `M ≳ 2·D_eff` FID samples resolve the lines;
+(iii) this is single-quantum only (the `Σσx` FID) — reading products/multi-quantum
+observables adds their transition frequencies. **Label `D = D_eff` and the readout
+("physics-informed reduced FID") on every result**, same as any non-653 readout (§0).
+
 ## 4. Splits (leakage-free)
 
 - **3-way, time-contiguous:** train / validation / test. Fit ridge on **train**;
