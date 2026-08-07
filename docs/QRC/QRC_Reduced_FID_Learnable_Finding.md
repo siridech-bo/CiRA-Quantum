@@ -1,9 +1,28 @@
 # Learnable encoding on the physics-informed reduced-FID readout — finding
 
-**Status:** 🟢 single-seed HEADROOM, **not yet confirmed** (multi-seed + ablation +
-classical-RNN campaign running as of 2026-08-06). Read
-`docs/QRC/QRC_STANDARD_PROCEDURES.md` first — this result is labeled with its
-readout and regime per §0/§3.1/§3.2.
+**Status:** ✅ **CONFIRMED** (multi-seed + τ→0 ablation, campaign
+`learnable-campaign-01ce463b`, 41.0 h, completed 2026-08-08). The QRC-vs-classical
+claim is still pending a **strengthened classical baseline** (tuned LSTM + ESN) —
+see "Remaining". Read `docs/QRC/QRC_STANDARD_PROCEDURES.md` first — this result is
+labeled with its readout and regime per §0/§3.1/§3.2.
+
+## Confirmed results (campaign, test NMSE)
+
+| Task (seeds) | arcsin (A) | **perspin (B, learned)** | LSTM* | perspin vs arcsin | τ→0 ablation |
+|---|---|---|---|---|---|
+| narma2 (3) | 0.101 ± 0.006 | **0.0052 ± 0.0013** | 0.134 ± 0.015 | **3/3, ~19×** | 0.9994 → collapses ✓ |
+| narma10 (3) | 0.312 ± 0.013 | **0.120 ± 0.019** | 0.477 ± 0.040 | **3/3, ~2.6×** | 0.9974 → collapses ✓ |
+| mackey_glass (2) | 0.00063 | **0.000076** | 0.0016 | **2/2, ~8×** | — (easy task) |
+
+Reservoir: 6-spin, coupling ×2, readout `fid_reduced` (D_eff=161 → 322 feats),
+T=1500, 100 Adam steps, leakage-free 3-way. *LSTM = **under-tuned baseline** — do
+not quote QRC-vs-LSTM multipliers until the strengthened baseline (see Remaining).
+
+**Bulletproof core:** learned per-spin encoding beats fixed arcsin **8/8 across 3
+datasets/all seeds**, and the **τ→0 ablation collapses both memory tasks to the
+mean-predictor** → the win is **genuinely quantum-mediated** (the reservoir carries
+the memory). This is the first *multi-seed, ablation-confirmed* learnable-encoding
+win on a physics-grounded readout.
 
 ## What we discovered
 
@@ -47,7 +66,21 @@ are comparable to the reduced-FID tier and much closer to the 653-FID standard.
 4. **One task, one system.** Needs to hold across datasets and against a strong
    classical baseline (trained LSTM), not just arcsin.
 
-## Confirmation campaign (running unattended, ~24–40 h)
+## Remaining for publication (QRC-vs-classical)
+The intra-QRC result is done. Before any QRC-vs-classical number goes in writing,
+build a **publication-grade classical baseline** (decoupled from the 40 h QRC runs —
+re-scored against the already-saved QRC results, no QRC re-run):
+- **Tuned LSTM**: hyperparameter sweep (hidden/layers/lr/wd/dropout), LR schedule +
+  grad-clip + patience, truncated-BPTT, **≥5 init seeds** (mean±std, best).
+- **ESN** at matched readout dimension (RC-standard bar).
+- **Learning curves NMSE-vs-n_train** for QRC-learned / ESN / LSTM (separates
+  data-efficiency from asymptotic performance — the fairness figure).
+- For mackey_glass, use a **longer prediction horizon** (one-step is too easy —
+  all methods ≈0).
+- Framing: lead with the ablation-confirmed intra-QRC win; state the classical
+  comparison with its data/capacity regime + CIs (no single multiplier headline).
+
+## Confirmation campaign (completed 2026-08-08, 41.0 h)
 Broadened per the plan on 2026-08-06:
 - **Datasets:** NARMA-2 (encoding-sensitive), NARMA-10 (memory-bound — expect a
   tie/loss, the honest contrast), Mackey-Glass (chaotic next-step prediction).
