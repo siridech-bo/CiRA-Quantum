@@ -182,11 +182,23 @@ _TASKS: dict[str, dict[str, Any]] = {
         "flags": (),
         "choices": (),
     },
+    # mackey-h10-confirm: multi-seed confirmation of the Mackey-Glass h=10 QRC win.
+    # Runs the given seeds sequentially in one GPU job; aggregates vs classical.
+    "mackey-h10-confirm": {
+        "script": "scripts/qrc_mackey_h10_confirm.py",
+        "fixed": [],
+        "numeric": ("n_virtual", "coupling_scale", "T", "washout", "steps", "lr",
+                    "horizon", "budget_hours"),
+        "lists": ("seeds",),
+        "flags": (),
+        "choices": (),
+    },
 }
 
 # Tasks whose runner is GPU-bound — the setup UI surfaces a wall-clock estimate
 # and requires an explicit confirm before launching (CLAUDE.md GPU hard rule).
-GPU_TASKS = frozenset({"learnable", "learnable-campaign", "classical-baseline"})
+GPU_TASKS = frozenset({"learnable", "learnable-campaign", "classical-baseline",
+                       "mackey-h10-confirm"})
 
 # name -> (cli flag, python type, min, max). Applies to both scalar
 # ``numeric`` params and per-element ``lists`` params.
@@ -217,6 +229,7 @@ _PARAM_SPEC: dict[str, tuple[str, type, float, float]] = {
     "inits": ("--inits", int, 1, 50),
     "epochs": ("--epochs", int, 1, 100_000),
     "horizon": ("--horizon", int, 1, 1000),
+    "seeds": ("--seeds", int, 0, 2**31 - 1),
 }
 
 _FLAG_SPEC: dict[str, str] = {
