@@ -349,10 +349,25 @@ struggle — not on tasks that favour a large linear-memory reservoir. This h=10
 result is currently single-seed and is being extended to multiple seeds before it is
 advanced as a firm claim.
 
-*[Fig. 1]* learned vs arcsin per-spin encoding maps + validation-loss curves.
-*[Fig. 2]* physics-informed line set and reduced-FID spectrum.
-*[Fig. 3]* test NMSE per task: arcsin vs learned, with τ→0 ablation bars.
-*[Fig. 4]* NMSE-vs-`n_train` learning curves (tuned LSTM, ESN) with the QRC point.
+![Figure 1](figures/figP2_quantum_mediated.png)
+**FIG. 1.** Learned encoding vs the fixed `arcsin` encoding (test NMSE, log scale)
+across tasks; the τ→0 ablation collapses the learned model to a mean-predictor
+(≈1.0, red), showing the gain is carried by the quantum reservoir.
+
+![Figure 2](figures/figP3_task_dependent.png)
+**FIG. 2.** *(left)* Task-dependent comparison: a size-1000 ESN wins the NARMA
+benchmarks, while QRC-learned wins long-horizon chaotic prediction (Mackey-Glass
+h=10). *(right)* NMSE-vs-`n_train` learning curves for the tuned LSTM and ESN with
+the QRC-learned operating point (★) overlaid.
+
+![Figure 3](figures/figP1_spectrum.png)
+**FIG. 3.** The physics-informed reduced-FID readout: the normalized reduced-FID
+spectrum with the `D_eff = 161` analytic single-quantum lines (red) of the six-spin
+(coupling ×2) Hamiltonian, i.e. 322 real features.
+
+![Figure 4](figures/figP4_encoding.png)
+**FIG. 4.** The learned per-spin encoding map compared to `arcsin(√s)`
+(finalized from the multi-seed runs).
 
 ---
 

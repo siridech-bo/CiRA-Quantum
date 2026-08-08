@@ -525,6 +525,18 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
                 af, inp, trace_label = arcsin_ang, list(u), "arcsin"
             _save_learned_trace(trace_dir, trace_label, af, inp, u, washout, n_tr,
                                 sysm, g, device, cdt, seed, task, log)
+            # also persist the encoding detail (angle maps + val curve) for figures
+            import json as _json
+            detail = {
+                "sgrid": sg.tolist(),
+                "arcsin": [float(np.arcsin(np.sqrt(min(max(float(s), 0.0), 1.0)))) for s in sg],
+                "perspin_angle_map": (results["perspin"][3].tolist()
+                                      if results.get("perspin") and results["perspin"][3] is not None else None),
+                "perspin_val_curve": (results["perspin"][1] if results.get("perspin") else None),
+                "task": task, "seed": seed, "n_spins": sysm.n,
+            }
+            (Path(trace_dir) / "encoding_detail.json").write_text(
+                _json.dumps(detail), encoding="utf-8")
         except Exception as e:  # noqa: BLE001 - tracing must not fail the run
             print(f"WARN: trace save failed: {type(e).__name__}: {e}")
             if log:
