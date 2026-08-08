@@ -152,7 +152,8 @@ _TASKS: dict[str, dict[str, Any]] = {
     "learnable": {
         "script": "scripts/qrc_learnable_9spin.py",
         "fixed": ["--mode", "train"],
-        "numeric": ("T", "washout", "steps", "seed", "n_virtual", "lr", "coupling_scale"),
+        "numeric": ("T", "washout", "steps", "seed", "n_virtual", "lr", "coupling_scale",
+                    "horizon"),
         "lists": (),
         "flags": ("no_memory", "correlation"),
         "choices": ("task_learn", "device", "conditions", "system_learn", "readout"),
@@ -215,6 +216,7 @@ _PARAM_SPEC: dict[str, tuple[str, type, float, float]] = {
     "budget_hours": ("--budget-hours", float, 0.1, 72.0),
     "inits": ("--inits", int, 1, 50),
     "epochs": ("--epochs", int, 1, 100_000),
+    "horizon": ("--horizon", int, 1, 1000),
 }
 
 _FLAG_SPEC: dict[str, str] = {
@@ -235,7 +237,7 @@ _CHOICE_SPEC: dict[str, tuple[str, tuple[str, ...]]] = {
     "readout": ("--readout", ("observable", "fid_reduced")),
     # learnable runner (separate keys so --task/--system don't collide with the
     # narma/weather/trace-gen runners' fixed values)
-    "task_learn": ("--task", ("narma2", "narma10", "synthetic")),
+    "task_learn": ("--task", ("narma2", "narma10", "mackey_glass", "synthetic")),
     "device": ("--device", ("cpu", "cuda")),
     "conditions": ("--conditions", ("arcsin,perspin", "arcsin,global",
                                     "arcsin,global,perspin")),

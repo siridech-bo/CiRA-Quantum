@@ -318,18 +318,20 @@ def _mackey_glass(T, seed, tau=17, n=10.0, beta=0.2, gamma=0.1, discard=250):
     return (s - s.min()) / (s.max() - s.min() + 1e-12)
 
 
-def make_task(task, T, seed):
+def make_task(task, T, seed, horizon=1):
     """Return (u, y): reservoir driving input u and target y.
 
     Tasks: narma2 (encoding-sensitive), narma10 (memory-bound), mackey_glass
-    (chaotic one-step-ahead prediction), synthetic (legacy memory-2 polynomial)."""
+    (chaotic h-step-ahead prediction; ``horizon`` sets h — h=1 is trivially easy,
+    h=10 is discriminative), synthetic (legacy memory-2 polynomial). ``horizon``
+    only affects mackey_glass."""
     if task in ("narma2", "narma10"):
         from app.qrc.tasks import narma_sequence  # u~U[0,0.5]
         order = 2 if task == "narma2" else 10       # narma10 = memory-bound
         return narma_sequence(T, order=order, seed=seed)
     if task == "mackey_glass":
-        s = _mackey_glass(T, seed)                  # (T+1,) in [0,1]
-        return s[:-1], s[1:]                         # drive u_t, predict u_{t+1}
+        s = _mackey_glass(T + horizon, seed)        # (T+horizon+1,) in [0,1]
+        return s[:T], s[horizon:horizon + T]        # drive u_t, predict u_{t+h}
     # synthetic memory-2 polynomial (legacy fallback)
     rng = np.random.default_rng(seed)
     u = rng.random(T)
@@ -362,7 +364,7 @@ def _ridge_fit_eval(F, y, device, alpha=1e-3):
 def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
           lr=0.02, seed=7, conditions=("arcsin", "perspin"), window=1, no_memory=False,
           post=None, readout_label="observable", n_feat_override=None,
-          log=None, trace_dir=None):
+          log=None, trace_dir=None, horizon=1):
     """Learned encoding vs global arcsin(sqrt) baseline, leakage-free 3-way split,
     with under-powered/degenerate guardrails. conditions: 'global' (learned scalar
     angle) / 'perspin' (learned per-spin angles). window>1 feeds a sliding window
@@ -370,7 +372,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
     no_memory disables the cross-step quantum memory (the tau->0 ablation).
     ``post``/``readout_label`` select the readout (observable or physics-informed
     fid_reduced); baseline and learned conditions share it for a fair comparison."""
-    u, y = make_task(task, T, seed)
+    u, y = make_task(task, T, seed, horizon=horizon)
     y_use = y[washout:]
     tr, va, te = _three_way(len(y_use))
     n_tr, n_va, n_te = tr.stop - tr.start, va.stop - va.start, te.stop - te.start
@@ -574,6 +576,8 @@ def main():
                     choices=["narma2", "narma10", "mackey_glass", "synthetic"])
     ap.add_argument("--T", type=int, default=300)
     ap.add_argument("--washout", type=int, default=30)
+    ap.add_argument("--horizon", type=int, default=1,
+                    help="prediction horizon h (mackey_glass only; h=10 is discriminative)")
     ap.add_argument("--steps", type=int, default=100)
     ap.add_argument("--lr", type=float, default=0.02)   # lower + grad-clip + best-val = stabler
     ap.add_argument("--seed", type=int, default=7)
@@ -640,7 +644,7 @@ def main():
                 conditions=tuple(args.conditions.split(",")),
                 window=args.window, no_memory=args.no_memory,
                 post=post, readout_label=readout_label, n_feat_override=n_feat_override,
-                log=log, trace_dir=args.run_dir)
+                log=log, trace_dir=args.run_dir, horizon=args.horizon)
             if args.run_dir or args.out:
                 import json
                 payload = {
@@ -649,7 +653,8 @@ def main():
                     "readout": ("correlation" if args.correlation else args.readout),
                     "D_eff": (n_feat_override // 2 if args.readout == "fid_reduced" else None),
                     "feature_count": n_feat_override,
-                    "system": args.system, "task": args.task, "n_spins": sysm.n,
+                    "system": args.system, "task": args.task, "horizon": args.horizon,
+                    "n_spins": sysm.n,
                     "coupling_scale": args.coupling_scale, "T": args.T, "steps": args.steps,
                     "quantum_memory": not args.no_memory,
                     "arcsin_baseline_test_nmse": float(base),
