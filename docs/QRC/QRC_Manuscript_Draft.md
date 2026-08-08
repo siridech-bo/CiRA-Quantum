@@ -183,17 +183,38 @@ encoding produces a *quantum-mediated* QRC gain on a physics-grounded readout.
 
 ---
 
-## VI. Comparison to classical models *[preliminary]*
+## VI. Comparison to classical models
 
-QRC's fair yardsticks are (i) a classical Echo State Network at matched readout
-dimension (reservoir-vs-reservoir) and (ii) a *trained* recurrent network (LSTM), a
-strictly harder bar. In our confirmation campaign the learned QRC outperformed an
-LSTM on all tasks; however, that LSTM baseline was **not hyperparameter-tuned**, so
-we defer any quantitative QRC-vs-LSTM claim. A publication-grade comparison —
-tuned-LSTM sweep with multiple initializations and proper truncated-BPTT, an ESN at
-matched dimension, and **learning curves of NMSE versus training-set size** to
-separate data-efficiency from asymptotic accuracy — is in preparation and will
-populate this section. *[Table II and Figure 4 to follow.]*
+We compare the learned QRC against two classical baselines on the identical
+leakage-free split and test-NMSE metric: a hyperparameter-tuned LSTM (sweep over
+hidden ∈ {32,64,128,256}, layers ∈ {1,2}, lr, with cosine schedule, gradient
+clipping, multi-init, val early-stopping) and a leaky Echo State Network (ESN,
+reservoir-size sweep). **Table II** (run `classical-baseline-548dbea6`).
+
+| Task | QRC-learned | LSTM (tuned) | ESN (N=1000) |
+|---|---|---|---|
+| NARMA-2 | 0.0052 | 0.0114 | **0.0046** |
+| NARMA-10 | 0.120 | 0.234 | **0.029** |
+| Mackey-Glass (h=1) | 0.00008 | 0.0003 | ~0 (trivial) |
+
+**Findings, stated plainly.** (i) Tuning the LSTM removes most of the apparent QRC
+advantage seen against an untuned baseline (e.g. NARMA-2 LSTM improves ~12×); the
+learned QRC still betters the *tuned* LSTM by ~2× on both NARMA tasks. (ii) However,
+a well-sized classical **ESN matches the QRC on NARMA-2 and outperforms it ~4× on
+NARMA-10**. We therefore make **no claim of quantum advantage over classical
+reservoirs** on these benchmarks; the learned encoding narrows but does not close
+the gap. This is consistent with the decoherence-limited regime (Sec. VII): the
+effective dimension the readout accesses is small, so the reservoir cannot exploit
+its full Hilbert space. (iii) One-step Mackey-Glass is trivially solved by all
+models and is not discriminative; a harder horizon (h=10) is the appropriate test —
+the QRC evaluation at h=10 is a pending experiment and is not reported here to avoid
+a horizon-mismatched comparison.
+
+The contribution of this work is therefore **not** a quantum-beats-classical result,
+but (a) a physics-informed, differentiable readout and (b) a *quantum-mediated*
+improvement of the input encoding, established with multi-seed and ablation controls
+(Sec. V). *Figure 4:* NMSE-vs-`n_train` learning curves (tuned LSTM, ESN) with the
+QRC operating point overlaid.
 
 ---
 

@@ -1,10 +1,12 @@
 # Learnable encoding on the physics-informed reduced-FID readout — finding
 
-**Status:** ✅ **CONFIRMED** (multi-seed + τ→0 ablation, campaign
-`learnable-campaign-01ce463b`, 41.0 h, completed 2026-08-08). The QRC-vs-classical
-claim is still pending a **strengthened classical baseline** (tuned LSTM + ESN) —
-see "Remaining". Read `docs/QRC/QRC_STANDARD_PROCEDURES.md` first — this result is
-labeled with its readout and regime per §0/§3.1/§3.2.
+**Status:** ✅ **CONFIRMED** intra-QRC (learned ≫ arcsin, multi-seed + τ→0 ablation,
+campaign `learnable-campaign-01ce463b`). Classical comparison **completed**
+(`classical-baseline-548dbea6`): **no quantum-advantage-over-classical** — a tuned
+ESN matches/beats the QRC on NARMA (see "Classical comparison"). The contribution is
+the physics-informed readout + the quantum-mediated *encoding* gain, not a
+quantum-beats-classical result. Read `docs/QRC/QRC_STANDARD_PROCEDURES.md` first;
+every result is labeled with readout/D/regime per §0/§3.1/§3.2.
 
 ## Confirmed results (campaign, test NMSE)
 
@@ -66,19 +68,29 @@ are comparable to the reduced-FID tier and much closer to the 653-FID standard.
 4. **One task, one system.** Needs to hold across datasets and against a strong
    classical baseline (trained LSTM), not just arcsin.
 
-## Remaining for publication (QRC-vs-classical)
-The intra-QRC result is done. Before any QRC-vs-classical number goes in writing,
-build a **publication-grade classical baseline** (decoupled from the 40 h QRC runs —
-re-scored against the already-saved QRC results, no QRC re-run):
-- **Tuned LSTM**: hyperparameter sweep (hidden/layers/lr/wd/dropout), LR schedule +
-  grad-clip + patience, truncated-BPTT, **≥5 init seeds** (mean±std, best).
-- **ESN** at matched readout dimension (RC-standard bar).
-- **Learning curves NMSE-vs-n_train** for QRC-learned / ESN / LSTM (separates
-  data-efficiency from asymptotic performance — the fairness figure).
-- For mackey_glass, use a **longer prediction horizon** (one-step is too easy —
-  all methods ≈0).
-- Framing: lead with the ablation-confirmed intra-QRC win; state the classical
-  comparison with its data/capacity regime + CIs (no single multiplier headline).
+## Classical comparison (completed — the honest reality check)
+Run `classical-baseline-548dbea6` (1.68 h): tuned-LSTM sweep (multi-init, cosine LR,
+grad-clip, early-stop) + ESN size-sweep, same split/metric as QRC.
+
+| Task | QRC-learned | LSTM (tuned) | ESN (N=1000) | winner |
+|---|---|---|---|---|
+| NARMA-2 | 0.0052 | 0.0114 | **0.0046** | ESN (QRC≈ESN) |
+| NARMA-10 | 0.120 | 0.234 | **0.029** | **ESN (4×)** |
+| mackey h=1 | 0.00008 | 0.0003 | ~0 | trivial |
+
+**Conclusions (no spin):**
+- Tuning the LSTM erased most of the apparent QRC-vs-LSTM gap (narma2 LSTM 0.134→0.0114,
+  ~12×). QRC still beats the *tuned* LSTM ~2× on NARMA — the "26×" was a strawman.
+- **A well-sized classical ESN matches QRC on NARMA-2 and beats it 4× on NARMA-10.**
+  → **No quantum-advantage-over-classical claim** on these benchmarks. Consistent with
+  the decoherence-limited reservoir (effective dim low).
+- **The contribution stands as:** (a) physics-informed differentiable readout, (b) a
+  *quantum-mediated* encoding improvement over arcsin (ablation-confirmed) — NOT
+  quantum-beats-classical.
+- **Pending:** QRC at **mackey_glass h=10** (the only discriminative task where the
+  classical numbers aren't trivial) — the campaign only ran mackey at h=1, so a
+  QRC-vs-classical comparison at h=10 needs one ~4 h QRC run. Any h=10 "QRC win" in
+  raw tables is invalid until then (it compares QRC-h1 vs classical-h10).
 
 ## Confirmation campaign (completed 2026-08-08, 41.0 h)
 Broadened per the plan on 2026-08-06:
