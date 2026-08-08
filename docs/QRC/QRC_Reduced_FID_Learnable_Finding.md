@@ -77,6 +77,12 @@ grad-clip, early-stop) + ESN size-sweep, same split/metric as QRC.
 | NARMA-2 | 0.0052 | 0.0114 | **0.0046** | ESN (QRC≈ESN) |
 | NARMA-10 | 0.120 | 0.234 | **0.029** | **ESN (4×)** |
 | mackey h=1 | 0.00008 | 0.0003 | ~0 | trivial |
+| **mackey h=10** | **0.0013** † | 0.0024 | 0.0057 | **QRC-learned** |
+
+† single seed (`learnable-0a45c7b0`); multi-seed pending. On the one discriminative
+task, QRC-learned beats the tuned LSTM (~1.9×) AND the ESN (~4.4×) → the advantage is
+**task-dependent**: classical wins on NARMA (linear-memory), QRC-learned wins on hard
+chaotic prediction (nonlinear fading memory).
 
 **Conclusions (no spin):**
 - Tuning the LSTM erased most of the apparent QRC-vs-LSTM gap (narma2 LSTM 0.134→0.0114,
