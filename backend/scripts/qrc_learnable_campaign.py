@@ -94,11 +94,16 @@ def qrc_job(task, seed, device, args, log, trace_dir, no_memory=False):
     g = sysm.ensure_diff(device=device, cdtype=CDT)
     post, n_feat, ls = make_fid_reduced_post(sysm, g, device)
     label = f"fid_reduced (D_eff={ls.d_eff})"
+    # Per-job trace subdir so traces don't overwrite each other across jobs.
+    job_trace_dir = None
+    if trace_dir and not no_memory:
+        job_trace_dir = str(Path(trace_dir) / f"trace_{task}_s{seed}")
+        Path(job_trace_dir).mkdir(parents=True, exist_ok=True)
     results, base, verdict = train(
         sysm, g, device, CDT, task=task, T=args.T, washout=args.washout,
         steps=args.steps, lr=args.lr, seed=seed, conditions=("arcsin", "perspin"),
         window=1, no_memory=no_memory, post=post, readout_label=label,
-        n_feat_override=n_feat, log=log, trace_dir=(trace_dir if not no_memory else None))
+        n_feat_override=n_feat, log=log, trace_dir=job_trace_dir)
     per = results.get("perspin", (None, None, None, None))
     return {"arcsin": float(base), "perspin": (float(per[0]) if per[0] is not None else None),
             "enc_std": (float(per[2]) if per[2] is not None else None),

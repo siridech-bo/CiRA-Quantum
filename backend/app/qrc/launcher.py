@@ -170,11 +170,22 @@ _TASKS: dict[str, dict[str, Any]] = {
         "flags": (),
         "choices": (),
     },
+    # classical-baseline: publication-grade classical comparison (tuned-LSTM sweep +
+    # ESN + learning curves), re-scored vs the saved QRC campaign. Auto-discovers the
+    # campaign results. GPU (LSTM sweep), wall-clock-budgeted.
+    "classical-baseline": {
+        "script": "scripts/qrc_classical_baseline.py",
+        "fixed": [],
+        "numeric": ("T", "washout", "inits", "epochs", "budget_hours"),
+        "lists": (),
+        "flags": (),
+        "choices": (),
+    },
 }
 
 # Tasks whose runner is GPU-bound — the setup UI surfaces a wall-clock estimate
 # and requires an explicit confirm before launching (CLAUDE.md GPU hard rule).
-GPU_TASKS = frozenset({"learnable", "learnable-campaign"})
+GPU_TASKS = frozenset({"learnable", "learnable-campaign", "classical-baseline"})
 
 # name -> (cli flag, python type, min, max). Applies to both scalar
 # ``numeric`` params and per-element ``lists`` params.
@@ -202,6 +213,8 @@ _PARAM_SPEC: dict[str, tuple[str, type, float, float]] = {
     "Vs": ("--Vs", int, 1, 4096),
     "Ms": ("--Ms", int, 16, 65536),
     "budget_hours": ("--budget-hours", float, 0.1, 72.0),
+    "inits": ("--inits", int, 1, 50),
+    "epochs": ("--epochs", int, 1, 100_000),
 }
 
 _FLAG_SPEC: dict[str, str] = {
