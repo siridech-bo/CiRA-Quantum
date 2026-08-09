@@ -8,8 +8,9 @@ Generates (docs/QRC/figures/):
                               available from a run; else arcsin-only placeholder)
 
 Numbers are the confirmed results (campaign learnable-campaign-01ce463b, classical
-classical-baseline-548dbea6, mackey-h10 learnable-0a45c7b0). CPU, no GPU.
-Run: python backend/scripts/qrc_paper_figures.py
+classical-baseline-548dbea6, mackey-h10 learnable-0a45c7b0 + mackey-h10-confirm-2d21b56f).
+CPU, no GPU. Lives in docs/QRC/figures/code/; writes PNGs to its parent (figures/).
+Run: python docs/QRC/figures/code/qrc_paper_figures.py
 """
 from __future__ import annotations
 
@@ -22,12 +23,18 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# This script lives at docs/QRC/figures/code/ ; resolve the repo + backend absolutely
+# so it runs from anywhere (imports the physics stack + the run system builder).
+_HERE = Path(__file__).resolve()
+_REPO = _HERE.parents[4]                      # code -> figures -> QRC -> docs -> repo
+_BACKEND = _REPO / "backend"
+sys.path.insert(0, str(_BACKEND))             # for `app.qrc...`
+sys.path.insert(0, str(_BACKEND / "scripts"))  # for `qrc_learnable_9spin`
 from app.qrc.spectral_lines import physics_informed_lines  # noqa: E402
 from qrc_learnable_9spin import build_system  # noqa: E402
 
-FIGDIR = Path(__file__).resolve().parents[2] / "docs" / "QRC" / "figures"
-RUNS = Path(__file__).resolve().parents[1] / "artifacts" / "qrc_runs"
+FIGDIR = _HERE.parents[1]                      # docs/QRC/figures (write PNGs here)
+RUNS = _BACKEND / "artifacts" / "qrc_runs"
 
 # ---- confirmed numbers (test NMSE), multi-seed mean +/- s.d. ---------------
 ARC = {"NARMA-2": 0.101, "NARMA-10": 0.312, "MG h=10": 0.0304}
