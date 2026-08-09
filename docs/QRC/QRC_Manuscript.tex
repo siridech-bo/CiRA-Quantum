@@ -46,7 +46,8 @@ establishing the gain is carried by the quantum reservoir. Benchmarked against s
 tuned classical baselines the comparison is task dependent: a size-1000 echo-state
 network (ESN) matches or beats the QRC on the NARMA tasks, whereas on long-horizon
 chaotic prediction (Mackey--Glass, $h{=}10$) the learned QRC outperforms both a tuned
-LSTM and the ESN. We therefore report no blanket quantum advantage, but a principled,
+LSTM (${\sim}1.6\times$) and the ESN (${\sim}3.7\times$), confirmed across three seeds.
+We therefore report no blanket quantum advantage, but a principled,
 differentiable readout and a \emph{quantum-mediated} encoding-learning method, together
 with an honest, task-resolved characterization of when they help.
 \end{abstract}
@@ -375,8 +376,7 @@ task (seeds) & arcsin (A) & learned (B) & $\tau\!\to\!0$ (B) \\ \colrule
 NARMA-2 (3)  & $0.101\pm0.006$ & $\mathbf{0.0052\pm0.0013}$ & 0.9994 \\
 NARMA-10 (3) & $0.312\pm0.013$ & $\mathbf{0.120\pm0.019}$   & 0.9974 \\
 MG $h{=}1$ (2) & $0.00063$     & $\mathbf{0.000076}$        & --- \\
-MG $h{=}10$\footnote{single seed; multi-seed confirmation in progress.}
-             & $0.0235$        & $\mathbf{0.0013}$          & --- \\
+MG $h{=}10$ (3) & $0.0304$     & $\mathbf{0.00155\pm0.00018}$ & --- \\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
@@ -384,8 +384,16 @@ MG $h{=}10$\footnote{single seed; multi-seed confirmation in progress.}
 \begin{figure}[t]
 \includegraphics[width=\columnwidth]{figP2_quantum_mediated.png}
 \caption{\label{fig:qm}Learned encoding beats arcsin across tasks (test NMSE, log
-scale); the $\tau\!\to\!0$ ablation collapses the learned model to a mean predictor
-($\approx1.0$), so the gain is carried by the quantum reservoir.}
+scale; error bars are the multi-seed s.d.); the $\tau\!\to\!0$ ablation collapses the
+learned model to a mean predictor ($\approx1.0$), so the gain is carried by the
+quantum reservoir.}
+\end{figure}
+
+\begin{figure}[t]
+\includegraphics[width=\columnwidth]{figP4_encoding.png}
+\caption{\label{fig:enc}(left) The gradient-trained per-spin encoding map (each spin a
+distinct, frequency-selective curve) compared to $\arcsin\sqrt{s}$; (right) the encoder
+validation-loss curve over 100 Adam steps.}
 \end{figure}
 
 \subsection{The gain is quantum-mediated}
@@ -410,7 +418,7 @@ task & QRC-learned & LSTM (tuned) & ESN ($N{=}1000$) \\ \colrule
 NARMA-2 & 0.0052 & 0.0114 & $\mathbf{0.0046}$ \\
 NARMA-10 & 0.120 & 0.234 & $\mathbf{0.029}$ \\
 MG $h{=}1$ & 0.00008 & 0.0003 & $\sim0$ \\
-MG $h{=}10$ & $\mathbf{0.0013}$ & 0.0024 & 0.0057 \\
+MG $h{=}10$ & $\mathbf{0.00155}$ & 0.0024 & 0.0057 \\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
@@ -430,7 +438,8 @@ a well-sized classical ESN matches the QRC on NARMA-2 and outperforms it
 ${\sim}4\times$ on NARMA-10, so we claim no quantum advantage there. However, on the
 one discriminative task---long-horizon chaotic prediction (MG $h{=}10$, where one-step
 prediction is trivial for all models)---the learned QRC outperforms both the tuned
-LSTM (${\sim}1.9\times$) and the ESN (${\sim}4.4\times$). The advantage thus appears
+LSTM (${\sim}1.6\times$) and the ESN (${\sim}3.7\times$), confirmed across three seeds
+($0.00155\pm0.00018$, beating both baselines 3/3). The advantage thus appears
 specifically where nonlinear fading memory is essential.
 
 \section{Discussion}\label{sec:discussion}
@@ -452,8 +461,7 @@ wall; scaling requires checkpointing or a parameter-shift estimator. (ii) Simula
 dynamics; on-device validation via the parameter-shift rule is the natural next step.
 (iii) A single molecule and coupling scale; the qualitative claims (encoding helps;
 gain is quantum-mediated; task-dependent classical comparison) should be checked across
-systems. The MG $h{=}10$ result is currently single-seed with multi-seed confirmation
-in progress.
+systems.
 
 \section{Conclusion}\label{sec:conclusion}
 We introduced a physics-informed, differentiable reduced-FID readout and a
@@ -461,9 +469,9 @@ gradient-trained encoding for a nuclear-spin quantum reservoir, and showed---mul
 and ablation-confirmed---that learning the encoding produces a quantum-mediated gain
 over the standard encoding, while being honest that a strong classical reservoir
 remains competitive or superior on the NARMA benchmarks and that the QRC's advantage
-appears on hard chaotic prediction. Next: multi-seed confirmation of the long-horizon
-result; on-device encoding training via the parameter-shift rule; scaling past six
-qubits; and pushing toward the coherence-over-decoherence regime where the full
+appears---confirmed across three seeds---on hard chaotic prediction. Next: on-device
+encoding training via the parameter-shift rule; scaling past six qubits; and pushing
+toward the coherence-over-decoherence regime where the full
 Hilbert space contributes.
 
 \begin{acknowledgments}

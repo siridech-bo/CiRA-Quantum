@@ -37,8 +37,8 @@ strong, tuned classical baselines the comparison is **task-dependent**: on the N
 benchmarks — short memory, well suited to echo-state networks — a size-1000 ESN
 matches the QRC on NARMA-2 and outperforms it on NARMA-10, so we claim no quantum
 advantage there; but on the discriminative long-horizon chaotic-prediction task
-(Mackey-Glass, h=10) the learned QRC outperforms both a tuned LSTM (~1.9×) and the
-ESN (~4.4×) (single-seed, multi-seed confirmation in progress). The advantage of the
+(Mackey-Glass, h=10) the learned QRC outperforms both a tuned LSTM (~1.6×) and the
+ESN (~3.7×), confirmed across three seeds (0.00155 ± 0.00018). The advantage of the
 physics-informed, learnable-encoding QRC therefore appears specifically where
 nonlinear fading memory is essential. Our contributions are a principled,
 differentiable readout and a *quantum-mediated* encoding-learning method, together
@@ -330,9 +330,9 @@ early-stopping) and a leaky ESN (reservoir sizes {100,300,600,1000}, spectral ra
 | NARMA-2 | 0.0052 | 0.0114 | **0.0046** | ESN (QRC ≈ ESN) |
 | NARMA-10 | 0.120 | 0.234 | **0.029** | ESN (~4×) |
 | Mackey-Glass h=1 | 0.00008 | 0.0003 | ~0 | trivial (not discriminative) |
-| **Mackey-Glass h=10** | **0.0013** † | 0.0024 | 0.0057 | **QRC-learned** |
+| **Mackey-Glass h=10** (3) | **0.00155 ± 0.00018** | 0.0024 | 0.0057 | **QRC-learned** |
 
-† single seed (run `learnable-0a45c7b0`); multi-seed confirmation pending.
+Confirmed across 3 seeds (`learnable-0a45c7b0` + `mackey-h10-confirm-2d21b56f`): 0.00155 ± 0.00018, beating both classical baselines 3/3.
 
 The comparison is **task-dependent**, which is the central empirical message.
 First, tuning the LSTM removes most of the apparent QRC advantage seen against an
@@ -342,12 +342,11 @@ memory, well suited to echo-state networks — a well-sized classical **ESN matc
 the QRC on NARMA-2 and outperforms it ~4× on NARMA-10**, so we claim **no quantum
 advantage there**. However, on the one *discriminative* task, long-horizon chaotic
 prediction (Mackey-Glass h=10, where one-step prediction is trivial for all models),
-the **learned QRC outperforms both the tuned LSTM (~1.9×) and the ESN (~4.4×)**.
-The advantage of the physics-informed, learnable-encoding QRC thus appears
-specifically where nonlinear fading memory is essential and simple reservoirs
-struggle — not on tasks that favour a large linear-memory reservoir. This h=10
-result is currently single-seed and is being extended to multiple seeds before it is
-advanced as a firm claim.
+the **learned QRC outperforms both the tuned LSTM (~1.6×) and the ESN (~3.7×)**,
+confirmed across three seeds (0.00155 ± 0.00018, beating both 3/3). The advantage of
+the physics-informed, learnable-encoding QRC thus appears specifically where nonlinear
+fading memory is essential and simple reservoirs struggle — not on tasks that favour a
+large linear-memory reservoir.
 
 ![Figure 1](figures/figP2_quantum_mediated.png)
 **FIG. 1.** Learned encoding vs the fixed `arcsin` encoding (test NMSE, log scale)
@@ -366,8 +365,9 @@ spectrum with the `D_eff = 161` analytic single-quantum lines (red) of the six-s
 (coupling ×2) Hamiltonian, i.e. 322 real features.
 
 ![Figure 4](figures/figP4_encoding.png)
-**FIG. 4.** The learned per-spin encoding map compared to `arcsin(√s)`
-(finalized from the multi-seed runs).
+**FIG. 4.** *(left)* The gradient-trained per-spin encoding map (each spin a distinct,
+frequency-selective curve) compared to `arcsin(√s)`; *(right)* the encoder
+validation-loss curve over 100 Adam steps (Mackey-Glass h=10).
 
 ---
 
@@ -387,15 +387,14 @@ Hilbert space, so the effective dimension the readout accesses is modest. On NAR
 benchmarks that reward a large *linear*-memory reservoir — a size-1000 classical ESN
 consequently matches or beats the six-spin QRC, and the learned encoding narrows but
 does not close that gap. This is not, however, the whole story: on long-horizon
-chaotic prediction (Mackey-Glass h=10), where nonlinear fading memory is essential
+chaotic prediction (Mackey-Glass h=10, confirmed 3/3 seeds), where nonlinear fading memory is essential
 and one-step prediction is trivial for all models, the learned QRC outperforms both
 the tuned LSTM and the ESN (Sec. VI D). The physics-informed, learnable-encoding QRC
 thus appears advantageous specifically on the task class that stresses nonlinear
-memory rather than raw linear-memory capacity. We state this cautiously: the h=10
-result is single-seed pending multi-seed confirmation, and a decisive many-body
-quantum advantage across task classes would still require entangling dynamics faster
-than decoherence (long `T₂` × strong coupling), a regime our substrate does not
-reach.
+memory rather than raw linear-memory capacity. The h=10 advantage is confirmed across
+three seeds; nonetheless a decisive many-body quantum advantage across task classes
+would still require entangling dynamics faster than decoherence (long `T₂` × strong
+coupling), a regime our substrate does not reach.
 
 **Threats to validity.** (i) Six qubits — set by the differentiable-readout memory
 wall; scaling requires checkpointing/PSR. (ii) Simulated dynamics; on-device

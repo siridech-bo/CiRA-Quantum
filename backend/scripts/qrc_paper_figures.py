@@ -29,9 +29,10 @@ from qrc_learnable_9spin import build_system  # noqa: E402
 FIGDIR = Path(__file__).resolve().parents[2] / "docs" / "QRC" / "figures"
 RUNS = Path(__file__).resolve().parents[1] / "artifacts" / "qrc_runs"
 
-# ---- confirmed numbers (test NMSE) ----------------------------------------
-ARC = {"NARMA-2": 0.101, "NARMA-10": 0.312, "MG h=10": 0.0235}
-QRC = {"NARMA-2": 0.0052, "NARMA-10": 0.120, "MG h=10": 0.0013}
+# ---- confirmed numbers (test NMSE), multi-seed mean +/- s.d. ---------------
+ARC = {"NARMA-2": 0.101, "NARMA-10": 0.312, "MG h=10": 0.0304}
+QRC = {"NARMA-2": 0.0052, "NARMA-10": 0.120, "MG h=10": 0.00155}
+QRC_STD = {"NARMA-2": 0.0013, "NARMA-10": 0.019, "MG h=10": 0.00018}
 ABL = {"NARMA-2": 0.9994, "NARMA-10": 0.9974}
 LSTM = {"NARMA-2": 0.0114, "NARMA-10": 0.234, "MG h=10": 0.0024}
 ESN = {"NARMA-2": 0.0046, "NARMA-10": 0.029, "MG h=10": 0.0057}
@@ -75,7 +76,8 @@ def fig_quantum_mediated():
     x = np.arange(len(tasks)); w = 0.38
     fig, ax = plt.subplots(figsize=(7.2, 4.0))
     ax.bar(x - w / 2, [ARC[t] for t in tasks], w, label="arcsin (regime A)", color="#9aa7b4")
-    ax.bar(x + w / 2, [QRC[t] for t in tasks], w, label="QRC-learned (regime B)", color="#4da3ff")
+    ax.bar(x + w / 2, [QRC[t] for t in tasks], w, yerr=[QRC_STD[t] for t in tasks],
+           capsize=3, ecolor="#1b3a5c", label="QRC-learned (regime B)", color="#4da3ff")
     for i, t in enumerate(tasks):
         ax.text(i + w / 2, QRC[t], f" {QRC[t]:.4g}", ha="center", va="bottom", fontsize=7, rotation=90)
         if t in ABL:
@@ -94,7 +96,8 @@ def fig_task_dependent():
     tasks = list(QRC)
     x = np.arange(len(tasks)); w = 0.26
     fig, (axL, axR) = plt.subplots(1, 2, figsize=(11.5, 4.2))
-    axL.bar(x - w, [QRC[t] for t in tasks], w, label="QRC-learned", color="#4da3ff")
+    axL.bar(x - w, [QRC[t] for t in tasks], w, yerr=[QRC_STD[t] for t in tasks],
+            capsize=3, ecolor="#1b3a5c", label="QRC-learned", color="#4da3ff")
     axL.bar(x, [LSTM[t] for t in tasks], w, label="LSTM (tuned)", color="#cb4b4b")
     axL.bar(x + w, [ESN[t] for t in tasks], w, label="ESN (N=1000)", color="#e07b3c")
     axL.set_yscale("log"); axL.set_ylabel("test NMSE (log)"); axL.set_xticks(x); axL.set_xticklabels(tasks)
@@ -124,24 +127,25 @@ def fig_task_dependent():
 
 
 def fig_encoding():
-    """arcsin vs learned per-spin encoding map (from a run's encoding_detail.json)."""
-    detail = _latest("learnable-*", "encoding_detail.json")
-    fig, ax = plt.subplots(figsize=(6.4, 4.0))
+    """arcsin vs learned per-spin encoding map + validation-loss curve (real run)."""
+    detail = _latest("*", "encoding_detail.json")          # any run (confirm runs save it)
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(10.2, 4.0))
     sg = np.linspace(0, 0.5, 21)
-    ax.plot(sg, np.arcsin(np.sqrt(np.clip(sg, 0, 1))), color="#3fb950", lw=2.2, label="arcsin(sqrt(s))")
+    axL.plot(sg, np.arcsin(np.sqrt(np.clip(sg, 0, 1))), color="#3fb950", lw=2.4, label="arcsin(sqrt(s))")
     if detail is not None:
         d = json.loads(Path(detail).read_text(encoding="utf-8"))
         if d.get("perspin_angle_map"):
             sgd = np.asarray(d["sgrid"]); amap = np.asarray(d["perspin_angle_map"])
             for q in range(amap.shape[1]):
-                ax.plot(sgd, amap[:, q], lw=1.1, alpha=0.8)
-            ax.plot([], [], color="#4da3ff", lw=1.1, label="learned per-spin (each spin)")
-            ax.set_title(f"Learned per-spin encoding vs arcsin ({d.get('task')})", fontsize=9.5)
-        else:
-            ax.set_title("Encoding map — learned per-spin pending (run with encoding_detail)", fontsize=9)
-    else:
-        ax.set_title("Encoding map — arcsin (learned map pending multi-seed run)", fontsize=9)
-    ax.set_xlabel("input s"); ax.set_ylabel("pulse angle theta"); ax.legend(fontsize=8); ax.grid(alpha=0.2)
+                axL.plot(sgd, amap[:, q], lw=1.1, alpha=0.85)
+            axL.plot([], [], color="#4da3ff", lw=1.1, label="learned per-spin (each spin)")
+            axL.set_title(f"Learned per-spin encoding vs arcsin\n({d.get('task')}, seed {d.get('seed')})",
+                          fontsize=9.5)
+        if d.get("perspin_val_curve"):
+            axR.plot(d["perspin_val_curve"], color="#4da3ff", lw=1.6)
+            axR.set_yscale("log"); axR.set_xlabel("Adam step"); axR.set_ylabel("validation NMSE (log)")
+            axR.set_title("Encoder training curve", fontsize=9.5); axR.grid(alpha=0.2)
+    axL.set_xlabel("input s"); axL.set_ylabel("pulse angle theta"); axL.legend(fontsize=8); axL.grid(alpha=0.2)
     _save(fig, "figP4_encoding.png")
 
 
