@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useTheme } from 'vuetify'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeToggle } from '@/composables/useThemeToggle'
 import CiraLogo from '@/components/CiraLogo.vue'
 import AuthDialog from '@/components/AuthDialog.vue'
 
@@ -10,44 +10,10 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-// Day/night toggle — aligns the landing page with the embedded QuantumSim
-// visualizer, which carries its own light/dark switch. Vuetify's theme is
-// global, but most inner pages were built dark-only (they hardcode dark
-// colors), so we scope the choice to the landing page: apply it while this
-// page is mounted and restore dark on leave. The preference persists in
-// localStorage ('cira-theme').
-const theme = useTheme()
-const DEFAULT_THEME = 'dark'
-function readSavedTheme(): 'light' | 'dark' {
-  try {
-    const saved = localStorage.getItem('cira-theme')
-    if (saved === 'light' || saved === 'dark') return saved
-  } catch {
-    /* localStorage may be unavailable (private mode) */
-  }
-  return DEFAULT_THEME
-}
-const landingTheme = ref<'light' | 'dark'>(readSavedTheme())
-const isDark = computed(() => landingTheme.value === 'dark')
-
-function applyTheme(name: 'light' | 'dark') {
-  theme.global.name.value = name
-}
-function toggleTheme() {
-  landingTheme.value = isDark.value ? 'light' : 'dark'
-  applyTheme(landingTheme.value)
-  try {
-    localStorage.setItem('cira-theme', landingTheme.value)
-  } catch {
-    /* localStorage may be unavailable — the in-memory choice still holds */
-  }
-}
-
-// Own the global theme only while the landing page is on screen; restore the
-// app-wide dark default when navigating away so dark-only inner pages render
-// as designed.
-onMounted(() => applyTheme(landingTheme.value))
-onBeforeUnmount(() => applyTheme(DEFAULT_THEME))
+// Day/night toggle — applies app-wide and persists, so the choice carries
+// into inner pages (incl. the simulator wrapper) and aligns the platform
+// with the embedded QuantumSim visualizer's own light/dark switch.
+const { isDark, toggleTheme } = useThemeToggle()
 
 // Auth dialog wiring. The dialog handles both login and signup via a
 // mode prop; opening it from either app-bar button just sets the mode
