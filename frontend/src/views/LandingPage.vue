@@ -169,6 +169,9 @@ const qldpcCodeTiers = [
           </v-list-item>
         </v-list>
       </v-menu>
+      <v-btn variant="text" @click="router.push('/learn/simulator')">
+        Simulator
+      </v-btn>
       <!-- Auth-state-dependent controls. The dialog-based flow keeps
            the user on ``/`` throughout auth — no route churn, no lost
            scroll. Signed-in users get a compact identity chip plus a
@@ -515,6 +518,52 @@ const qldpcCodeTiers = [
           </v-card>
         </v-col>
       </v-row>
+    </v-container>
+
+    <!-- ============================================================
+         Explore strip — the self-hosted physics visualizer. Distinct
+         from the three "application" cards above: this is an interactive,
+         no-backend educational simulator (Learn umbrella, like the Circuit
+         Playground). Full-width so it reads as its own invitation.
+         ============================================================ -->
+    <v-container class="pt-2 pb-8">
+      <v-card class="pa-6 app-card" variant="outlined" border="accent">
+        <v-row align="center">
+          <v-col cols="12" md="8">
+            <div class="d-flex align-center mb-2">
+              <v-icon icon="mdi-atom-variant" color="accent" size="36" />
+              <div class="ml-3">
+                <div class="text-overline text-medium-emphasis">explore · learn</div>
+                <div class="text-h5">Quantum System Simulation with Real Physics</div>
+              </div>
+              <v-chip size="small" color="info" variant="tonal" class="ml-3">interactive</v-chip>
+            </div>
+            <div class="text-body-1 text-medium-emphasis mb-2">
+              A genuine density-matrix Lindblad simulation of real quantum
+              systems, running live in your browser — no mocks, no backend.
+              Watch spins evolve on Bloch spheres, build circuits that compile
+              to physically real pulse sequences, and explore three substrates:
+              <strong>NMR spins</strong>, a <strong>Jaynes-Cummings</strong>
+              qubit-boson reservoir, and a <strong>trapped-ion</strong> lab.
+            </div>
+            <div class="text-body-2 text-medium-emphasis">
+              Real master equations, cited molecule parameters, and a paper
+              library you can read in-app with an AI copilot.
+            </div>
+          </v-col>
+          <v-col cols="12" md="4" class="d-flex justify-md-end">
+            <v-btn
+              color="accent"
+              size="large"
+              variant="flat"
+              prepend-icon="mdi-play-circle"
+              @click="router.push('/learn/simulator')"
+            >
+              Launch simulator
+            </v-btn>
+          </v-col>
+        </v-row>
+      </v-card>
     </v-container>
 
     <!-- ============================================================

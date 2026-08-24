@@ -15,6 +15,7 @@ import BenchmarkInstancePage from '@/views/BenchmarkInstancePage.vue'
 import BenchmarkFindingsPage from '@/views/BenchmarkFindingsPage.vue'
 import Quantum101Page from '@/views/Quantum101Page.vue'
 import PlaygroundPage from '@/views/PlaygroundPage.vue'
+import SimulatorPage from '@/views/SimulatorPage.vue'
 import AdminPage from '@/views/AdminPage.vue'
 import QmlLandingPage from '@/views/QmlLandingPage.vue'
 import QmlDatasetDetailPage from '@/views/QmlDatasetDetailPage.vue'
@@ -75,6 +76,11 @@ const routes: RouteRecordRaw[] = [
   // Public so the sandbox is reachable from the Learn menu without forcing
   // a login, like /learn/quantum and /qml/learn.
   { path: '/learn/playground', component: PlaygroundPage },
+  // Quantum System Simulation with Real Physics — self-hosted CiRA QuantumSim
+  // build under public/sim/. Public, like /learn/playground and /learn/quantum:
+  // it is a self-contained educational visualizer (NMR spins, Jaynes-Cummings
+  // reservoir, trapped-ion lab) with no backend dependency.
+  { path: '/learn/simulator', component: SimulatorPage },
   // QML-1 — sister application's landing page. Public so the dataset
   // gallery is browsable without auth, like the benchmark dashboard.
   { path: '/qml', component: QmlLandingPage },

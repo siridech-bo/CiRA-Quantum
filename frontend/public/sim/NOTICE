@@ -1,0 +1,25 @@
+CiRA QuantumSim — vendored static build
+========================================
+
+Source  : https://github.com/siridech-bo/CiRA-QuantumSim (private)
+Commit  : c78843c850519f9234edaf8cba195ff660d43248
+Vendored: 2026-08-24
+
+This directory is a self-hosted copy of the CiRA QuantumSim physics visualizer,
+served by the CiRA Quantum SPA at /sim/ and surfaced in-app at /learn/simulator.
+
+Runtime dependencies are vendored locally under vendor/ (no CDN at runtime):
+  - three.module.js .......... three@0.160.0 (build/three.module.js, unpkg)
+  - addons/controls/OrbitControls.js  three@0.160.0 (examples/jsm/, unpkg)
+  - math.umd.js .............. mathjs@12.4.3 (lib/browser/math.js, self-contained UMD)
+  - mathjs-shim.mjs .......... local ESM adapter re-exporting the UMD build's { create, all }
+  - pdf.min.mjs .............. pdfjs-dist@4.7.76 (build/pdf.min.mjs)
+  - pdf.worker.min.mjs ....... pdfjs-dist@4.7.76 (build/pdf.worker.min.mjs)
+
+The importmaps in *.html and the pdf.js workerSrc in src/pdf-reader.js were
+rewritten from CDN URLs to these local vendor/ paths.
+
+Library/ holds copyrighted reference papers for in-app reading only. Direct
+download is gated at the Flask serving layer (see backend/app/__init__.py); the
+in-app reader (pdf.html) loads them as pdf.js subresource fetches. Keep access
+consistent with the source repo's private/educational terms.

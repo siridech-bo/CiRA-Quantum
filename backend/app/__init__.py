@@ -25,7 +25,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, send_from_directory
+from flask import Flask, abort, request, send_from_directory
 from flask_cors import CORS
 
 from app.config import (
@@ -88,6 +88,23 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     return app
 
 
+def _is_reader_fetch() -> bool:
+    """True only for the physics-sim reader's subresource fetch of a PDF.
+
+    Ported from the sim repo's dev server (serve.py). Modern browsers send
+    ``Sec-Fetch-Dest``: the in-app pdf.js reader fetches the PDF as a
+    subresource (``empty``); a top-level navigation / new tab / "Save link
+    as" is ``document``. Older browsers that omit Sec-Fetch fall back to a
+    same-origin ``Referer`` check.
+    """
+    dest = request.headers.get("Sec-Fetch-Dest")
+    if dest is not None:  # modern browser → trust Sec-Fetch
+        return dest == "empty"
+    ref = request.headers.get("Referer", "") or ""  # older browser → same-origin Referer
+    host = request.host or ""
+    return bool(ref) and host in ref
+
+
 def _register_spa(app: Flask) -> None:
     """Mount the built Vue SPA when ``CIRA_SPA_DIR`` is set.
 
@@ -132,6 +149,31 @@ def _register_spa(app: Flask) -> None:
         # here, so the check is defensive against future refactors.
         if path.startswith("api/"):
             return app.response_class(status=404)
+
+        # Copyright gate on the vendored physics-sim paper Library
+        # (public/sim/Library/*.pdf). These are copyrighted references
+        # meant for in-app reading only — the sim's reader (pdf.html)
+        # loads them as a pdf.js subresource fetch, which the browser
+        # marks ``Sec-Fetch-Dest: empty``. A direct download (address
+        # bar, new tab, "Save link as", shared link) is a top-level
+        # navigation (``Sec-Fetch-Dest: document``) or carries no
+        # same-origin Referer. We serve the PDF only to the reader and
+        # 403 the rest. This mirrors the dev server's gate (serve.py in
+        # the sim repo) so protection holds in production, where Flask —
+        # not serve.py — serves the static build. DETERRENT against
+        # casual redistribution, not cryptographic protection: the
+        # reader still fetches the bytes to render them.
+        lower = path.lower()
+        if lower.startswith("sim/library/") and lower.endswith(".pdf"):
+            if not _is_reader_fetch():
+                abort(
+                    403,
+                    description=(
+                        "Direct PDF access is disabled. Open the paper in the "
+                        "in-app reader (Read + AI copilot) rather than "
+                        "downloading it directly."
+                    ),
+                )
 
         # If the requested path names a real file under the SPA dir
         # (hashed asset, favicon, robots.txt), serve it directly.
