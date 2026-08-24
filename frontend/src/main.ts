@@ -11,6 +11,11 @@ import '@mdi/font/css/materialdesignicons.css'
 
 // Dark theme palette from the v2 spec — "Quantum purple" primary,
 // "Annealing cyan" accent. Keep these stable; Phase 5+ pages assume them.
+// A matching light theme was added so the LANDING page can offer a day/night
+// toggle aligned with the embedded QuantumSim visualizer. The global default
+// stays dark — most inner pages were built dark-only and hardcode dark colors,
+// so the landing page applies 'light' only while it is mounted (see
+// LandingPage.vue) rather than flipping the whole app.
 const vuetify = createVuetify({
   components,
   directives,
@@ -29,6 +34,20 @@ const vuetify = createVuetify({
           warning: '#FB8C00',
           background: '#121212',
           surface: '#1E1E1E',
+        },
+      },
+      light: {
+        dark: false,
+        colors: {
+          primary: '#7C4DFF',
+          secondary: '#5F6368',
+          accent: '#00B8D4',
+          error: '#D32F2F',
+          info: '#1976D2',
+          success: '#2E7D32',
+          warning: '#EF6C00',
+          background: '#F5F5F7',
+          surface: '#FFFFFF',
         },
       },
     },
