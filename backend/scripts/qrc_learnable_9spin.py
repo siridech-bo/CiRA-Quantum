@@ -110,7 +110,16 @@ def init_state(sysm, device, cdt):
                         device=device)
 
 
-def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False, post=None):
+def make_pulse(th, sysm, g, cdt):
+    """Pulse for one step: per-spin 2x2 factors when the propagator applies
+    them as tensor contractions (block mode, large n), else the dense kron U."""
+    if g.get("local_pulse"):
+        return [_rx1(t, cdt) for t in th]
+    return per_spin_pulse(th, sysm.n, cdt)
+
+
+def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False, post=None,
+                     ckpt_every=0):
     """angles_seq: list of angle-vectors (one per step) -> feature matrix.
 
     ``reset_each_step`` re-initializes the reservoir state before each step,
@@ -121,17 +130,33 @@ def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False, po
     different readout — e.g. :func:`make_fid_reduced_post` projects the
     transverse-magnetization FID onto the physics-informed D_eff lines (SOP
     §3.2). It is applied inside the autograd graph, so gradients still reach the
-    encoding pulse."""
+    encoding pulse.
+
+    ``ckpt_every`` > 0 wraps each segment of that many steps in activation
+    checkpointing: only segment-boundary states are kept for backward and the
+    segment is recomputed, trading ~1 extra forward for O(T/S + S) state
+    memory instead of O(T) — needed for the 11-12 spin block runs."""
     vec0 = init_state(sysm, device, cdt)
-    vec = vec0
-    rows = []
-    for th in angles_seq:
-        U = per_spin_pulse(th, sysm.n, cdt)
-        feat, vec = sysm.step_diff(vec, U, g)
-        rows.append(post(feat) if post is not None else feat)
-        if reset_each_step:
-            vec = vec0
-    return torch.stack(rows)
+
+    def run(vec, ths):
+        rows = []
+        for th in ths:
+            feat, vec = sysm.step_diff(vec, make_pulse(th, sysm, g, cdt), g)
+            rows.append(post(feat) if post is not None else feat)
+            if reset_each_step:
+                vec = vec0
+        return torch.stack(rows), vec
+
+    if not ckpt_every or not torch.is_grad_enabled():
+        return run(vec0, angles_seq)[0]
+    from torch.utils.checkpoint import checkpoint
+
+    vec, segs = vec0, []
+    for i in range(0, len(angles_seq), ckpt_every):
+        seg = list(angles_seq[i:i + ckpt_every])
+        F, vec = checkpoint(lambda v, *t: run(v, t), vec, *seg, use_reentrant=False)
+        segs.append(F)
+    return torch.cat(segs)
 
 
 def make_fid_reduced_post(sysm, g, device, readout_qubits=None):
@@ -240,8 +265,7 @@ def forward_features_closedloop(ctrl, u, sysm, g, device, cdt, reset_each_step=F
     rows = []
     for s in u:
         theta = ctrl(float(s), f_prev)
-        U = per_spin_pulse(theta, sysm.n, cdt)
-        feat, vec = sysm.step_diff(vec, U, g)
+        feat, vec = sysm.step_diff(vec, make_pulse(theta, sysm, g, cdt), g)
         rows.append(feat)
         f_prev = feat                    # feedback (keeps the BPTT graph)
         if reset_each_step:
@@ -249,7 +273,8 @@ def forward_features_closedloop(ctrl, u, sysm, g, device, cdt, reset_each_step=F
     return torch.stack(rows)
 
 
-def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None, post=None):
+def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None, post=None,
+              ckpt_every=0):
     """Time forward+backward and report peak memory — the go/no-go for the campaign.
     If ``baseline_T`` is set, also compute the arcsin NARMA-2 baseline at that T to
     confirm the config is powered (test NMSE < 0.8) before any full training run.
@@ -261,13 +286,15 @@ def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None, post=
     if device == "cuda":
         torch.cuda.reset_peak_memory_stats()
     # warm-up (build caches / CUDA kernels)
-    t_fwd = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt, post=post)
+    t_fwd = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt, post=post,
+                             ckpt_every=ckpt_every)
     (t_fwd.real.sum()).backward()
     times = []
     for _ in range(n_steps):
         opt.zero_grad()
         t0 = time.time()
-        F = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt, post=post)
+        F = forward_features([enc(float(s)) for s in u], sysm, g, device, cdt, post=post,
+                             ckpt_every=ckpt_every)
         loss = (F ** 2).mean()
         loss.backward()
         opt.step()
@@ -276,8 +303,10 @@ def benchmark(sysm, g, device, cdt, n_steps=3, seq_len=8, baseline_T=None, post=
         times.append(time.time() - t0)
     ms = 1000 * float(np.median(times))
     peak_gb = (torch.cuda.max_memory_allocated() / 1e9) if device == "cuda" else 0.0
-    print(f"\n=== BENCHMARK: N={sysm.n} dim={sysm.dim} V={g['V']} "
-          f"substeps={g['substeps']} seq_len={seq_len} dtype={cdt} device={device} ===")
+    mode = "block" if g.get("block") is not None else ("dense" if g.get("P") is not None else "taylor")
+    print(f"\n=== BENCHMARK: N={sysm.n} dim={sysm.dim} V={g['V']} propagator={mode} "
+          f"substeps={g['substeps']} seq_len={seq_len} ckpt_every={ckpt_every} "
+          f"dtype={cdt} device={device} ===")
     print(f"  forward+backward: {ms:.0f} ms per (seq_len={seq_len}) training step")
     print(f"  ~ {ms/seq_len:.1f} ms per input-step (fwd+bwd)")
     print(f"  peak GPU memory: {peak_gb:.2f} GB")
@@ -364,7 +393,7 @@ def _ridge_fit_eval(F, y, device, alpha=1e-3):
 def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
           lr=0.02, seed=7, conditions=("arcsin", "perspin"), window=1, no_memory=False,
           post=None, readout_label="observable", n_feat_override=None,
-          log=None, trace_dir=None, horizon=1):
+          log=None, trace_dir=None, horizon=1, ckpt_every=0):
     """Learned encoding vs global arcsin(sqrt) baseline, leakage-free 3-way split,
     with under-powered/degenerate guardrails. conditions: 'global' (learned scalar
     angle) / 'perspin' (learned per-spin angles). window>1 feeds a sliding window
@@ -392,7 +421,8 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
 
     def feats(angle_fn, inputs):
         return forward_features([angle_fn(x) for x in inputs], sysm, g, device, cdt,
-                                reset_each_step=no_memory, post=post)[washout:]
+                                reset_each_step=no_memory, post=post,
+                                ckpt_every=ckpt_every)[washout:]
 
     # (A) arcsin(sqrt) baseline: raw scalar input, standard QRC (with memory)
     def arcsin_ang(s):
@@ -606,6 +636,10 @@ def main():
     ap.add_argument("--readout", choices=["observable", "fid_reduced"], default="observable",
                     help="fid_reduced = physics-informed reduced FID (D_eff lines, SOP 3.2); "
                          "set --n-virtual >= ~2*D_eff so the FID resolves the lines")
+    ap.add_argument("--propagator", choices=["auto", "dense", "block", "taylor"], default="auto",
+                    help="auto = dense <=6 spins, exact block-structured propagator >=7")
+    ap.add_argument("--ckpt-every", type=int, default=0,
+                    help="activation-checkpoint segment length in steps (0 = off)")
     ap.add_argument("--run-dir", default=None, help="progress/events dir (launcher-managed)")
     ap.add_argument("--out", default=None, help="results JSON path (launcher-managed)")
     args = ap.parse_args()
@@ -614,7 +648,14 @@ def main():
         raise SystemExit("cuda requested but not available")
     cdt = CDT_MAP[args.dtype]
     sysm = build_system(args.system, args.n_virtual, coupling_scale=args.coupling_scale)
-    g = sysm.ensure_diff(device=args.device, cdtype=cdt)
+    prop = {"auto": {}, "dense": {"dense": True, "block": False},
+            "block": {"block": True, "dense": False},
+            "taylor": {"dense": False, "block": False}}[args.propagator]
+    t_build = time.time()
+    g = sysm.ensure_diff(device=args.device, cdtype=cdt, **prop)
+    if g.get("block") is not None:
+        print(f"block propagator: built in {time.time() - t_build:.1f}s, "
+              f"{g['block'].nbytes() / 1e9:.2f} GB on {args.device}")
     if args.correlation:                             # swap in 2-body correlation readout
         from qrc_correlation_readout import build_readout
         M, n_obs, _ = build_readout(sysm, True)
@@ -637,7 +678,8 @@ def main():
           f"corr={args.correlation} readout={args.readout} | device={args.device} dtype={args.dtype}")
 
     if args.mode == "benchmark":
-        benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T, post=post)
+        benchmark(sysm, g, args.device, cdt, seq_len=args.seq_len, baseline_T=args.T, post=post,
+                  ckpt_every=args.ckpt_every)
     else:
         # Optional launcher plumbing: a run-dir gives live progress + a results
         # JSON so the run is visible/comparable in the QRC dashboard.
@@ -656,7 +698,8 @@ def main():
                 conditions=tuple(args.conditions.split(",")),
                 window=args.window, no_memory=args.no_memory,
                 post=post, readout_label=readout_label, n_feat_override=n_feat_override,
-                log=log, trace_dir=args.run_dir, horizon=args.horizon)
+                log=log, trace_dir=args.run_dir, horizon=args.horizon,
+                ckpt_every=args.ckpt_every)
             if args.run_dir or args.out:
                 import json
                 payload = {
@@ -667,6 +710,7 @@ def main():
                     "feature_count": n_feat_override,
                     "system": args.system, "task": args.task, "horizon": args.horizon,
                     "n_spins": sysm.n,
+                    "propagator": args.propagator, "ckpt_every": args.ckpt_every,
                     "coupling_scale": args.coupling_scale, "T": args.T, "steps": args.steps,
                     "quantum_memory": not args.no_memory,
                     "arcsin_baseline_test_nmse": float(base),

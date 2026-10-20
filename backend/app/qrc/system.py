@@ -437,7 +437,7 @@ class QRCSystem:
     # -- differentiable reservoir step (learnable encoding, plan §8) ------
 
     def ensure_diff(self, which=("x", "y", "z"), device="cpu", cdtype=None,
-                    dense=None):
+                    dense=None, block=None):
         """Build (once, per which/device/dtype/dense) the torch tensors for a
         *differentiable* reservoir step — the sparse Liouvillian ``L`` and
         observable row-matrix ``M`` as ``sparse_csr`` tensors, plus the
@@ -459,6 +459,12 @@ class QRCSystem:
         encoding pulse ``U``. Not usable at large dim (``P`` is ``dim²×dim²``
         dense: 134 MB at 6 spins, 2 GB at 7). Returns a config dict for
         :meth:`step_diff`.
+
+        ``block`` (auto when ``None``: on for ``dim² > 8192``, i.e. ≥ 7 spins):
+        use the exact coherence-pattern block propagator
+        (:mod:`app.qrc.block_propagator`) — ``6^n`` entries instead of
+        ``16^n`` (81 MB at 9 spins, 17 GB at 12), with a precomputed V-node
+        readout. Never builds the 4^n Liouvillian, so it scales past 9 spins.
         """
         import torch
         import scipy.sparse as sp
@@ -466,14 +472,30 @@ class QRCSystem:
 
         if cdtype is None:
             cdtype = torch.complex64
+        if block is None:
+            block = self.dim ** 2 > 8192 and not dense    # ≥ 7 spins
         if dense is None:
-            dense = self.dim ** 2 <= 8192       # ≤ 6 spins
-        key = (tuple(which), str(device), str(cdtype), bool(dense))
+            dense = not block and self.dim ** 2 <= 8192   # ≤ 6 spins
+        key = (tuple(which), str(device), str(cdtype), bool(dense), bool(block))
         cache = getattr(self, "_diff_cache", None)
         if cache is None:
             cache = self._diff_cache = {}
         if key in cache:
             return cache[key]
+        if block:
+            from app.qrc.block_propagator import BlockPropagator
+
+            bp = BlockPropagator(self.system, self.sim, device=device,
+                                 cdtype=cdtype, which=which)
+            g = {
+                "which": tuple(which), "device": device, "cdtype": cdtype,
+                "torch": torch, "V": self.sim.n_virtual, "substeps": None,
+                "per": None, "h": None, "K": None, "P": None, "block": bp,
+                # per-spin 2x2 pulse factors beat a dense d×d U past ~8 spins
+                "local_pulse": self.n >= 8,
+            }
+            cache[key] = g
+            return g
         np_dt = np.complex64 if cdtype == torch.complex64 else np.complex128
 
         def _to_csr(m):
@@ -518,6 +540,8 @@ class QRCSystem:
         ``(feats, vec_end)`` — **no** ``.cpu().numpy()`` detach, so the gradient
         reaches ``U`` and thence the encoding network.
         """
+        if g.get("block") is not None:
+            return g["block"].step(vec, U)
         torch = g["torch"]
         d = self.dim
         rho = vec.reshape(d, d).T
