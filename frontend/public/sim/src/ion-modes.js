@@ -335,6 +335,91 @@ export class IonChain {
     const m = massU * CONST.u;
     return Math.cbrt(CONST.e * CONST.e / (4 * Math.PI * CONST.eps0 * m * omegaZ * omegaZ));
   }
+
+  // ==========================================================================
+  // Spectator-mode sum Σ(N) — James 1998 Eq. (6.16).
+  //
+  //   Σ(N) = Σ_{p≥2} (µ_p + 1) / [ (µ_p − 1)² √µ_p ]
+  //
+  // This is what bounds the probability of exciting the "extraneous" (non-COM)
+  // modes when a single-mode (Cirac–Zoller) Hamiltonian is assumed:
+  //   P̄_ext ≤ 2 (√2 Ω₀η / Nν)² Σ(N).
+  // Note the (µ_p − 1)² denominator: the COM mode is protected precisely BECAUSE
+  // the other modes are non-degenerate with it. James reports Σ(N) ≈ 0.82 for
+  // N ≥ 10, and it varies only slowly with N.
+  // ==========================================================================
+  spectatorSum(N = this.N) {
+    const eig = this.modes(N).eigenvalues;
+    let s = 0;
+    for (let p = 1; p < eig.length; p++) {        // p = 1.. skips the COM mode
+      const mu = eig[p];
+      s += (mu + 1) / ((mu - 1) * (mu - 1) * Math.sqrt(mu));
+    }
+    return s;
+  }
+}
+
+// Apéry's constant ζ(3) = Σ_{k≥1} k⁻³ — appears as H^(3)_∞ in the isospaced
+// string's mode-matrix diagonal.
+export const ZETA3 = 1.2020569031595942854;
+
+// =============================================================================
+// M2b — ISOSPACED (equidistant) ion string — Johanning, Appl. Phys. B 122, 71
+// (2016). The harmonic well above crowds ions at the chain centre (minimum
+// spacing ∝ N^-0.559). If instead the axial potential is built to cancel the
+// Coulomb field exactly at N EQUIDISTANT points — Johanning does this in closed
+// form with polygamma functions — then the trap curvature and the Coulomb sum
+// cancel term by term (his Eqs. 20 + 25–28) and, in units of qE_nn/d with the
+// next-neighbour field E_nn = q/(4πε₀d²):
+//
+//   K_ii   = 4ζ(3)          ← the SAME for every ion   (Johanning Eq. 28)
+//   K_i≠j  = −2/|i−j|³      ← independent of the trap  (Johanning Eq. 24)
+//
+// so K is exactly symmetric TOEPLITZ (entries depend only on i−j). That is the
+// signature of discrete translation invariance, and it gives a solid-state-like
+// phonon BAND with finite edges — in contrast to the harmonic chain, whose
+// spectrum keeps spreading with N.
+//
+// Included here as a SECOND, independently-derived closed-form fixture for the
+// eigen-machinery: unlike the harmonic chain there is no Newton solve involved,
+// so a disagreement isolates the eigendecomposition from the equilibrium solver.
+// =============================================================================
+export class IsospacedChain {
+  // Dimensionless mode matrix (units of qE_nn/d).
+  static hessian(N) {
+    const K = Array.from({ length: N }, () => new Array(N).fill(0));
+    for (let i = 0; i < N; i++) {
+      K[i][i] = 4 * ZETA3;
+      for (let j = 0; j < N; j++) {
+        if (j === i) continue;
+        const d = Math.abs(i - j);
+        K[i][j] = -2 / (d * d * d);
+      }
+    }
+    return K;
+  }
+
+  // Eigen-decomposition, ascending. Same shape as IonChain.modes() minus positions
+  // (which are equidistant by construction: z̄_i = [i − (N−1)/2]·d).
+  static modes(N) {
+    const K = IsospacedChain.hessian(N);
+    if (N === 1) return { eigenvalues: [4 * ZETA3], modes: [{ eigenvalue: 4 * ZETA3, vector: [1] }] };
+    const res = math.eigs(math.matrix(K));
+    const vecs = res.eigenvectors.map((e) => ({
+      eigenvalue: typeof e.value === 'object' ? e.value.re : e.value,
+      vector: e.vector.toArray().map((c) => (typeof c === 'object' ? c.re : c)),
+    }));
+    vecs.sort((p, q) => p.eigenvalue - q.eigenvalue);
+    return {
+      eigenvalues: vecs.map((v) => v.eigenvalue),
+      modes: vecs.map((v) => ({ eigenvalue: v.eigenvalue, vector: normalizeSign(v.vector) })),
+    };
+  }
+
+  // Equidistant equilibrium positions in units of the spacing d.
+  static positions(N) {
+    return Array.from({ length: N }, (_, i) => i - (N - 1) / 2);
+  }
 }
 
 // Fix each eigenvector's global sign so the first non-tiny entry is positive

@@ -31,6 +31,7 @@ import { ION_INFO } from './ion-info.js';
 import { initWizard, startWizard, closeWizard } from './wizard.js';
 import { ION_WIZARDS } from './ion-wizard.js';
 import { initLab, openLab } from './ion-lab.js';
+import { initFlow, openFlowMap, renderCrumb } from './ion-flow.js';
 
 // Educational ⓘ info buttons: inject one next to every [data-info] label / graph
 // heading and open a sourced popup on click (src/info.js + src/ion-info.js).
@@ -101,9 +102,10 @@ const truncEl = document.getElementById('trunc-warn');
 
 // ---- app state --------------------------------------------------------------
 const state = {
-  playing: false, speed: 1, classical: false, module: 'M3',
+  playing: false, speed: 1, classical: false, module: 'M1',
   stepBudget: 6, dwell: 0.4, sampleAccum: 0,
   scanQueue: null,      // { grid, i, cfg, delta[], pe[] } while scanning δ (M3)
+  scanNbar: null,       // n̄ the displayed M3 spectrum was taken at (staleness check)
   m4scan: null,         // { grid, i, cfg, delta[], nbar[] } while scanning the Doppler floor (M4)
   m4prevSys: null,      // stashed pre-M4 engine (M4 swaps in its own dedicated engine)
   m6gate: null,         // { kind, tTotal, tElapsed, theta } while an M6 gate runs
@@ -172,9 +174,26 @@ function drawDiagram() {
   });
 }
 
+// The M3 spectrum is a snapshot from the LAST scan; if the ion's n̄ has since drifted
+// (e.g. you cooled it) the plot no longer describes the current state. Flag that so the
+// user knows to re-scan instead of trusting a stale curve.
+function updateScanStatus() {
+  const el = document.getElementById('scan-status');
+  if (!el || state.scanQueue || state.scanNbar == null) return;
+  const now = sys.nBar();
+  if (Math.abs(now - state.scanNbar) > 0.15) {
+    el.innerHTML = `⚠ spectrum stale — scanned at n̄=${state.scanNbar.toFixed(2)}, now n̄=${now.toFixed(2)}. Press <b>Scan</b>.`;
+    el.style.color = 'var(--accent2)';
+  } else {
+    el.textContent = `spectrum ✓ · n̄=${state.scanNbar.toFixed(2)}`;
+    el.style.color = '';
+  }
+}
+
 function refresh(full = false) {
   drawDiagram();
   peTrace.draw(); fluorTrace.draw(); nbarTrace.draw(); excSpectrum.draw();
+  if (state.module === 'M3') updateScanStatus();
   if (state.module === 'M4') m4Scan.draw();   // recolors the floor map on theme toggle
   drawObservables(); drawTrunc();
   const now = performance.now();
@@ -806,6 +825,21 @@ function m10FinishScan() {
   state.m10scan = null;
 }
 
+// One-line ROLE per module: the experiment phase + what it does, so closely-related
+// modules read as distinct at a glance (shown in the center under the tabs).
+const MODULE_ROLES = {
+  M1: '<b>PREPARE</b> · the trap itself — why a harmonic oscillator exists at all (classical Mathieu stability). Start here.',
+  M2: '<b>PREPARE</b> · the Coulomb normal modes — the motional "bus" a two-qubit gate (M7) will use.',
+  M4: '<b>COOL</b> · broad-line <b>Doppler cooling</b> — <i>changes</i> n̄ down to the Doppler limit ~Γ/2ω_z (sidebands unresolved).',
+  M5: '<b>COOL</b> · resolved-sideband cooling — drives the <b>red sideband</b> + spontaneous emission to <i>change</i> n̄ toward the motional ground state.',
+  M3: '<b>CHARACTERIZE</b> · <i>measure</i> the motional state — scan δ → excitation spectrum; the red/blue sideband asymmetry reads out n̄. Probes, does <b>not</b> cool (contrast M5).',
+  M9: '<b>CHARACTERIZE</b> · Rabi oscillations — flop the qubit to calibrate the π-pulse (period 2π/Ω).',
+  M10: '<b>CHARACTERIZE</b> · Ramsey interferometry — measure the coherence time T₂*.',
+  M6: '<b>COMPUTE</b> · single-qubit gate — a carrier pulse rotates the qubit (Rx) on the Bloch sphere.',
+  M7: '<b>COMPUTE</b> · two-qubit <b>Mølmer–Sørensen</b> entangling gate (shared motional mode).',
+  M8: '<b>READ</b> · state-selective fluorescence — bright |g⟩ scatters, dark |e⟩ is shelved; a threshold discriminates them.',
+};
+
 const m4Panel = document.getElementById('m4-panel');
 const m6Panel = document.getElementById('m6-panel');
 const m7Panel = document.getElementById('m7-panel');
@@ -828,6 +862,11 @@ const tabs = new ModuleTabs(document.getElementById('module-tabs'), (id) => {
 
   document.getElementById('module-desc').innerHTML = `<b>${m.name}</b> — ${m.desc}`;
   document.getElementById('break-it').innerHTML = m.breakIt;
+  // Role line in the CENTER (where you switch tabs): the experiment PHASE + what the
+  // module does, so siblings read as distinct (e.g. M3 CHARACTERIZE=measure vs M5 COOL=change n̄).
+  const roleEl = document.getElementById('center-module-desc');
+  if (roleEl) roleEl.innerHTML = MODULE_ROLES[id] || `<b>${m.name}</b>`;
+  renderCrumb(document.getElementById('pipeline-crumb'), id, (mid) => tabs.select(mid));
   moduleActions.querySelectorAll('[data-for]').forEach((el) =>
     el.style.display = el.dataset.for === id ? '' : 'none');
 
@@ -930,6 +969,10 @@ const tabs = new ModuleTabs(document.getElementById('module-tabs'), (id) => {
 document.querySelectorAll('#center-tabs .ctab').forEach((b) =>
   b.addEventListener('click', () => tabs.select(b.dataset.module)));
 
+// "🧭 Experiment map": the pipeline overlay + per-module breadcrumb navigate here.
+initFlow({ onSelect: (id) => tabs.select(id) });
+document.getElementById('btn-flow').addEventListener('click', openFlowMap);
+
 // "🎓 Guided walkthrough" launches the step-by-step tour for the active module.
 document.getElementById('btn-wizard').addEventListener('click', () => {
   startWizard(state.module, (MODULES[state.module] || {}).name);
@@ -1000,6 +1043,13 @@ const ATOM_PRESETS = {
         seOn: false, gamma: 0.02, dephaseOn: true, gammaPhi: 0.02, bathOn: false, heating: 0.01 },
   Yb: { sym: '¹⁷¹Yb⁺', massU: 171, lambdaNm: 729, nuTrapMHz: 0.5, etaOverride: 0.0080,
         seOn: false, gamma: 0.02, dephaseOn: true, gammaPhi: 0.04, bathOn: false, heating: 0.01 },
+  // ¹⁷¹Yb⁺ hyperfine qubit driven by laser Raman beams (IonQ/Quantinuum). Same
+  // hyperfine encoding as Yb·MAGIC, but the coupling is a REAL Lamb–Dicke η from the
+  // Raman Δk (counter-propagating 355 nm beams) → η≈0.19 at 1 MHz, comparable to
+  // optical. lambdaNm=177.5 = 355/2 (the effective Δk wavelength), so η is computed,
+  // not overridden — it scales with ν_z like a real recoil coupling.
+  YbRaman: { sym: '¹⁷¹Yb⁺ (Raman)', massU: 171, lambdaNm: 177.5, nuTrapMHz: 1.0, etaOverride: null,
+        seOn: false, gamma: 0.02, dephaseOn: true, gammaPhi: 0.03, bathOn: false, heating: 0.01 },
 };
 function _setRange(id, v, dec) {
   const el = document.getElementById(id); if (!el) return;
@@ -1042,6 +1092,10 @@ function updateEta() {
     el.innerHTML = `η_eff = <b>${sys.etaValue().toFixed(4)}</b> &nbsp; (¹⁷¹Yb⁺ · MAGIC — set by the ∂B/∂z gradient, no laser; ν_z=${(params.nuTrapHz / 1e6).toFixed(1)} MHz, ${params.massU} u).`;
     return;
   }
+  if (params.atom === 'YbRaman' && !inM4) {
+    el.innerHTML = `η = <b>${sys.etaValue().toFixed(4)}</b> &nbsp; (¹⁷¹Yb⁺ · laser Raman — from the Δk of the 355 nm Raman beams; ν_z=${(params.nuTrapHz / 1e6).toFixed(1)} MHz, ${params.massU} u).`;
+    return;
+  }
   const lam = inM4 ? 397 : params.lambdaNm, nu = inM4 ? 1.0 : params.nuTrapHz / 1e6;
   el.innerHTML = `η = <b>${sys.etaValue().toFixed(4)}</b> &nbsp; (λ=${lam} nm, ν_z=${nu.toFixed(1)} MHz, ${params.massU} u).` +
     (inM4 ? ' <span class="muted-tag">M4: 397 nm cooling, η=η̃</span>'
@@ -1081,8 +1135,13 @@ document.getElementById('btn-scan').addEventListener('click', () => {
   const cfg = {
     N: Math.min(params.N, 16), lambdaNm: params.lambdaNm, nuTrapHz: params.nuTrapHz, massU: params.massU,
     rabi: params.rabi, mode: params.mode, prep: params.prep,
+    // Snapshot the ion's CURRENT motional distribution so the spectrum reflects the
+    // live (possibly cooled) state, not the initial prep. (Fix: after cooling to n̄≈0
+    // the scan showed the warm thermal spectrum because it re-seeded params.prep.)
+    motional: sys.motionalPopulations(),
     tProbe: Math.min(60, Math.PI / params.rabi),   // carrier π-pulse (sidebands stay weak/resolved)
   };
+  state.scanNbar = cfg.motional.reduce((s, p, n) => s + n * p, 0);   // n̄ this scan reflects
   state.scanQueue = { grid, i: 0, cfg, delta: [], pe: [] };
 });
 
@@ -1310,7 +1369,7 @@ function frame() {
     }
     excSpectrum.set({ delta: q.delta, pe: q.pe, omegaZ: 1 });
     document.getElementById('scan-status').textContent = `scanning δ… ${q.i}/${q.grid.length}`;
-    if (q.i >= q.grid.length) { document.getElementById('scan-status').textContent = `spectrum: ${q.grid.length} points ✓`; state.scanQueue = null; }
+    if (q.i >= q.grid.length) { state.scanQueue = null; updateScanStatus(); }
     refresh();
     requestAnimationFrame(frame);
     return;
@@ -1337,7 +1396,7 @@ function frame() {
 // Init
 // =============================================================================
 applyTheme(localStorage.getItem('ion-theme') || 'dark');
-tabs.select('M3');
+tabs.select('M1');   // start at the first experiment step (Prepare · Paul trap)
 syncStateRows();
 updateEta();
 resizeLevels();

@@ -2,8 +2,9 @@ CiRA QuantumSim — vendored static build
 ========================================
 
 Source  : https://github.com/siridech-bo/CiRA-QuantumSim (private)
-Commit  : c78843c850519f9234edaf8cba195ff660d43248
-Vendored: 2026-08-24
+Commit  : 398f1a7 (branch library-reference-pdfs; superset of master @ 0c4a154)
+          previously c78843c850519f9234edaf8cba195ff660d43248 (2026-08-24)
+Vendored: 2026-10-20
 
 This directory is a self-hosted copy of the CiRA QuantumSim physics visualizer,
 served by the CiRA Quantum SPA at /sim/ and surfaced in-app at /learn/simulator.
@@ -16,7 +17,8 @@ Runtime dependencies are vendored locally under vendor/ (no CDN at runtime):
   - pdf.min.mjs .............. pdfjs-dist@4.7.76 (build/pdf.min.mjs)
   - pdf.worker.min.mjs ....... pdfjs-dist@4.7.76 (build/pdf.worker.min.mjs)
 
-The importmaps in *.html and the pdf.js workerSrc in src/pdf-reader.js were
+The importmaps in *.html (plus a vendor/math.umd.js <script> before each mathjs
+importmap) and the pdf.js workerSrc in src/pdf-reader.js were
 rewritten from CDN URLs to these local vendor/ paths.
 
 Library/ holds copyrighted reference papers for in-app reading only. Direct
