@@ -14,7 +14,9 @@ Datasets: narma2 (encoding-sensitive), narma10 (memory-bound — expect QRC tie/
 the honest contrast), mackey_glass (chaotic one-step prediction).
 
 Readout: physics-informed reduced FID (SOP 3.2), D = 2*D_eff features. Every result
-is labeled (readout, D, regime). Reservoir: 6-spin, coupling x2.
+is labeled (readout, D, regime). Reservoir: --system (default 6-spin, coupling x2;
+--plan crotonic9 = the 9-spin 13C crotonic acid at its real couplings, proton FID
+readout, NARMA-2/10 + Mackey-Glass h=10 x 3 seeds + one tau->0 ablation per task).
 
 Run (launcher task 'learnable-campaign', GPU) or standalone:
   python backend/scripts/qrc_learnable_campaign.py --run-dir <dir> --out <summary.json>
@@ -87,23 +89,57 @@ def lstm_baseline(u, y, device, washout, hidden=64, epochs=400, lr=5e-3, seed=0)
 # ---- one QRC condition-set for a (task, seed) -----------------------------
 
 
-def qrc_job(task, seed, device, args, log, trace_dir, no_memory=False):
+PLANS = {
+    # (task, seed, ablation, horizon) — ordered by value; budget guard trims the tail
+    "6spin": [
+        ("narma2", 1, False, 1), ("narma2", 2, False, 1), ("narma2", 3, False, 1),
+        ("narma2", 1, True, 1),
+        ("narma10", 1, False, 1), ("narma10", 2, False, 1), ("narma10", 3, False, 1),
+        ("narma10", 1, True, 1),
+        ("mackey_glass", 1, False, 1), ("mackey_glass", 2, False, 1),
+    ],
+    "crotonic9": [
+        ("narma2", 1, False, 1), ("narma2", 2, False, 1), ("narma2", 3, False, 1),
+        ("narma2", 1, True, 1),
+        ("mackey_glass", 1, False, 10), ("mackey_glass", 2, False, 10),
+        ("mackey_glass", 3, False, 10), ("mackey_glass", 1, True, 10),
+        ("narma10", 1, False, 1), ("narma10", 2, False, 1), ("narma10", 3, False, 1),
+        ("narma10", 1, True, 1),
+    ],
+}
+
+# Tuned classical baselines on the SAME tasks / T=1500 / split (reservoir-
+# independent), from the 6-spin paper's classical-baseline-548dbea6 run.
+CLASSICAL_REF = {"narma2": {"tuned_lstm": 0.0114, "esn": 0.0046},
+                 "narma10": {"esn": 0.029},
+                 "mackey_glass_h10": {"tuned_lstm": 0.0024, "esn": 0.0057}}
+
+
+def _readout_qubits(args):
+    return [int(x) for x in args.readout_qubits.split(",")] if args.readout_qubits else None
+
+
+def qrc_job(task, seed, device, args, log, trace_dir, no_memory=False, horizon=1):
     """Run QRC arcsin + learned per-spin (regime B, reduced-FID) for one
     (task, seed). Returns {arcsin, perspin, verdict, D, enc_std}."""
-    sysm = build_system("6", args.n_virtual, coupling_scale=args.coupling_scale)
-    g = sysm.ensure_diff(device=device, cdtype=CDT)
-    post, n_feat, ls = make_fid_reduced_post(sysm, g, device)
+    sysm = build_system(args.system, args.n_virtual, coupling_scale=args.coupling_scale)
+    prop = {"auto": {}, "dense": {"dense": True, "block": False},
+            "block": {"block": True, "dense": False}}[args.propagator]
+    g = sysm.ensure_diff(device=device, cdtype=CDT, **prop)
+    post, n_feat, ls = make_fid_reduced_post(sysm, g, device, _readout_qubits(args))
     label = f"fid_reduced (D_eff={ls.d_eff})"
     # Per-job trace subdir so traces don't overwrite each other across jobs.
     job_trace_dir = None
     if trace_dir and not no_memory:
-        job_trace_dir = str(Path(trace_dir) / f"trace_{task}_s{seed}")
+        hz = f"_h{horizon}" if horizon != 1 else ""
+        job_trace_dir = str(Path(trace_dir) / f"trace_{task}{hz}_s{seed}")
         Path(job_trace_dir).mkdir(parents=True, exist_ok=True)
     results, base, verdict = train(
         sysm, g, device, CDT, task=task, T=args.T, washout=args.washout,
         steps=args.steps, lr=args.lr, seed=seed, conditions=("arcsin", "perspin"),
         window=1, no_memory=no_memory, post=post, readout_label=label,
-        n_feat_override=n_feat, log=log, trace_dir=job_trace_dir)
+        n_feat_override=n_feat, log=log, trace_dir=job_trace_dir, horizon=horizon,
+        ckpt_every=args.ckpt_every)
     per = results.get("perspin", (None, None, None, None))
     return {"arcsin": float(base), "perspin": (float(per[0]) if per[0] is not None else None),
             "enc_std": (float(per[2]) if per[2] is not None else None),
@@ -114,6 +150,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run-dir", default=None)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--plan", choices=sorted(PLANS), default="6spin")
+    ap.add_argument("--system", default="6", help="int n or preset (crotonic9_paper4)")
+    ap.add_argument("--readout-qubits", default=None,
+                    help="FID-detected spins, comma list (crotonic: 4,5,6,7,8)")
+    ap.add_argument("--propagator", choices=["auto", "dense", "block"], default="auto")
+    ap.add_argument("--ckpt-every", type=int, default=0)
     ap.add_argument("--n-virtual", type=int, default=137)
     ap.add_argument("--coupling-scale", type=float, default=2.0)
     ap.add_argument("--T", type=int, default=1500)
@@ -128,53 +170,58 @@ def main():
         raise SystemExit("cuda required for the campaign")
     device = "cuda"
 
-    # Job plan (ordered by value; budget guard trims the tail). Each entry:
-    # (task, seed, ablation?). ablation runs perspin with tau->0 (--no-memory).
-    plan = [
-        ("narma2", 1, False), ("narma2", 2, False), ("narma2", 3, False),
-        ("narma2", 1, True),                                   # ablation
-        ("narma10", 1, False), ("narma10", 2, False), ("narma10", 3, False),
-        ("narma10", 1, True),                                  # ablation
-        ("mackey_glass", 1, False), ("mackey_glass", 2, False),
-    ]
+    # Job plan: (task, seed, ablation?, horizon). ablation runs perspin with
+    # tau->0 (--no-memory), which must collapse if the gain is quantum-mediated.
+    plan = PLANS[args.plan]
 
     run_dir = args.run_dir or str(Path(__file__).resolve().parents[1] / "artifacts" / "qrc_runs" / "campaign_local")
     log = ProgressLogger(run_dir=run_dir, title="QRC learnable confirmation campaign")
-    log.event("config", f"plan={len(plan)} jobs | 6-spin coupling={args.coupling_scale}x "
-              f"reduced-FID T={args.T} steps={args.steps} budget={args.budget_hours}h")
+    log.event("config", f"plan={args.plan} ({len(plan)} jobs) | system={args.system} "
+              f"coupling={args.coupling_scale}x readout_qubits={args.readout_qubits or 'all'} "
+              f"V={args.n_virtual} reduced-FID T={args.T} steps={args.steps} "
+              f"propagator={args.propagator} budget={args.budget_hours}h")
 
     summary = {"experiment": "learnable_campaign", "regime": "B (trained encoding)",
-               "readout": "fid_reduced", "system": "6-spin", "coupling_scale": args.coupling_scale,
-               "T": args.T, "steps": args.steps, "jobs": [], "classical_baseline": "LSTM(64)"}
+               "readout": "fid_reduced", "plan": args.plan, "system": args.system,
+               "readout_qubits": _readout_qubits(args), "n_virtual": args.n_virtual,
+               "coupling_scale": args.coupling_scale, "propagator": args.propagator,
+               "T": args.T, "steps": args.steps, "lr": args.lr, "washout": args.washout,
+               "jobs": [], "classical_baseline": "LSTM(64)",
+               "classical_reference_tuned": CLASSICAL_REF}
     t0 = time.time()
     trace_root = Path(run_dir)
 
-    for i, (task, seed, ablation) in enumerate(plan):
+    for i, (task, seed, ablation, horizon) in enumerate(plan):
         elapsed_h = (time.time() - t0) / 3600.0
         if elapsed_h > args.budget_hours:
             log.event("budget", f"stopping: {elapsed_h:.1f}h > budget {args.budget_hours}h "
                       f"({len(plan) - i} jobs skipped)")
-            summary["skipped"] = [{"task": t, "seed": s, "ablation": a} for (t, s, a) in plan[i:]]
+            summary["skipped"] = [{"task": t, "seed": s, "ablation": a, "horizon": h}
+                                  for (t, s, a, h) in plan[i:]]
             break
         kind = "ablation(tau->0)" if ablation else "train"
-        log.status(phase=f"[{i+1}/{len(plan)}] {task} seed{seed} {kind}", step=i, total=len(plan))
-        log.event("job", f"[{i+1}/{len(plan)}] {task} seed{seed} {kind}")
+        tname = f"{task}_h{horizon}" if horizon != 1 else task
+        log.status(phase=f"[{i+1}/{len(plan)}] {tname} seed{seed} {kind}", step=i, total=len(plan))
+        log.event("job", f"[{i+1}/{len(plan)}] {tname} seed{seed} {kind}")
         try:
-            rec = {"task": task, "seed": seed, "ablation": ablation}
-            qr = qrc_job(task, seed, device, args, log, str(trace_root), no_memory=ablation)
+            rec = {"task": tname, "seed": seed, "ablation": ablation, "horizon": horizon}
+            tj = time.time()
+            qr = qrc_job(task, seed, device, args, log, str(trace_root), no_memory=ablation,
+                         horizon=horizon)
             rec.update(qr)
+            rec["job_hours"] = round((time.time() - tj) / 3600, 3)
             if not ablation:
-                # classical LSTM on the SAME task/seed/split (cheap)
-                u, y = make_task(task, args.T, seed)
+                # classical LSTM on the SAME task/seed/split/horizon (cheap)
+                u, y = make_task(task, args.T, seed, horizon=horizon)
                 rec["lstm"] = lstm_baseline(u, y, device, args.washout, seed=seed)
             summary["jobs"].append(rec)
-            log.result(f"{task}-s{seed}{'-abl' if ablation else ''}",
+            log.result(f"{tname}-s{seed}{'-abl' if ablation else ''}",
                        {"arcsin": round(qr["arcsin"], 4),
                         "perspin": (round(qr["perspin"], 4) if qr["perspin"] is not None else None),
                         "lstm": (round(rec.get("lstm"), 4) if rec.get("lstm") is not None else None)})
         except Exception as e:  # noqa: BLE001 - one job must not kill the campaign
-            log.event("error", f"{task} seed{seed} {kind}: {type(e).__name__}: {e}")
-            summary["jobs"].append({"task": task, "seed": seed, "ablation": ablation,
+            log.event("error", f"{tname} seed{seed} {kind}: {type(e).__name__}: {e}")
+            summary["jobs"].append({"task": tname, "seed": seed, "ablation": ablation,
                                     "error": f"{type(e).__name__}: {e}"})
         # persist the summary after EVERY job (crash/interrupt-safe)
         _write_summary(summary, args, run_dir, t0)

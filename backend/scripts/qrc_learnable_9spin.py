@@ -176,11 +176,15 @@ def make_fid_reduced_post(sysm, g, device, readout_qubits=None):
         raise ValueError("fid_reduced readout needs which=('x','y','z')")
     ls = physics_informed_lines(sysm.system, readout_qubits)
     V, n = g["V"], sysm.n
+    # the FID is detected on the readout spins only (crotonic: protons 4-8,
+    # carbons are a bath) — must match the spins the lines were enumerated for
+    ro = list(readout_qubits) if readout_qubits is not None else list(range(n))
+    g["readout_qubits"] = ro
     dwell = sysm.sim.tau / V
     phi = ls.projection(V, dwell, backend="torch").to(device=device)   # (V, D_eff) c128
 
     def post(feat):
-        fr = feat.reshape(V, 3, n)                     # v, axis, spin
+        fr = feat.reshape(V, 3, n)[:, :, ro]           # v, axis, readout spin
         fid = torch.complex(fr[:, 0, :].sum(1), fr[:, 1, :].sum(1)).to(torch.complex128)
         X = fid @ phi                                  # (D_eff,) complex
         return torch.cat([X.real, X.imag]).to(RDT)     # (2*D_eff,) real
@@ -198,7 +202,8 @@ def capture_fid(angle_fn, inputs, sysm, g, device, cdt):
     with torch.no_grad():
         F = forward_features([angle_fn(x) for x in inputs], sysm, g, device, cdt)
     V, n = g["V"], sysm.n
-    Fr = F.reshape(F.shape[0], V, 3, n).cpu().numpy()          # t, v, axis, spin
+    ro = g.get("readout_qubits") or list(range(n))             # detected spins
+    Fr = F.reshape(F.shape[0], V, 3, n)[:, :, :, ro].cpu().numpy()   # t, v, axis, spin
     fid = Fr[:, :, 0, :].sum(2) + 1j * Fr[:, :, 1, :].sum(2)   # (T, V)
     return fid.astype(np.complex64)
 
@@ -222,7 +227,9 @@ def _save_learned_trace(trace_dir, label, angle_fn, inputs, u, washout, n_tr,
         seed=np.int64(seed),
         meta_json=json.dumps({"experiment": "learnable_encoding", "condition": label,
                               "task": task, "n_spins": sysm.n, "V": g["V"],
-                              "trace_readout": "transverse_FID"}),
+                              "trace_readout": "transverse_FID",
+                              "readout_qubits": list(g.get("readout_qubits") or range(sysm.n)),
+                              "system_labels": list(sysm.system.labels)}),
     )
     msg = f"saved final-encoding FID trace ({label}, {T}x{g['V']}) -> {path.name}"
     if log:
@@ -636,6 +643,8 @@ def main():
     ap.add_argument("--readout", choices=["observable", "fid_reduced"], default="observable",
                     help="fid_reduced = physics-informed reduced FID (D_eff lines, SOP 3.2); "
                          "set --n-virtual >= ~2*D_eff so the FID resolves the lines")
+    ap.add_argument("--readout-qubits", default=None,
+                    help="fid_reduced detected spins, comma list (crotonic: 4,5,6,7,8 = protons)")
     ap.add_argument("--propagator", choices=["auto", "dense", "block", "taylor"], default="auto",
                     help="auto = dense <=6 spins, exact block-structured propagator >=7")
     ap.add_argument("--ckpt-every", type=int, default=0,
@@ -668,7 +677,8 @@ def main():
     if args.readout == "fid_reduced":
         if args.correlation:
             raise SystemExit("--readout fid_reduced is incompatible with --correlation")
-        post, n_feat_override, ls = make_fid_reduced_post(sysm, g, args.device)
+        ro = ([int(x) for x in args.readout_qubits.split(",")] if args.readout_qubits else None)
+        post, n_feat_override, ls = make_fid_reduced_post(sysm, g, args.device, ro)
         readout_label = f"fid_reduced (D_eff={ls.d_eff}, {n_feat_override} feats)"
         if g["V"] < ls.d_eff:
             print(f"  WARNING: V={g['V']} < D_eff={ls.d_eff} — FID under-samples the "
