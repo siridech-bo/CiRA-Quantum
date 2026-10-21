@@ -36,7 +36,9 @@ RDT = torch.float64
 CDT_MAP = {"complex64": torch.complex64, "complex128": torch.complex128}
 
 
-def build_system(name, n_virtual, coupling_scale=1.0):
+def build_system(name, n_virtual, coupling_scale=1.0, tau=0.03):
+    """``tau`` is the free-evolution time per input step (SOP §1: standard 30 ms;
+    any other value is a labeled departure)."""
     sysc = _resolve_system(name)
     if coupling_scale != 1.0:                       # scale the qubit couplings
         from app.qrc.config import SystemConfig
@@ -44,7 +46,7 @@ def build_system(name, n_virtual, coupling_scale=1.0):
             n_qubits=sysc.n_qubits, chemical_shifts=list(sysc.chemical_shifts),
             j_coupling=(np.asarray(sysc.j_coupling) * coupling_scale).tolist(),
             t1=list(sysc.t1), t2=list(sysc.t2), labels=list(sysc.labels))
-    sim = SimConfig(tau=0.03, n_virtual=n_virtual, evolution_mode="action")
+    sim = SimConfig(tau=tau, n_virtual=n_virtual, evolution_mode="action")
     return QRCSystem(sysc, sim)
 
 
@@ -159,7 +161,7 @@ def forward_features(angles_seq, sysm, g, device, cdt, reset_each_step=False, po
     return torch.cat(segs)
 
 
-def make_fid_reduced_post(sysm, g, device, readout_qubits=None):
+def make_fid_reduced_post(sysm, g, device, readout_qubits=None, lines_system=None):
     """Build a differentiable per-step readout that projects the FID onto the
     physics-informed D_eff analytic lines (SOP §3.2).
 
@@ -174,7 +176,10 @@ def make_fid_reduced_post(sysm, g, device, readout_qubits=None):
 
     if tuple(g["which"]) != ("x", "y", "z"):
         raise ValueError("fid_reduced readout needs which=('x','y','z')")
-    ls = physics_informed_lines(sysm.system, readout_qubits)
+    # ``lines_system`` fixes the readout basis to another system's lines — the
+    # J=0 ablation projects onto the *coupled* molecule's lines so the control
+    # changes only the dynamics, not the feature count (SOP §6.6)
+    ls = physics_informed_lines(lines_system or sysm.system, readout_qubits)
     V, n = g["V"], sysm.n
     # the FID is detected on the readout spins only (crotonic: protons 4-8,
     # carbons are a bath) — must match the spins the lines were enumerated for
@@ -636,6 +641,8 @@ def main():
                     help="encoder input = sliding window of last k inputs (strategy B)")
     ap.add_argument("--no-memory", action="store_true",
                     help="disable cross-step quantum memory (tau->0 ablation)")
+    ap.add_argument("--tau", type=float, default=0.03,
+                    help="free-evolution time per step, s (SOP standard 0.03)")
     ap.add_argument("--coupling-scale", type=float, default=1.0,
                     help="scale the qubit J-couplings (2.0 = strong coupling)")
     ap.add_argument("--correlation", action="store_true",
@@ -656,7 +663,8 @@ def main():
     if args.device == "cuda" and not torch.cuda.is_available():
         raise SystemExit("cuda requested but not available")
     cdt = CDT_MAP[args.dtype]
-    sysm = build_system(args.system, args.n_virtual, coupling_scale=args.coupling_scale)
+    sysm = build_system(args.system, args.n_virtual, coupling_scale=args.coupling_scale,
+                        tau=args.tau)
     prop = {"auto": {}, "dense": {"dense": True, "block": False},
             "block": {"block": True, "dense": False},
             "taylor": {"dense": False, "block": False}}[args.propagator]

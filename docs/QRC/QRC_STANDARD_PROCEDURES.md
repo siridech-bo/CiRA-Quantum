@@ -45,10 +45,24 @@ smaller readout. Unify on 653 (§7) before quoting production numbers.
   `H = Σ_i π ν_i σz_i + Σ_{i<j} (π/2) J_ij σz_i σz_j` (all diagonal; entanglement
   comes from ZZ evolution of transverse states created by the pulses).
 - **Dissipation:** T₁/T₂ Lindblad (physical dephasing model by default).
-- **Systems:** `crotonic9_paper4` (9 spins, the paper system); `_resolve_system(n)`
-  for generic n-spin. `--coupling-scale` multiplies all J (2.0 = strong coupling).
+- **Systems:** `crotonic9_paper4` (9 spins, the paper system; FID readout = protons
+  4–8, carbons are a bath); `dccb7` (7 ¹³C of the per-¹³C dichlorocyclobutanone
+  derivative, Lu/Li et al. arXiv:1601.04721 Fig. 6, ¹H decoupled as in that
+  experiment; readout = all 7 ¹³C; shifts referenced to a carrier at the spectrum
+  centre); `_resolve_system(n)` for generic n-spin. `--coupling-scale` multiplies
+  all J (2.0 = strong coupling). **Realism:** the σz·σz-only model needs
+  `|J| ≪ |Δν|`; a real molecule (crotonic, dccb7) satisfies it, the generic chain
+  at ×2 does not (homonuclear reading) — label it an *abstract Ising reservoir*,
+  not an NMR molecule. A coupling scale ≠ 1 on a real molecule is a simulation
+  diagnostic only (J cannot be increased on a device).
+- **Free-evolution time τ (per input step):** **standard τ = 30 ms.** Any other τ
+  is a labeled departure (report `τ` with the result). Physical bound: τ ≲ T₂.
+  The relevant coupling measure is `J·τ` (coupling cycles per step); dccb7 is run
+  at τ = 30 ms (like-for-like) **and** τ = 100 ms (`J_max·τ ≈ 6`, coupling-matched;
+  its T₂ ≈ 0.5–1.9 s allows it). V must satisfy Nyquist: `V ≥ 2·f_max·τ`.
 - **Evolution:** exact `exp(τL)` — `action` (CPU Krylov) / `gpu` (torch Taylor) /
-  dense propagator for small systems (`ensure_diff`, dim²≤8192).
+  dense propagator for small systems (`ensure_diff`, dim²≤8192) / exact
+  coherence-pattern **block propagator** for ≥7 spins (`app/qrc/block_propagator.py`).
 
 ## 2. Encoding (input → pulse)
 
@@ -174,9 +188,18 @@ observables adds their transition frequencies. **Label `D = D_eff` and the reado
    under-powered); flag degenerate near-constant encoders (angle-map std < 0.1).
 4. **Multi-seed** — vary data seed AND encoder init; report mean±std and win-count.
    A single-seed "beat" is not a result.
-5. **Persist waveforms** — any reservoir-evolving run saves the raw FID `.npz`
+5. **Fair classical baselines** — a "QRC beats classical" claim needs classical
+   models tuned on the **validation** split over their real hyperparameters
+   (ESN: size × spectral radius × leak × input scale × ridge α; LSTM: hidden ×
+   layers × lr, multi-init) and evaluated on the **same data seeds** as the QRC
+   (mean±std). A size-only ESN or a single-seed classical number is not a valid
+   comparison (`scripts/qrc_classical_fair.py`).
+6. **J=0 ablation** — set all couplings to zero (`--coupling-scale 0`). τ→0 shows
+   the *memory* is needed; J=0 shows whether the *spin–spin coupling* is. Only a
+   gain that shrinks at J=0 may be called coupling-mediated.
+7. **Persist waveforms** — any reservoir-evolving run saves the raw FID `.npz`
    before computing any metric (see CLAUDE.md hard rule).
-6. **GPU** — confirm scope + get explicit go before every GPU launch (CLAUDE.md).
+8. **GPU** — confirm scope + get explicit go before every GPU launch (CLAUDE.md).
 
 ## 7. Readout unification (action)
 

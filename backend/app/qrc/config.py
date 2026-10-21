@@ -347,10 +347,52 @@ def crotonic_acid_paper4() -> SystemConfig:
     )
 
 
+def dichlorocyclobutanone_7c() -> SystemConfig:
+    """The 7 ¹³C qubits of the per-¹³C-labelled dichlorocyclobutanone derivative
+    ((1S,4S,5S)-7,7-dichloro-6-oxo-2-thiabicyclo[3.2.0]heptane-4-carboxylic acid),
+    Lu/Li et al., arXiv:1601.04721, Fig. 6 (Bruker DRX 700 MHz, room temperature).
+
+    A real, fully observed, densely coupled processor: all seven spins are ¹³C
+    (one detection channel), eight C–C couplings ≥ 20 Hz connect every spin, and
+    T₂ ≈ 0.5–1.9 s. The five ¹H are decoupled, as in that experiment, so the
+    C–H couplings are omitted. ``|J| ≤ 58 Hz ≪`` the kHz shift gaps, so the
+    σz·σz-only weak-coupling model is physically valid.
+
+    Shifts are referenced to a carrier at the centre of the ¹³C spectrum
+    (published offsets minus 20313 Hz) so the FID band is ±14.2 kHz; the carrier
+    is a frame choice and does not change the physics. Every number is
+    transcribed from the published table.
+    """
+    published = [30020.0, 8779.0, 6245.0, 10333.0, 15745.0, 34381.0, 11928.0]
+    carrier = (max(published) + min(published)) / 2.0           # 20313 Hz
+    pairs: dict[tuple[int, int], float] = {
+        (0, 1): 57.58, (0, 2): -2.00, (1, 2): 32.70,
+        (0, 3): 0.0, (1, 3): 0.30, (2, 3): 0.0,
+        (0, 4): 1.25, (1, 4): 2.62, (2, 4): -1.11, (3, 4): 33.16,
+        (0, 5): 5.54, (1, 5): -1.66, (2, 5): 0.0, (3, 5): -3.53, (4, 5): 33.16,
+        (0, 6): -1.25, (1, 6): 37.48, (2, 6): 0.94, (3, 6): 29.02, (4, 6): 21.75,
+        (5, 6): 34.57,
+    }
+    n = 7
+    j = np.zeros((n, n))
+    for (a, b), val in pairs.items():
+        j[a, b] = j[b, a] = val
+    return SystemConfig(
+        n_qubits=n,
+        chemical_shifts=[v - carrier for v in published],
+        j_coupling=j.tolist(),
+        t1=[8.015, 3.611, 1.834, 3.722, 12.95, 8.157, 3.636],
+        t2=[1.611, 0.877, 1.122, 0.792, 1.143, 1.912, 0.531],
+        labels=[f"C{i + 1}" for i in range(n)],
+        larmor_mhz=[176.05] * n,
+    )
+
+
 SYSTEM_PRESETS = {
     "spinq3": spinq_3qubit,
     "crotonic9": crotonic_acid_like,
     "crotonic9_paper4": crotonic_acid_paper4,
+    "dccb7": dichlorocyclobutanone_7c,
 }
 
 

@@ -106,6 +106,19 @@ PLANS = {
         ("narma10", 1, False, 1), ("narma10", 2, False, 1), ("narma10", 3, False, 1),
         ("narma10", 1, True, 1),
     ],
+    # real, fully observed, densely coupled 7x13C molecule (SOP §1)
+    "dccb7": [
+        ("mackey_glass", 1, False, 10), ("mackey_glass", 2, False, 10),
+        ("mackey_glass", 3, False, 10), ("mackey_glass", 1, True, 10),
+        ("narma2", 1, False, 1), ("narma2", 2, False, 1), ("narma2", 3, False, 1),
+        ("narma2", 1, True, 1),
+    ],
+    # J=0 ablation (run with --coupling-scale 0 --lines-coupling-scale 1)
+    "dccb7_j0": [
+        ("mackey_glass", 1, False, 10), ("mackey_glass", 2, False, 10),
+        ("mackey_glass", 3, False, 10),
+        ("narma2", 1, False, 1), ("narma2", 2, False, 1), ("narma2", 3, False, 1),
+    ],
 }
 
 # Tuned classical baselines on the SAME tasks / T=1500 / split (reservoir-
@@ -122,11 +135,17 @@ def _readout_qubits(args):
 def qrc_job(task, seed, device, args, log, trace_dir, no_memory=False, horizon=1):
     """Run QRC arcsin + learned per-spin (regime B, reduced-FID) for one
     (task, seed). Returns {arcsin, perspin, verdict, D, enc_std}."""
-    sysm = build_system(args.system, args.n_virtual, coupling_scale=args.coupling_scale)
+    sysm = build_system(args.system, args.n_virtual, coupling_scale=args.coupling_scale,
+                        tau=args.tau)
     prop = {"auto": {}, "dense": {"dense": True, "block": False},
             "block": {"block": True, "dense": False}}[args.propagator]
     g = sysm.ensure_diff(device=device, cdtype=CDT, **prop)
-    post, n_feat, ls = make_fid_reduced_post(sysm, g, device, _readout_qubits(args))
+    lines_sys = None
+    if args.lines_coupling_scale is not None:      # fixed readout basis (J=0 ablation)
+        lines_sys = build_system(args.system, 1, coupling_scale=args.lines_coupling_scale,
+                                 tau=args.tau).system
+    post, n_feat, ls = make_fid_reduced_post(sysm, g, device, _readout_qubits(args),
+                                             lines_system=lines_sys)
     label = f"fid_reduced (D_eff={ls.d_eff})"
     # Per-job trace subdir so traces don't overwrite each other across jobs.
     job_trace_dir = None
@@ -158,6 +177,11 @@ def main():
     ap.add_argument("--ckpt-every", type=int, default=0)
     ap.add_argument("--n-virtual", type=int, default=137)
     ap.add_argument("--coupling-scale", type=float, default=2.0)
+    ap.add_argument("--tau", type=float, default=0.03,
+                    help="free-evolution time per step, s (SOP standard 0.03; label others)")
+    ap.add_argument("--lines-coupling-scale", type=float, default=None,
+                    help="enumerate readout lines at this J scale instead of the dynamics' "
+                         "(J=0 ablation: 1.0 keeps the coupled molecule's basis)")
     ap.add_argument("--T", type=int, default=1500)
     ap.add_argument("--washout", type=int, default=30)
     ap.add_argument("--steps", type=int, default=100)
@@ -185,6 +209,7 @@ def main():
                "readout": "fid_reduced", "plan": args.plan, "system": args.system,
                "readout_qubits": _readout_qubits(args), "n_virtual": args.n_virtual,
                "coupling_scale": args.coupling_scale, "propagator": args.propagator,
+               "tau": args.tau, "lines_coupling_scale": args.lines_coupling_scale,
                "T": args.T, "steps": args.steps, "lr": args.lr, "washout": args.washout,
                "jobs": [], "classical_baseline": "LSTM(64)",
                "classical_reference_tuned": CLASSICAL_REF}
