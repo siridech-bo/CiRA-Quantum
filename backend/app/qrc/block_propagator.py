@@ -290,6 +290,58 @@ class BlockPropagator:
         x_new = torch.cat(outs)[self.invperm]
         return feats, x_new
 
+    # -- FID acquisition readout (Paper-4 / trace-cache readout) -------------
+
+    def fid_readout(self, readout_spins, fid_points, dwell):
+        """Precompute the exact FID acquisition as a linear map of the state.
+
+        Mirrors :meth:`QRCSystem.fid_signal`: a π/2 x-pulse on ``readout_spins``,
+        then ``S(t_m) = Tr[e^{t_m L}(UρU†) O_FID]`` with
+        ``O_FID = Σ_p (σy_p + i σx_p)``, ``t_m = m·dwell``. ``O_FID`` only
+        touches the single-quantum (k=1) blocks of the readout spins, so
+        ``S = R · x_k1`` with ``R[m] = w · exp(t_m L_block)`` built by repeated
+        multiplication. Returns a dict for :meth:`fid`; exact (no stiffness
+        sub-stepping), O(fid_points · |readout| · d) memory."""
+        torch = self.torch
+        n, d, dev = self.n, self.d, self.device
+        c128 = torch.complex128
+        g1 = self.groups[1]
+        m = d // 2
+        N1 = self._expm_group(g1, dwell, c128)                              # (2n, m, m)
+        # rows 2j (q=0) / 2j+1 (q=p) belong to pattern bit j <-> spin n-1-j;
+        # weight of O_FID = σy + iσx: q=0 -> (+i) + i·1 = 2i ; q=p -> (-i) + i = 0
+        w = torch.zeros(2 * n, m, dtype=c128, device=dev)
+        for s in readout_spins:
+            j = n - 1 - s
+            w[2 * j] = 2j
+        rows = [r for s in readout_spins for r in (2 * (n - 1 - s), 2 * (n - 1 - s) + 1)]
+        rows_t = torch.tensor(rows, device=dev)
+        W = w[rows_t]                                                       # (r, m)
+        Nr = N1[rows_t]
+        R = torch.empty(fid_points, len(rows), m, dtype=c128, device=dev)
+        R[0] = W
+        for t in range(1, fid_points):
+            W = torch.bmm(W.unsqueeze(1), Nr).squeeze(1)
+            R[t] = W
+        # π/2 x-pulse factors on the readout spins (identity elsewhere)
+        c, s_ = np.cos(np.pi / 4), np.sin(np.pi / 4)
+        rx = torch.tensor([[c, -1j * s_], [-1j * s_, c]], dtype=c128, device=dev)
+        eye = torch.eye(2, dtype=c128, device=dev)
+        pulse = [rx if i in set(readout_spins) else eye for i in range(n)]
+        # offsets of the k=1 group inside the permuted (grouped) state vector
+        off = self.sizes[0]
+        idx = torch.cat([torch.arange(off + r * m, off + (r + 1) * m, device=dev) for r in rows])
+        return {"R": R.reshape(fid_points, -1).to(self.cdtype), "idx": idx,
+                "pulse": [p.to(self.cdtype) for p in pulse]}
+
+    def fid(self, vec, ro):
+        """FID samples (complex, length fid_points) of the column-stacked state
+        ``vec`` for a readout built by :meth:`fid_readout`. Non-destructive."""
+        d = self.d
+        rho = apply_local_pulse(vec.reshape(d, d).T, ro["pulse"], self.n)
+        x = rho.T.reshape(-1)[self.perm][ro["idx"]]
+        return ro["R"] @ x
+
     def nbytes(self) -> int:
         tot = sum(g["B"].numel() * g["B"].element_size() for g in self.groups)
         return tot + self.Rz.numel() * self.Rz.element_size() + self.Rxy.numel() * self.Rxy.element_size()
