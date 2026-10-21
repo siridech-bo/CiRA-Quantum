@@ -115,15 +115,24 @@ def run_esn(w, workers, out_path):
     print(f"wrote {out_path}")
 
 
+def selection_windows():
+    """Windows whose validation days all precede the FIRST test day of any window.
+    Selection (configs, encoder training) may only see those days — the rolling
+    windows overlap in time, so a later window's validation block contains
+    earlier windows' test days (leakage, found 2026-10-21)."""
+    first_test = min(w0 + ntr for (w0, ntr, _) in WINDOWS.values())
+    return [i for i, n in enumerate(WIN_NAMES) if WINDOWS[n][0] + WINDOWS[n][1] <= first_test]
+
+
 def pick(val, tst):
     """Given val/test [.., win, a, t] for ONE candidate (init-averaged already),
-    choose alpha per (win, t) on val; return pooled val and the test matrix
-    [win, t] at those alphas."""
+    choose alpha per (win, t) on val; return the pooled val over the leak-free
+    selection windows and the test matrix [win, t] at those alphas."""
     a_best = np.nanargmax(val, axis=1)                                      # [win, t]
     wi, ti = np.meshgrid(np.arange(val.shape[0]), np.arange(val.shape[2]), indexing="ij")
     v = val[wi, a_best, ti]
     t = tst[wi, a_best, ti]
-    return float(np.nanmean(v)), t, a_best
+    return float(np.nanmean(v[selection_windows()])), t, a_best
 
 
 def select_esn(esn, max_size=None):
@@ -248,7 +257,7 @@ def report(args):
         out_cmp[label] = {"cfg": c, "pooled_val": sel["pooled_val"], "pooled_test": pooled(sel["test"]),
                           "qrc_minus_esn_ci95": [lo, hi], "frac_qrc_better": frac}
 
-    res = {"n_val": N_VAL, "protocol": "select on pooled validation (4 windows x last n_val train days); alpha per "
+    res = {"n_val": N_VAL, "selection_windows": [WIN_NAMES[i] for i in selection_windows()], "protocol": "select on pooled validation (4 windows x last n_val train days); alpha per "
                        "(window,target) on val; test read once", "windows": WINDOWS, "targets": TARGETS,
            "qrc_variants": {k: {"n_feat": r["n_feat"], "standardized": r["std"], "pooled_val": r["pooled_val"],
                                 "pooled_test": pooled(r["test"]), "test_by_window": np.asarray(r["test"]).tolist()}
