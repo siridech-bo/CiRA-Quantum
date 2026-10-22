@@ -43,9 +43,12 @@ the current features, ERA5 Delhi):
 | QRC learned | 0.99 | 0.91 | 0.74 | 0.58 | 0.55 |
 | tuned ESN (leak 0.3) | 1.00 | 0.97 | 0.94 | 0.91 | 0.88 |
 
-The QRC is a **short-memory reservoir**: its memory is set by physics (spin coherence T₂ ≈ 0.2–0.3 s
-against τ = 30 ms per step ≈ 10 steps; slower T₁ population memory is only weakly visible through the
-transverse FID readout), not tunable like an ESN's leak rate. Long horizons need weeks of context, so
+The QRC is a **short-memory reservoir** relative to a tuned ESN, and its memory is not tunable like an
+ESN's leak rate. Correction (2026-10-23): it is not simply T₂-limited — coherences last only ~7–11 steps
+(T₂* 0.20–0.33 s, τ = 30 ms) yet the measured memory (R² 0.77 at 30 days) outlasts that, because proton
+populations (T₁ ≈ 73–917 steps) reach the readout through the π/2 readout pulse and carbon populations
+through the J-multiplet amplitudes. The likely limiter is that every input pulse (up to π/2 per spin)
+partly overwrites the stored state — to be tested (see `QRC_Design_Concepts.md`, H1). Long horizons need weeks of context, so
 the QRC falls behind exactly there; the worst case (Mumbai, monsoon-driven, long-horizon temperature
 −0.17) is the most seasonal, long-memory task.
 The flip side (Kaggle Delhi): the ESN selected on that small dataset used a very slow leak (0.05), whose
@@ -86,9 +89,9 @@ include it; without it, small nonlinear gains can be mistaken for reservoir qual
 | Any case | always include a tuned linear AR | often within 0.01–0.04 R² of the best model |
 
 ## 4. Implications for QRC design (testable next steps)
-1. **Extend memory**: read out the slow population channel (σz / T₁-limited) alongside the FID, or
-   choose τ/T₂ to trade coupling time against memory; the ESN result says tunable memory is what wins
-   long horizons.
+1. **Extend memory**: tune the encoding strength (input overwrite), protect long-T₁ spins, add a compact
+   population readout, or choose τ; the ESN result says tunable memory is what wins long horizons.
+   Full concepts and pre-registered tests: `QRC_Design_Concepts.md`.
 2. **Bound the features**: rank, log or clipped-z transforms of the FFT readout for robustness to
    regime shift (test as a pre-registered change, not tuned on these test sets).
 3. **Expressiveness**: larger or more strongly coupled reservoirs for strongly nonlinear tasks
