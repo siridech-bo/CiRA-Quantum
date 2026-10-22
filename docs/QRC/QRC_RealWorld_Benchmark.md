@@ -19,7 +19,7 @@ early stopping, retrained on train+val.
 ## Pooled test R²
 
 Significance column: learned QRC vs (arcsin, ESN, matched ESN, LSTM): ▲ learned QRC significantly better,
-▼ significantly worse, ≈ not significant.
+▼ significantly worse, ≈ comparable (95% CI contains 0). Bold = highest mean R² in the row.
 
 | Dataset | Test | arcsin QRC | learned QRC | tuned ESN | matched ESN | tuned LSTM | vs arcsin / ESN / mESN / LSTM | best |
 |---|---|---|---|---|---|---|---|---|
@@ -49,12 +49,16 @@ Significance column: learned QRC vs (arcsin, ESN, matched ESN, LSTM): ▲ learne
 
 ## Tally over 9 datasets (learned QRC vs …)
 
-| vs | ▲ QRC better | ≈ n.s. | ▼ QRC worse |
+| vs | ▲ QRC better | ≈ comparable | ▼ QRC worse |
 |---|---|---|---|
 | qrc arcsin | 8 | 0 | 1 |
 | esn tuned | 0 | 4 | 5 |
 | esn matched | 0 | 4 | 5 |
 | lstm tuned | 2 | 1 | 6 |
+
+Highest mean R² per dataset: learned QRC on 1 of 9 (Kaggle Delhi, comparable to the ESN). Why the
+outcomes differ (forecast horizon / memory, data size and noise, nonlinearity, distribution shift):
+see `QRC_RealWorld_Factors.md`.
 
 ## Notes
 - **ETTh1:** the test period shifts regime (oil temperature mean 0.18 vs 0.42 normalised in training).

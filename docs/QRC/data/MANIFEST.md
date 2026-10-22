@@ -26,15 +26,17 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
 | `qrc_paper4_weather.json` | superseded | 2c6137b 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, fid_points 1024 | `219ec5c814fe` |
 | `qrc_paper4_weather_v2.json` | current | 0dfa62d 2026-07-28 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, full 653-FID readout | `f68c612e7b53` |
-| `qrc_realworld_beijing_pm25.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `e1374e320e43` |
-| `qrc_realworld_era5_bangkok.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `bfe932148808` |
-| `qrc_realworld_era5_beijing.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3cc088d275f7` |
-| `qrc_realworld_era5_berlin.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `4c4345c675f4` |
-| `qrc_realworld_era5_delhi.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `591394cb74fc` |
-| `qrc_realworld_era5_mumbai.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `6f02e8af1789` |
-| `qrc_realworld_etth1.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3254e4b2b7a7` |
-| `qrc_realworld_kaggle_delhi.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `738e3846ae64` |
-| `qrc_realworld_santafe.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `795f26b15bcf` |
+| `qrc_realworld_beijing_pm25.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `e1374e320e43` |
+| `qrc_realworld_era5_bangkok.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `bfe932148808` |
+| `qrc_realworld_era5_beijing.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3cc088d275f7` |
+| `qrc_realworld_era5_berlin.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `4c4345c675f4` |
+| `qrc_realworld_era5_delhi.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `591394cb74fc` |
+| `qrc_realworld_era5_mumbai.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `6f02e8af1789` |
+| `qrc_realworld_etth1.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3254e4b2b7a7` |
+| `qrc_realworld_factors.json` | current | uncommitted | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `76e96027b0b7` |
+| `qrc_realworld_kaggle_delhi.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `738e3846ae64` |
+| `qrc_realworld_memory_function.json` | current | uncommitted | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `9bf873c098e0` |
+| `qrc_realworld_santafe.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `795f26b15bcf` |
 | `qrc_weather_bench_step1_v300.json` | current | d7f1bd3 2026-10-21 | `qrc_weather_bench.py` | weather readout variants, symmetric protocol | `63f512768c0d` |
 | `qrc_weather_bench_step2_v300.json` | current | d7f1bd3 2026-10-21 | `qrc_weather_bench.py + qrc_weather_block.py` | weather reservoir variants | `3d86d27ca773` |
 | `qrc_weather_fair_bootstrap_noleak.json` | superseded | 7d7f016 2026-10-21 | `qrc_weather_fair.py + bootstrap` | weather QRC vs no-leak ESN | `b387c6684526` |

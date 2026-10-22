@@ -148,7 +148,7 @@
       "file": "qrc_realworld_beijing_pm25.json",
       "sha256": "e1374e320e4325f5cc3f8940c2109570229c64b4183914e25beae17eeafa4688",
       "bytes": 6357,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
@@ -157,7 +157,7 @@
       "file": "qrc_realworld_era5_bangkok.json",
       "sha256": "bfe9321488087c2cdf33a9b48b67cfa503ea9b71ee5f08808bf33c2977979140",
       "bytes": 6888,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
@@ -166,7 +166,7 @@
       "file": "qrc_realworld_era5_beijing.json",
       "sha256": "3cc088d275f7aef66af37f7ea5c4cfde9f9d8751cb7563d0e9688fde2e60aca7",
       "bytes": 6852,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
@@ -175,7 +175,7 @@
       "file": "qrc_realworld_era5_berlin.json",
       "sha256": "4c4345c675f4d2da21d293f4065d1755f11c171e98d15e62d84c7fe428be3f74",
       "bytes": 6851,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
@@ -184,7 +184,7 @@
       "file": "qrc_realworld_era5_delhi.json",
       "sha256": "591394cb74fce35e829c5eb14c2a929ae8f40cc262061590de81db0e0daed1d7",
       "bytes": 6823,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
@@ -193,7 +193,7 @@
       "file": "qrc_realworld_era5_mumbai.json",
       "sha256": "6f02e8af17896d2ac2495c13f4928b468c91a39966341603c2bded100905a0fe",
       "bytes": 6809,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
@@ -202,25 +202,43 @@
       "file": "qrc_realworld_etth1.json",
       "sha256": "3254e4b2b7a75ba32d7a3bdbffdd38dd7c5f5ae0a75d5f968ff8f89c1fbbd3f9",
       "bytes": 4650,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
+    },
+    {
+      "file": "qrc_realworld_factors.json",
+      "sha256": "76e96027b0b7dbc4160c773251aa39fef49a11fdfd5e0fafc37c872a512b26b7",
+      "bytes": 37142,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_realworld_factors.py / memory-function analysis",
+      "description": "factor analysis of the real-world benchmark (why QRC wins/comparable/loses)"
     },
     {
       "file": "qrc_realworld_kaggle_delhi.json",
       "sha256": "738e3846ae64858d908241e22a0b9db2c7b41ba007a497303154eacb52be5027",
       "bytes": 6822,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"
     },
     {
+      "file": "qrc_realworld_memory_function.json",
+      "sha256": "9bf873c098e0024f7a40f63985a7bc3b55655652ca7533f1ed55b6c6837ae417",
+      "bytes": 2617,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_realworld_factors.py / memory-function analysis",
+      "description": "factor analysis of the real-world benchmark (why QRC wins/comparable/loses)"
+    },
+    {
       "file": "qrc_realworld_santafe.json",
       "sha256": "795f26b15bcf29c45e1df800c1cada375f0cca2954736a4d9195dd8f7a69f4ab",
       "bytes": 4852,
-      "added": "uncommitted",
+      "added": "4e07ca5 2026-10-22",
       "status": "current",
       "script": "qrc_realworld_bench.py eval",
       "description": "real-world benchmark eval"

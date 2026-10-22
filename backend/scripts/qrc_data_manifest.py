@@ -108,6 +108,8 @@ def headline():
                      "qrc_weather_pool_delhi_kaggle.json", f"comparisons.{k}"))
     for f in sorted(DATA.glob("qrc_realworld_*.json")):
         d = json.loads(f.read_text(encoding="utf-8"))
+        if "groups" not in d:                         # factor / memory analyses, not benchmark evals
+            continue
         for g, v in d["groups"].items():
             rows.append((f"{d['dataset']} {g} pooled test R²", f"{v['mean']:.3f} ± {v['sd']:.3f}", f.name, f"groups.{g}"))
         for k, v in d["comparisons"].items():
@@ -119,6 +121,9 @@ def main():
     files = sorted(p for p in DATA.iterdir() if p.is_file() and p.name not in ("MANIFEST.md", "manifest.json"))
     entries = []
     for p in files:
+        if p.name in ("qrc_realworld_factors.json", "qrc_realworld_memory_function.json"):
+            FILES.setdefault(p.name, ("current", "qrc_realworld_factors.py / memory-function analysis",
+                                      "factor analysis of the real-world benchmark (why QRC wins/comparable/loses)"))
         st, script, desc = FILES.get(p.name, ("current" if p.name.startswith("qrc_realworld_") else "unlisted",
                                               "qrc_realworld_bench.py eval" if p.name.startswith("qrc_realworld_") else "?",
                                               "real-world benchmark eval" if p.name.startswith("qrc_realworld_") else ""))

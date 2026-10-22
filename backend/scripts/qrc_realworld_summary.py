@@ -74,7 +74,7 @@ early stopping, retrained on train+val.
 ## Pooled test R²
 
 Significance column: learned QRC vs (arcsin, ESN, matched ESN, LSTM): ▲ learned QRC significantly better,
-▼ significantly worse, ≈ not significant.
+▼ significantly worse, ≈ comparable (95% CI contains 0). Bold = highest mean R² in the row.
 
 | Dataset | Test | arcsin QRC | learned QRC | tuned ESN | matched ESN | tuned LSTM | vs arcsin / ESN / mESN / LSTM | best |
 |---|---|---|---|---|---|---|---|---|
@@ -88,9 +88,13 @@ Significance column: learned QRC vs (arcsin, ESN, matched ESN, LSTM): ▲ learne
 
 ## Tally over {n} datasets (learned QRC vs …)
 
-| vs | ▲ QRC better | ≈ n.s. | ▼ QRC worse |
+| vs | ▲ QRC better | ≈ comparable | ▼ QRC worse |
 |---|---|---|---|
 """ + "\n".join(f"| {k.replace('_', ' ')} | {v['▲']} | {v['≈']} | {v['▼']} |" for k, v in tally.items()) + """
+
+Highest mean R² per dataset: learned QRC on 1 of 9 (Kaggle Delhi, comparable to the ESN). Why the
+outcomes differ (forecast horizon / memory, data size and noise, nonlinearity, distribution shift):
+see `QRC_RealWorld_Factors.md`.
 
 ## Notes
 - **ETTh1:** the test period shifts regime (oil temperature mean 0.18 vs 0.42 normalised in training).
@@ -104,7 +108,7 @@ Significance column: learned QRC vs (arcsin, ESN, matched ESN, LSTM): ▲ learne
 """
     OUT.write_text(md, encoding="utf-8")
     print(f"wrote {OUT} ({n} datasets)")
-    print(md[md.index("## Tally"):md.index("## Notes")])
+    print(md[md.index("## Tally"):md.index("Highest mean")])
 
 
 if __name__ == "__main__":
