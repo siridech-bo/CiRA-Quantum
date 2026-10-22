@@ -1,0 +1,186 @@
+{
+  "esn_cfg": {
+    "size": 1000.0,
+    "sr": 0.5,
+    "leak": 0.05,
+    "inscale": 0.3,
+    "std": 0.0
+  },
+  "groups": {
+    "qrc_arcsin": {
+      "n_reps": 1,
+      "pooled_test_r2": [
+        0.6976559940097555
+      ],
+      "mean": 0.6976559940097555,
+      "sd": 0.0,
+      "ensemble": 0.6976559940097555,
+      "temp": 0.8374330889531814,
+      "humidity": 0.5578788990663297,
+      "readout": [
+        {
+          "standardized": true,
+          "pooled_val": 0.01113574942350437
+        }
+      ]
+    },
+    "qrc_learned": {
+      "n_reps": 3,
+      "pooled_test_r2": [
+        0.7385188697308473,
+        0.734992144628902,
+        0.731063585320671
+      ],
+      "mean": 0.7348581998934735,
+      "sd": 0.0030450804371714713,
+      "ensemble": 0.7403372724090073,
+      "temp": 0.862660807389207,
+      "humidity": 0.618013737428807,
+      "readout": [
+        {
+          "standardized": true,
+          "pooled_val": 0.17384043886124886
+        },
+        {
+          "standardized": true,
+          "pooled_val": 0.12971479241912362
+        },
+        {
+          "standardized": true,
+          "pooled_val": 0.15565553174611635
+        }
+      ]
+    },
+    "esn_tuned": {
+      "n_reps": 3,
+      "pooled_test_r2": [
+        0.7162062969152808,
+        0.71625619008401,
+        0.7172902884233997
+      ],
+      "mean": 0.7165842584742301,
+      "sd": 0.0004996539128334816,
+      "ensemble": 0.7166946274360926,
+      "temp": 0.8595297262287276,
+      "humidity": 0.5738595286434574,
+      "readout": [
+        {
+          "standardized": false,
+          "pooled_val": 0.32581321209687925
+        },
+        {
+          "standardized": false,
+          "pooled_val": 0.33172889626272734
+        },
+        {
+          "standardized": false,
+          "pooled_val": 0.33078389198670666
+        }
+      ]
+    },
+    "esn_learned_win": {
+      "n_reps": 3,
+      "pooled_test_r2": [
+        0.7120868548918395,
+        0.7048149742013202,
+        0.7052180926302455
+      ],
+      "mean": 0.7073733072411351,
+      "sd": 0.0033370420743058186,
+      "ensemble": 0.7077747997832713,
+      "temp": 0.8503283539347253,
+      "humidity": 0.5652212456318173,
+      "readout": [
+        {
+          "standardized": false,
+          "pooled_val": 0.34651025427901516
+        },
+        {
+          "standardized": false,
+          "pooled_val": 0.365046069932114
+        },
+        {
+          "standardized": false,
+          "pooled_val": 0.3675784230223778
+        }
+      ]
+    },
+    "esn_learned_mlp": {
+      "n_reps": 3,
+      "pooled_test_r2": [
+        0.6999688911581544,
+        0.6903622252184436,
+        0.6732232023242283
+      ],
+      "mean": 0.6878514395669421,
+      "sd": 0.011062278283763542,
+      "ensemble": 0.7051044435187045,
+      "temp": 0.8566738168903497,
+      "humidity": 0.5535350701470592,
+      "readout": [
+        {
+          "standardized": false,
+          "pooled_val": 0.33899491948367855
+        },
+        {
+          "standardized": false,
+          "pooled_val": 0.36694354255146244
+        },
+        {
+          "standardized": false,
+          "pooled_val": 0.33040986113302845
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "qrc_learned - qrc_arcsin": {
+      "pooled_ci95": [
+        0.016196538282689226,
+        0.0757191421106344
+      ],
+      "frac_positive": 0.9985,
+      "ensemble_ci95": [
+        0.02383731802950292,
+        0.08900803092291257
+      ],
+      "ensemble_frac_positive": 0.999
+    },
+    "qrc_learned - esn_tuned": {
+      "pooled_ci95": [
+        -0.022760520862768453,
+        0.061927864783235954
+      ],
+      "frac_positive": 0.808,
+      "ensemble_ci95": [
+        -0.015529257556415913,
+        0.0737004925615198
+      ],
+      "ensemble_frac_positive": 0.8855
+    },
+    "qrc_learned - esn_learned_win": {
+      "pooled_ci95": [
+        -0.009618036234643685,
+        0.07463111164797236
+      ],
+      "frac_positive": 0.9315,
+      "ensemble_ci95": [
+        -0.0032304892872239053,
+        0.08581537166486843
+      ],
+      "ensemble_frac_positive": 0.9645
+    },
+    "qrc_learned - esn_learned_mlp": {
+      "pooled_ci95": [
+        0.010584064114422111,
+        0.11104674932739747
+      ],
+      "frac_positive": 0.9935,
+      "ensemble_ci95": [
+        -0.0013645445403348045,
+        0.08831592079141082
+      ],
+      "ensemble_frac_positive": 0.972
+    }
+  }
+}
