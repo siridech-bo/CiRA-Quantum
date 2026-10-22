@@ -21,11 +21,20 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_dccb7_tau100.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.1)` | dccb7 tau=100 ms | `d5a9e27549c1` |
 | `qrc_dccb7_tau100_j0.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7_j0)` | dccb7 tau=100 ms, J=0 ablation (readout basis of the coupled molecule) | `b87bf09a9845` |
 | `qrc_dccb7_tau30.json` | current | be4f385 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.03)` | dccb7 tau=30 ms | `9352b963e714` |
-| `qrc_era5_delhi_eval_final.json` | current | uncommitted | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
+| `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
 | `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
 | `qrc_paper4_weather.json` | superseded | 2c6137b 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, fid_points 1024 | `219ec5c814fe` |
 | `qrc_paper4_weather_v2.json` | current | 0dfa62d 2026-07-28 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, full 653-FID readout | `f68c612e7b53` |
+| `qrc_realworld_beijing_pm25.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `e1374e320e43` |
+| `qrc_realworld_era5_bangkok.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `bfe932148808` |
+| `qrc_realworld_era5_beijing.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3cc088d275f7` |
+| `qrc_realworld_era5_berlin.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `4c4345c675f4` |
+| `qrc_realworld_era5_delhi.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `591394cb74fc` |
+| `qrc_realworld_era5_mumbai.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `6f02e8af1789` |
+| `qrc_realworld_etth1.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3254e4b2b7a7` |
+| `qrc_realworld_kaggle_delhi.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `738e3846ae64` |
+| `qrc_realworld_santafe.json` | current | uncommitted | `qrc_realworld_bench.py eval` | real-world benchmark eval | `795f26b15bcf` |
 | `qrc_weather_bench_step1_v300.json` | current | d7f1bd3 2026-10-21 | `qrc_weather_bench.py` | weather readout variants, symmetric protocol | `63f512768c0d` |
 | `qrc_weather_bench_step2_v300.json` | current | d7f1bd3 2026-10-21 | `qrc_weather_bench.py + qrc_weather_block.py` | weather reservoir variants | `3d86d27ca773` |
 | `qrc_weather_fair_bootstrap_noleak.json` | superseded | 7d7f016 2026-10-21 | `qrc_weather_fair.py + bootstrap` | weather QRC vs no-leak ESN | `b387c6684526` |
@@ -68,3 +77,84 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | Kaggle Delhi qrc_learned - esn_tuned | 95% CI [-0.023, +0.062] | `qrc_weather_pool_delhi_kaggle.json` | `comparisons.qrc_learned - esn_tuned` |
 | Kaggle Delhi qrc_learned - esn_learned_win | 95% CI [-0.010, +0.075] | `qrc_weather_pool_delhi_kaggle.json` | `comparisons.qrc_learned - esn_learned_win` |
 | Kaggle Delhi qrc_learned - esn_learned_mlp | 95% CI [+0.011, +0.111] | `qrc_weather_pool_delhi_kaggle.json` | `comparisons.qrc_learned - esn_learned_mlp` |
+| beijing_pm25 qrc_arcsin pooled test R² | 0.901 ± 0.000 | `qrc_realworld_beijing_pm25.json` | `groups.qrc_arcsin` |
+| beijing_pm25 qrc_learned pooled test R² | 0.914 ± 0.002 | `qrc_realworld_beijing_pm25.json` | `groups.qrc_learned` |
+| beijing_pm25 esn_tuned pooled test R² | 0.931 ± 0.000 | `qrc_realworld_beijing_pm25.json` | `groups.esn_tuned` |
+| beijing_pm25 esn_matched pooled test R² | 0.931 ± 0.000 | `qrc_realworld_beijing_pm25.json` | `groups.esn_matched` |
+| beijing_pm25 lstm_tuned pooled test R² | 0.926 ± 0.003 | `qrc_realworld_beijing_pm25.json` | `groups.lstm_tuned` |
+| beijing_pm25 qrc_learned - qrc_arcsin | 95% CI [+0.001, +0.036] | `qrc_realworld_beijing_pm25.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| beijing_pm25 qrc_learned - esn_tuned | 95% CI [-0.032, -0.008] | `qrc_realworld_beijing_pm25.json` | `comparisons.qrc_learned - esn_tuned` |
+| beijing_pm25 qrc_learned - esn_matched | 95% CI [-0.032, -0.008] | `qrc_realworld_beijing_pm25.json` | `comparisons.qrc_learned - esn_matched` |
+| beijing_pm25 qrc_learned - lstm_tuned | 95% CI [-0.027, -0.003] | `qrc_realworld_beijing_pm25.json` | `comparisons.qrc_learned - lstm_tuned` |
+| era5_bangkok qrc_arcsin pooled test R² | 0.297 ± 0.000 | `qrc_realworld_era5_bangkok.json` | `groups.qrc_arcsin` |
+| era5_bangkok qrc_learned pooled test R² | 0.322 ± 0.000 | `qrc_realworld_era5_bangkok.json` | `groups.qrc_learned` |
+| era5_bangkok esn_tuned pooled test R² | 0.333 ± 0.002 | `qrc_realworld_era5_bangkok.json` | `groups.esn_tuned` |
+| era5_bangkok esn_matched pooled test R² | 0.332 ± 0.007 | `qrc_realworld_era5_bangkok.json` | `groups.esn_matched` |
+| era5_bangkok lstm_tuned pooled test R² | 0.272 ± 0.020 | `qrc_realworld_era5_bangkok.json` | `groups.lstm_tuned` |
+| era5_bangkok qrc_learned - qrc_arcsin | 95% CI [+0.017, +0.032] | `qrc_realworld_era5_bangkok.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| era5_bangkok qrc_learned - esn_tuned | 95% CI [-0.032, +0.013] | `qrc_realworld_era5_bangkok.json` | `comparisons.qrc_learned - esn_tuned` |
+| era5_bangkok qrc_learned - esn_matched | 95% CI [-0.030, +0.011] | `qrc_realworld_era5_bangkok.json` | `comparisons.qrc_learned - esn_matched` |
+| era5_bangkok qrc_learned - lstm_tuned | 95% CI [+0.031, +0.070] | `qrc_realworld_era5_bangkok.json` | `comparisons.qrc_learned - lstm_tuned` |
+| era5_beijing qrc_arcsin pooled test R² | 0.638 ± 0.000 | `qrc_realworld_era5_beijing.json` | `groups.qrc_arcsin` |
+| era5_beijing qrc_learned pooled test R² | 0.647 ± 0.002 | `qrc_realworld_era5_beijing.json` | `groups.qrc_learned` |
+| era5_beijing esn_tuned pooled test R² | 0.649 ± 0.001 | `qrc_realworld_era5_beijing.json` | `groups.esn_tuned` |
+| era5_beijing esn_matched pooled test R² | 0.649 ± 0.001 | `qrc_realworld_era5_beijing.json` | `groups.esn_matched` |
+| era5_beijing lstm_tuned pooled test R² | 0.651 ± 0.004 | `qrc_realworld_era5_beijing.json` | `groups.lstm_tuned` |
+| era5_beijing qrc_learned - qrc_arcsin | 95% CI [+0.006, +0.011] | `qrc_realworld_era5_beijing.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| era5_beijing qrc_learned - esn_tuned | 95% CI [-0.007, +0.003] | `qrc_realworld_era5_beijing.json` | `comparisons.qrc_learned - esn_tuned` |
+| era5_beijing qrc_learned - esn_matched | 95% CI [-0.007, +0.003] | `qrc_realworld_era5_beijing.json` | `comparisons.qrc_learned - esn_matched` |
+| era5_beijing qrc_learned - lstm_tuned | 95% CI [-0.008, +0.000] | `qrc_realworld_era5_beijing.json` | `comparisons.qrc_learned - lstm_tuned` |
+| era5_berlin qrc_arcsin pooled test R² | 0.563 ± 0.000 | `qrc_realworld_era5_berlin.json` | `groups.qrc_arcsin` |
+| era5_berlin qrc_learned pooled test R² | 0.600 ± 0.000 | `qrc_realworld_era5_berlin.json` | `groups.qrc_learned` |
+| era5_berlin esn_tuned pooled test R² | 0.604 ± 0.002 | `qrc_realworld_era5_berlin.json` | `groups.esn_tuned` |
+| era5_berlin esn_matched pooled test R² | 0.604 ± 0.002 | `qrc_realworld_era5_berlin.json` | `groups.esn_matched` |
+| era5_berlin lstm_tuned pooled test R² | 0.616 ± 0.008 | `qrc_realworld_era5_berlin.json` | `groups.lstm_tuned` |
+| era5_berlin qrc_learned - qrc_arcsin | 95% CI [+0.028, +0.046] | `qrc_realworld_era5_berlin.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| era5_berlin qrc_learned - esn_tuned | 95% CI [-0.010, +0.000] | `qrc_realworld_era5_berlin.json` | `comparisons.qrc_learned - esn_tuned` |
+| era5_berlin qrc_learned - esn_matched | 95% CI [-0.010, +0.000] | `qrc_realworld_era5_berlin.json` | `comparisons.qrc_learned - esn_matched` |
+| era5_berlin qrc_learned - lstm_tuned | 95% CI [-0.023, -0.010] | `qrc_realworld_era5_berlin.json` | `comparisons.qrc_learned - lstm_tuned` |
+| era5_delhi qrc_arcsin pooled test R² | 0.747 ± 0.000 | `qrc_realworld_era5_delhi.json` | `groups.qrc_arcsin` |
+| era5_delhi qrc_learned pooled test R² | 0.755 ± 0.000 | `qrc_realworld_era5_delhi.json` | `groups.qrc_learned` |
+| era5_delhi esn_tuned pooled test R² | 0.765 ± 0.003 | `qrc_realworld_era5_delhi.json` | `groups.esn_tuned` |
+| era5_delhi esn_matched pooled test R² | 0.765 ± 0.003 | `qrc_realworld_era5_delhi.json` | `groups.esn_matched` |
+| era5_delhi lstm_tuned pooled test R² | 0.769 ± 0.004 | `qrc_realworld_era5_delhi.json` | `groups.lstm_tuned` |
+| era5_delhi qrc_learned - qrc_arcsin | 95% CI [+0.004, +0.011] | `qrc_realworld_era5_delhi.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| era5_delhi qrc_learned - esn_tuned | 95% CI [-0.016, -0.004] | `qrc_realworld_era5_delhi.json` | `comparisons.qrc_learned - esn_tuned` |
+| era5_delhi qrc_learned - esn_matched | 95% CI [-0.017, -0.005] | `qrc_realworld_era5_delhi.json` | `comparisons.qrc_learned - esn_matched` |
+| era5_delhi qrc_learned - lstm_tuned | 95% CI [-0.021, -0.008] | `qrc_realworld_era5_delhi.json` | `comparisons.qrc_learned - lstm_tuned` |
+| era5_mumbai qrc_arcsin pooled test R² | 0.600 ± 0.000 | `qrc_realworld_era5_mumbai.json` | `groups.qrc_arcsin` |
+| era5_mumbai qrc_learned pooled test R² | 0.621 ± 0.001 | `qrc_realworld_era5_mumbai.json` | `groups.qrc_learned` |
+| era5_mumbai esn_tuned pooled test R² | 0.706 ± 0.003 | `qrc_realworld_era5_mumbai.json` | `groups.esn_tuned` |
+| era5_mumbai esn_matched pooled test R² | 0.706 ± 0.003 | `qrc_realworld_era5_mumbai.json` | `groups.esn_matched` |
+| era5_mumbai lstm_tuned pooled test R² | 0.694 ± 0.015 | `qrc_realworld_era5_mumbai.json` | `groups.lstm_tuned` |
+| era5_mumbai qrc_learned - qrc_arcsin | 95% CI [+0.011, +0.031] | `qrc_realworld_era5_mumbai.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| era5_mumbai qrc_learned - esn_tuned | 95% CI [-0.105, -0.068] | `qrc_realworld_era5_mumbai.json` | `comparisons.qrc_learned - esn_tuned` |
+| era5_mumbai qrc_learned - esn_matched | 95% CI [-0.105, -0.068] | `qrc_realworld_era5_mumbai.json` | `comparisons.qrc_learned - esn_matched` |
+| era5_mumbai qrc_learned - lstm_tuned | 95% CI [-0.090, -0.060] | `qrc_realworld_era5_mumbai.json` | `comparisons.qrc_learned - lstm_tuned` |
+| etth1 qrc_arcsin pooled test R² | -0.238 ± 0.000 | `qrc_realworld_etth1.json` | `groups.qrc_arcsin` |
+| etth1 qrc_learned pooled test R² | -2.939 ± 3.992 | `qrc_realworld_etth1.json` | `groups.qrc_learned` |
+| etth1 esn_tuned pooled test R² | 0.662 ± 0.009 | `qrc_realworld_etth1.json` | `groups.esn_tuned` |
+| etth1 esn_matched pooled test R² | 0.574 ± 0.015 | `qrc_realworld_etth1.json` | `groups.esn_matched` |
+| etth1 lstm_tuned pooled test R² | 0.250 ± 0.111 | `qrc_realworld_etth1.json` | `groups.lstm_tuned` |
+| etth1 qrc_learned - qrc_arcsin | 95% CI [-4.441, -1.644] | `qrc_realworld_etth1.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| etth1 qrc_learned - esn_tuned | 95% CI [-5.531, -2.472] | `qrc_realworld_etth1.json` | `comparisons.qrc_learned - esn_tuned` |
+| etth1 qrc_learned - esn_matched | 95% CI [-5.420, -2.384] | `qrc_realworld_etth1.json` | `comparisons.qrc_learned - esn_matched` |
+| etth1 qrc_learned - lstm_tuned | 95% CI [-4.949, -2.097] | `qrc_realworld_etth1.json` | `comparisons.qrc_learned - lstm_tuned` |
+| kaggle_delhi qrc_arcsin pooled test R² | 0.694 ± 0.000 | `qrc_realworld_kaggle_delhi.json` | `groups.qrc_arcsin` |
+| kaggle_delhi qrc_learned pooled test R² | 0.731 ± 0.002 | `qrc_realworld_kaggle_delhi.json` | `groups.qrc_learned` |
+| kaggle_delhi esn_tuned pooled test R² | 0.716 ± 0.001 | `qrc_realworld_kaggle_delhi.json` | `groups.esn_tuned` |
+| kaggle_delhi esn_matched pooled test R² | 0.717 ± 0.001 | `qrc_realworld_kaggle_delhi.json` | `groups.esn_matched` |
+| kaggle_delhi lstm_tuned pooled test R² | 0.416 ± 0.081 | `qrc_realworld_kaggle_delhi.json` | `groups.lstm_tuned` |
+| kaggle_delhi qrc_learned - qrc_arcsin | 95% CI [+0.023, +0.054] | `qrc_realworld_kaggle_delhi.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| kaggle_delhi qrc_learned - esn_tuned | 95% CI [-0.010, +0.036] | `qrc_realworld_kaggle_delhi.json` | `comparisons.qrc_learned - esn_tuned` |
+| kaggle_delhi qrc_learned - esn_matched | 95% CI [-0.012, +0.035] | `qrc_realworld_kaggle_delhi.json` | `comparisons.qrc_learned - esn_matched` |
+| kaggle_delhi qrc_learned - lstm_tuned | 95% CI [+0.257, +0.413] | `qrc_realworld_kaggle_delhi.json` | `comparisons.qrc_learned - lstm_tuned` |
+| santafe qrc_arcsin pooled test R² | 0.910 ± 0.000 | `qrc_realworld_santafe.json` | `groups.qrc_arcsin` |
+| santafe qrc_learned pooled test R² | 0.918 ± 0.008 | `qrc_realworld_santafe.json` | `groups.qrc_learned` |
+| santafe esn_tuned pooled test R² | 0.958 ± 0.005 | `qrc_realworld_santafe.json` | `groups.esn_tuned` |
+| santafe esn_matched pooled test R² | 0.958 ± 0.005 | `qrc_realworld_santafe.json` | `groups.esn_matched` |
+| santafe lstm_tuned pooled test R² | 0.971 ± 0.003 | `qrc_realworld_santafe.json` | `groups.lstm_tuned` |
+| santafe qrc_learned - qrc_arcsin | 95% CI [+0.001, +0.013] | `qrc_realworld_santafe.json` | `comparisons.qrc_learned - qrc_arcsin` |
+| santafe qrc_learned - esn_tuned | 95% CI [-0.060, -0.025] | `qrc_realworld_santafe.json` | `comparisons.qrc_learned - esn_tuned` |
+| santafe qrc_learned - esn_matched | 95% CI [-0.060, -0.025] | `qrc_realworld_santafe.json` | `comparisons.qrc_learned - esn_matched` |
+| santafe qrc_learned - lstm_tuned | 95% CI [-0.078, -0.032] | `qrc_realworld_santafe.json` | `comparisons.qrc_learned - lstm_tuned` |
