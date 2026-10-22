@@ -51,7 +51,9 @@ FILES = {
     "qrc_weather_learned_leakfree_seed1.json": ("current", "qrc_weather_learn.py + qrc_weather_bench.py", "weather learned encoding, seed 1"),
     "qrc_weather_learned_leakfree_seed2.json": ("current", "qrc_weather_learn.py + qrc_weather_bench.py", "weather learned encoding, seed 2"),
     "qrc_weather_pool_delhi_kaggle.json": ("current", "qrc_weather_pool.py", "Kaggle Delhi pooled seeds: learned QRC vs ESN, ESN with trained input stage"),
-    "qrc_era5_delhi_eval_interim_seed0.json": ("interim", "qrc_era5_weather.py eval", "ERA5 Delhi, encoder seed 0 only"),
+    "qrc_era5_delhi_eval_interim_seed0.json": ("superseded", "qrc_era5_weather.py eval", "ERA5 Delhi, encoder seed 0 only (interim)"),
+    "qrc_era5_delhi_eval_final.json": ("current", "qrc_era5_weather.py eval",
+                                       "ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN"),
 }
 
 

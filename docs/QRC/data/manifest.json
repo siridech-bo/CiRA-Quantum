@@ -4,7 +4,7 @@
       "file": "qrc_6spin_campaign.json",
       "sha256": "e2b9bd48ac1ea1fd1e737e62d616e30aab082ef5babd83deb7175726debf973c",
       "bytes": 5279,
-      "added": "uncommitted",
+      "added": "81fd9ad 2026-10-22",
       "status": "current",
       "script": "qrc_learnable_campaign.py (plan 6spin)",
       "description": "6-spin x2 learned vs arcsin, NARMA-2/10 + Mackey-Glass h=1, 3 seeds + tau->0 ablations (run learnable-campaign-01ce463b, 41 h)"
@@ -13,7 +13,7 @@
       "file": "qrc_6spin_mackey_h10_confirm.json",
       "sha256": "0efc0ff1a54fb2d48eae10f956cf9fbf71960172e00ac3150d9e97b4126c3fba",
       "bytes": 1110,
-      "added": "uncommitted",
+      "added": "81fd9ad 2026-10-22",
       "status": "current",
       "script": "qrc_mackey_h10_confirm.py",
       "description": "6-spin Mackey-Glass h=10, seeds 2-3 (run mackey-h10-confirm-2d21b56f); its seed-1 entry is a rounded copy (0.0013) \u2014 use qrc_6spin_mackey_h10_seed1.json"
@@ -22,7 +22,7 @@
       "file": "qrc_6spin_mackey_h10_seed1.json",
       "sha256": "27f1ddb63119e1cf35abb81f2295d3b570223122bb5800ca84ec46f76d04141a",
       "bytes": 693,
-      "added": "uncommitted",
+      "added": "81fd9ad 2026-10-22",
       "status": "current",
       "script": "qrc_learnable_9spin.py --task mackey_glass --horizon 10",
       "description": "6-spin Mackey-Glass h=10, seed 1 (run learnable-0a45c7b0)"
@@ -40,7 +40,7 @@
       "file": "qrc_classical_baseline_v1_superseded.json",
       "sha256": "c4d5408abbf63f4be02a3993f0faa21832cc04aba2f168f034dcf406fa9959ef",
       "bytes": 4617,
-      "added": "uncommitted",
+      "added": "81fd9ad 2026-10-22",
       "status": "superseded",
       "script": "qrc_classical_baseline.py",
       "description": "first classical baseline: size-only ESN, data seed 1 only \u2014 superseded by qrc_classical_fair_*"
@@ -100,13 +100,22 @@
       "description": "dccb7 tau=30 ms"
     },
     {
+      "file": "qrc_era5_delhi_eval_final.json",
+      "sha256": "b4c27db7d9816d729e9cb1c24e4ac499cdcaaa12bbfe55733f52e668851bde7f",
+      "bytes": 3337,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_era5_weather.py eval",
+      "description": "ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN"
+    },
+    {
       "file": "qrc_era5_delhi_eval_interim_seed0.json",
       "sha256": "660c64d82bb1073d78c4d32b2239026cb5dd42f113a654bd6859f2dc8a6edf73",
       "bytes": 3264,
       "added": "4f0128c 2026-10-22",
-      "status": "interim",
+      "status": "superseded",
       "script": "qrc_era5_weather.py eval",
-      "description": "ERA5 Delhi, encoder seed 0 only"
+      "description": "ERA5 Delhi, encoder seed 0 only (interim)"
     },
     {
       "file": "qrc_paper4_narma.json",

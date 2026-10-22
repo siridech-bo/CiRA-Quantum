@@ -10,18 +10,19 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 
 | file | status | added | script | description | sha256 (12) |
 |---|---|---|---|---|---|
-| `qrc_6spin_campaign.json` | current | uncommitted | `qrc_learnable_campaign.py (plan 6spin)` | 6-spin x2 learned vs arcsin, NARMA-2/10 + Mackey-Glass h=1, 3 seeds + tau->0 ablations (run learnable-campaign-01ce463b, 41 h) | `e2b9bd48ac1e` |
-| `qrc_6spin_mackey_h10_confirm.json` | current | uncommitted | `qrc_mackey_h10_confirm.py` | 6-spin Mackey-Glass h=10, seeds 2-3 (run mackey-h10-confirm-2d21b56f); its seed-1 entry is a rounded copy (0.0013) — use qrc_6spin_mackey_h10_seed1.json | `0efc0ff1a54f` |
-| `qrc_6spin_mackey_h10_seed1.json` | current | uncommitted | `qrc_learnable_9spin.py --task mackey_glass --horizon 10` | 6-spin Mackey-Glass h=10, seed 1 (run learnable-0a45c7b0) | `27f1ddb63119` |
+| `qrc_6spin_campaign.json` | current | 81fd9ad 2026-10-22 | `qrc_learnable_campaign.py (plan 6spin)` | 6-spin x2 learned vs arcsin, NARMA-2/10 + Mackey-Glass h=1, 3 seeds + tau->0 ablations (run learnable-campaign-01ce463b, 41 h) | `e2b9bd48ac1e` |
+| `qrc_6spin_mackey_h10_confirm.json` | current | 81fd9ad 2026-10-22 | `qrc_mackey_h10_confirm.py` | 6-spin Mackey-Glass h=10, seeds 2-3 (run mackey-h10-confirm-2d21b56f); its seed-1 entry is a rounded copy (0.0013) — use qrc_6spin_mackey_h10_seed1.json | `0efc0ff1a54f` |
+| `qrc_6spin_mackey_h10_seed1.json` | current | 81fd9ad 2026-10-22 | `qrc_learnable_9spin.py --task mackey_glass --horizon 10` | 6-spin Mackey-Glass h=10, seed 1 (run learnable-0a45c7b0) | `27f1ddb63119` |
 | `qrc_block_bench_cira3.jsonl` | current | 200c70c 2026-10-20 | `qrc_block_bench.py` | block-propagator scaling benchmark 9-12 spins (A100) | `67f3478155ff` |
-| `qrc_classical_baseline_v1_superseded.json` | superseded | uncommitted | `qrc_classical_baseline.py` | first classical baseline: size-only ESN, data seed 1 only — superseded by qrc_classical_fair_* | `c4d5408abbf6` |
+| `qrc_classical_baseline_v1_superseded.json` | superseded | 81fd9ad 2026-10-22 | `qrc_classical_baseline.py` | first classical baseline: size-only ESN, data seed 1 only — superseded by qrc_classical_fair_* | `c4d5408abbf6` |
 | `qrc_classical_fair_esn.json` | current | 052e4cf 2026-10-21 | `qrc_classical_fair.py --models esn` | fully tuned ESN + size-matched ESN, NARMA-2/10, MG h=10, data seeds 1-3 | `8b5555f0ab84` |
 | `qrc_classical_fair_lstm.json` | current | 6c7b523 2026-10-21 | `qrc_classical_fair.py --models lstm` | tuned LSTM, NARMA-2/10, MG h=10, data seeds 1-3 | `ea3634dc6636` |
 | `qrc_crotonic9_campaign.json` | current | 4f46e47 2026-10-21 | `qrc_learnable_campaign.py (plan crotonic9)` | crotonic-9 learned vs arcsin, NARMA-2/10 + MG h=10, 3 seeds + ablations | `8282d9d66972` |
 | `qrc_dccb7_tau100.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.1)` | dccb7 tau=100 ms | `d5a9e27549c1` |
 | `qrc_dccb7_tau100_j0.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7_j0)` | dccb7 tau=100 ms, J=0 ablation (readout basis of the coupled molecule) | `b87bf09a9845` |
 | `qrc_dccb7_tau30.json` | current | be4f385 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.03)` | dccb7 tau=30 ms | `9352b963e714` |
-| `qrc_era5_delhi_eval_interim_seed0.json` | interim | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only | `660c64d82bb1` |
+| `qrc_era5_delhi_eval_final.json` | current | uncommitted | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
+| `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
 | `qrc_paper4_weather.json` | superseded | 2c6137b 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, fid_points 1024 | `219ec5c814fe` |
 | `qrc_paper4_weather_v2.json` | current | 0dfa62d 2026-07-28 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, full 653-FID readout | `f68c612e7b53` |
