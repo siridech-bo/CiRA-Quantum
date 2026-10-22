@@ -1,0 +1,27 @@
+{
+  "experiment": "learnable_encoding",
+  "regime": "B (trained readout + trained encoding)",
+  "readout": "fid_reduced",
+  "D_eff": 161,
+  "feature_count": 322,
+  "system": "6",
+  "task": "mackey_glass",
+  "horizon": 10,
+  "n_spins": 6,
+  "coupling_scale": 2.0,
+  "T": 1500,
+  "steps": 100,
+  "quantum_memory": true,
+  "arcsin_baseline_test_nmse": 0.023451353986812817,
+  "verdict": "HEADROOM: learned 'perspin' beats arcsin (0.0013 vs 0.0235, std 1.11)",
+  "conditions": {
+    "arcsin": {
+      "test_nmse": 0.023451353986812817,
+      "enc_std": null
+    },
+    "perspin": {
+      "test_nmse": 0.0012893681891757464,
+      "enc_std": 1.1062085139757272
+    }
+  }
+}

@@ -465,6 +465,15 @@ def cmd_eval(a, ds):
                                                             - np.mean([r2_cols(Y, p).mean() for p in B]))}
         sig = "QRC better (sig.)" if ci[0] > 0 else ("QRC worse (sig.)" if ci[1] < 0 else "n.s.")
         print(f"{a.dataset:13s} {ref} - {b:12s} 95% CI [{ci[0]:+.4f}, {ci[1]:+.4f}] {sig}", flush=True)
+    # publication data package: every model's test predictions per replicate,
+    # the targets and the test index, plus provenance — figures and statistics
+    # can then be drawn from saved data without re-running anything
+    from app.qrc.provenance import provenance
+    res["provenance"] = provenance(dataset=a.dataset, split={k: [int(v[0]), int(v[-1])] if hasattr(v, "__len__")
+                                                            else int(v) for k, v in sp.items()},
+                                   bootstrap={"n_boot": 2000, "block": int(block), "seed": 0})
+    np.savez(run / "predictions.npz", Y_test=Y, test_idx=sp["test"], targets=np.array(target_names(ds)),
+             **{f"pred_{g}": np.stack(P) for g, P in preds.items()})
     (run / "eval.json").write_text(json.dumps(res, indent=2, default=float), encoding="utf-8")
 
 

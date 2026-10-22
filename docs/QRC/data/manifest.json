@@ -1,0 +1,387 @@
+{
+  "files": [
+    {
+      "file": "qrc_6spin_campaign.json",
+      "sha256": "e2b9bd48ac1ea1fd1e737e62d616e30aab082ef5babd83deb7175726debf973c",
+      "bytes": 5279,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_learnable_campaign.py (plan 6spin)",
+      "description": "6-spin x2 learned vs arcsin, NARMA-2/10 + Mackey-Glass h=1, 3 seeds + tau->0 ablations (run learnable-campaign-01ce463b, 41 h)"
+    },
+    {
+      "file": "qrc_6spin_mackey_h10_confirm.json",
+      "sha256": "0efc0ff1a54fb2d48eae10f956cf9fbf71960172e00ac3150d9e97b4126c3fba",
+      "bytes": 1110,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_mackey_h10_confirm.py",
+      "description": "6-spin Mackey-Glass h=10, seeds 2-3 (run mackey-h10-confirm-2d21b56f); its seed-1 entry is a rounded copy (0.0013) \u2014 use qrc_6spin_mackey_h10_seed1.json"
+    },
+    {
+      "file": "qrc_6spin_mackey_h10_seed1.json",
+      "sha256": "27f1ddb63119e1cf35abb81f2295d3b570223122bb5800ca84ec46f76d04141a",
+      "bytes": 693,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_learnable_9spin.py --task mackey_glass --horizon 10",
+      "description": "6-spin Mackey-Glass h=10, seed 1 (run learnable-0a45c7b0)"
+    },
+    {
+      "file": "qrc_block_bench_cira3.jsonl",
+      "sha256": "67f3478155fffa7d9d8a222e93cb18d7a3f810d4ae70dfe63e6864c66059017e",
+      "bytes": 2932,
+      "added": "200c70c 2026-10-20",
+      "status": "current",
+      "script": "qrc_block_bench.py",
+      "description": "block-propagator scaling benchmark 9-12 spins (A100)"
+    },
+    {
+      "file": "qrc_classical_baseline_v1_superseded.json",
+      "sha256": "c4d5408abbf63f4be02a3993f0faa21832cc04aba2f168f034dcf406fa9959ef",
+      "bytes": 4617,
+      "added": "uncommitted",
+      "status": "superseded",
+      "script": "qrc_classical_baseline.py",
+      "description": "first classical baseline: size-only ESN, data seed 1 only \u2014 superseded by qrc_classical_fair_*"
+    },
+    {
+      "file": "qrc_classical_fair_esn.json",
+      "sha256": "8b5555f0ab844dcc3158d252cd9561c3fedd53b084e4bf1fd32d915b2acb044b",
+      "bytes": 8085,
+      "added": "052e4cf 2026-10-21",
+      "status": "current",
+      "script": "qrc_classical_fair.py --models esn",
+      "description": "fully tuned ESN + size-matched ESN, NARMA-2/10, MG h=10, data seeds 1-3"
+    },
+    {
+      "file": "qrc_classical_fair_lstm.json",
+      "sha256": "ea3634dc6636ddefc9a69d77dfd3b88827b048ac41053f8eb5c739a2a99f7095",
+      "bytes": 3607,
+      "added": "6c7b523 2026-10-21",
+      "status": "current",
+      "script": "qrc_classical_fair.py --models lstm",
+      "description": "tuned LSTM, NARMA-2/10, MG h=10, data seeds 1-3"
+    },
+    {
+      "file": "qrc_crotonic9_campaign.json",
+      "sha256": "8282d9d66972dbde325391e1f8cc9914b8a2e03c00adf3f0e1b2805833b6c8c5",
+      "bytes": 6730,
+      "added": "4f46e47 2026-10-21",
+      "status": "current",
+      "script": "qrc_learnable_campaign.py (plan crotonic9)",
+      "description": "crotonic-9 learned vs arcsin, NARMA-2/10 + MG h=10, 3 seeds + ablations"
+    },
+    {
+      "file": "qrc_dccb7_tau100.json",
+      "sha256": "d5a9e27549c137603455452c259c19a3f56e415c0bf61e1869a27538e8d82dbe",
+      "bytes": 4848,
+      "added": "6bfdf11 2026-10-22",
+      "status": "current",
+      "script": "qrc_learnable_campaign.py (plan dccb7, tau 0.1)",
+      "description": "dccb7 tau=100 ms"
+    },
+    {
+      "file": "qrc_dccb7_tau100_j0.json",
+      "sha256": "b87bf09a9845f43a0cdd2a428584c80ddbac830cbce0943f8cbc2b86f2ef36fa",
+      "bytes": 3824,
+      "added": "6bfdf11 2026-10-22",
+      "status": "current",
+      "script": "qrc_learnable_campaign.py (plan dccb7_j0)",
+      "description": "dccb7 tau=100 ms, J=0 ablation (readout basis of the coupled molecule)"
+    },
+    {
+      "file": "qrc_dccb7_tau30.json",
+      "sha256": "9352b963e714c0c103a17f0066343f0c4d7dda57d7241f6a8523fe1437fe449e",
+      "bytes": 4736,
+      "added": "be4f385 2026-10-22",
+      "status": "current",
+      "script": "qrc_learnable_campaign.py (plan dccb7, tau 0.03)",
+      "description": "dccb7 tau=30 ms"
+    },
+    {
+      "file": "qrc_era5_delhi_eval_interim_seed0.json",
+      "sha256": "660c64d82bb1073d78c4d32b2239026cb5dd42f113a654bd6859f2dc8a6edf73",
+      "bytes": 3264,
+      "added": "4f0128c 2026-10-22",
+      "status": "interim",
+      "script": "qrc_era5_weather.py eval",
+      "description": "ERA5 Delhi, encoder seed 0 only"
+    },
+    {
+      "file": "qrc_paper4_narma.json",
+      "sha256": "bc3ff8dd3588fc0c87fd126ad67e2179da29ec034a9c24132fd8c9651ef76daa",
+      "bytes": 3698,
+      "added": "511bc2e 2026-07-27",
+      "status": "current",
+      "script": "qrc_reproduce_paper4.py",
+      "description": "Paper-4 reproduction, NARMA"
+    },
+    {
+      "file": "qrc_paper4_weather.json",
+      "sha256": "219ec5c814fe6fb944fe96204a437fcea9e7d20cac675e4a66a758e45cfe2c52",
+      "bytes": 5962,
+      "added": "2c6137b 2026-07-27",
+      "status": "superseded",
+      "script": "qrc_reproduce_paper4.py",
+      "description": "Paper-4 weather reproduction, fid_points 1024"
+    },
+    {
+      "file": "qrc_paper4_weather_v2.json",
+      "sha256": "f68c612e7b53fbe39c8c86fa56a3508f66bf93f41848add06acb9449699b298b",
+      "bytes": 5957,
+      "added": "0dfa62d 2026-07-28",
+      "status": "current",
+      "script": "qrc_reproduce_paper4.py",
+      "description": "Paper-4 weather reproduction, full 653-FID readout"
+    },
+    {
+      "file": "qrc_weather_bench_step1_v300.json",
+      "sha256": "63f512768c0d94b5d6fcb06f2761b72aea7bab0d6107eb79b9557d0741a4aeef",
+      "bytes": 30448,
+      "added": "d7f1bd3 2026-10-21",
+      "status": "current",
+      "script": "qrc_weather_bench.py",
+      "description": "weather readout variants, symmetric protocol"
+    },
+    {
+      "file": "qrc_weather_bench_step2_v300.json",
+      "sha256": "3d86d27ca773f565ae2b95598f59d46bf050f277326e42a41065549c43d0234b",
+      "bytes": 74345,
+      "added": "d7f1bd3 2026-10-21",
+      "status": "current",
+      "script": "qrc_weather_bench.py + qrc_weather_block.py",
+      "description": "weather reservoir variants"
+    },
+    {
+      "file": "qrc_weather_fair_bootstrap_noleak.json",
+      "sha256": "b387c66845264217355009ee56614ae58653ad03d730828f8963c7abf9e36aa5",
+      "bytes": 2957,
+      "added": "7d7f016 2026-10-21",
+      "status": "superseded",
+      "script": "qrc_weather_fair.py + bootstrap",
+      "description": "weather QRC vs no-leak ESN"
+    },
+    {
+      "file": "qrc_weather_fair_esn.json",
+      "sha256": "96278256c867a6b4db4c910922174d8d2a974db1593f12a873b53939a70e6c0f",
+      "bytes": 37716,
+      "added": "7d7f016 2026-10-21",
+      "status": "superseded",
+      "script": "qrc_weather_fair.py",
+      "description": "weather tuned ESN, single 150-day validation (fragile selection)"
+    },
+    {
+      "file": "qrc_weather_learned_leakfree_seed0.json",
+      "sha256": "1710cf97cd372b53af4a4f00f1ab7a9608fc23847878dc05d03970f13f2b15a9",
+      "bytes": 35911,
+      "added": "dc32403 2026-10-22",
+      "status": "current",
+      "script": "qrc_weather_learn.py + qrc_weather_bench.py",
+      "description": "weather learned encoding, seed 0"
+    },
+    {
+      "file": "qrc_weather_learned_leakfree_seed1.json",
+      "sha256": "fe561b64332d45d15a8b33025ad4df469c3e7da158e26eccbf14bfc78dfcd118",
+      "bytes": 35916,
+      "added": "dc32403 2026-10-22",
+      "status": "current",
+      "script": "qrc_weather_learn.py + qrc_weather_bench.py",
+      "description": "weather learned encoding, seed 1"
+    },
+    {
+      "file": "qrc_weather_learned_leakfree_seed2.json",
+      "sha256": "ae08c8e97c19a1428fe102f0bec1277163d7bafe18d09b1e4d4cb0a02fd95776",
+      "bytes": 35909,
+      "added": "dc32403 2026-10-22",
+      "status": "current",
+      "script": "qrc_weather_learn.py + qrc_weather_bench.py",
+      "description": "weather learned encoding, seed 2"
+    },
+    {
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "sha256": "58946235718fbeb2118b134df8a68415fa37b3ae2342f5b97fae68c59bf1a9c9",
+      "bytes": 4560,
+      "added": "469c9d2 2026-10-22",
+      "status": "current",
+      "script": "qrc_weather_pool.py",
+      "description": "Kaggle Delhi pooled seeds: learned QRC vs ESN, ESN with trained input stage"
+    }
+  ],
+  "headline": [
+    {
+      "claim": "6-spin learned narma2 (h=1) test NMSE",
+      "value": "0.00521 \u00b1 0.0013 (arcsin 0.101)",
+      "file": "qrc_6spin_campaign.json",
+      "key": "aggregate.narma2"
+    },
+    {
+      "claim": "6-spin learned narma10 (h=1) test NMSE",
+      "value": "0.12 \u00b1 0.019 (arcsin 0.312)",
+      "file": "qrc_6spin_campaign.json",
+      "key": "aggregate.narma10"
+    },
+    {
+      "claim": "6-spin learned mackey_glass (h=1) test NMSE",
+      "value": "7.6e-05 \u00b1 2.3e-05 (arcsin 0.000632)",
+      "file": "qrc_6spin_campaign.json",
+      "key": "aggregate.mackey_glass"
+    },
+    {
+      "claim": "6-spin learned Mackey-Glass h=10 (3 seeds, exact)",
+      "value": "0.00154 \u00b1 0.00018",
+      "file": "qrc_6spin_mackey_h10_seed1.json + _confirm.json",
+      "key": "conditions.perspin / seeds.{2,3}.perspin"
+    },
+    {
+      "claim": "  (old paper value, used rounded seed-1 0.0013)",
+      "value": "0.00155",
+      "file": "qrc_6spin_mackey_h10_confirm.json",
+      "key": "aggregate.perspin_mean"
+    },
+    {
+      "claim": "crotonic-9 learned mackey_glass_h10",
+      "value": "0.01024 \u00b1 0.0031 (arcsin 0.0894)",
+      "file": "qrc_crotonic9_campaign.json",
+      "key": "aggregate.mackey_glass_h10"
+    },
+    {
+      "claim": "crotonic-9 learned narma10",
+      "value": "0.2766 \u00b1 0.069 (arcsin 0.506)",
+      "file": "qrc_crotonic9_campaign.json",
+      "key": "aggregate.narma10"
+    },
+    {
+      "claim": "crotonic-9 learned narma2",
+      "value": "0.007919 \u00b1 0.0035 (arcsin 0.317)",
+      "file": "qrc_crotonic9_campaign.json",
+      "key": "aggregate.narma2"
+    },
+    {
+      "claim": "dccb7 tau=100 ms learned mackey_glass_h10",
+      "value": "0.002515 \u00b1 0.00057 (arcsin 0.0193)",
+      "file": "qrc_dccb7_tau100.json",
+      "key": "aggregate.mackey_glass_h10"
+    },
+    {
+      "claim": "dccb7 tau=100 ms learned narma2",
+      "value": "0.002756 \u00b1 0.00046 (arcsin 0.0991)",
+      "file": "qrc_dccb7_tau100.json",
+      "key": "aggregate.narma2"
+    },
+    {
+      "claim": "dccb7 tau=30 ms learned mackey_glass_h10",
+      "value": "0.008613 \u00b1 0.0055 (arcsin 0.102)",
+      "file": "qrc_dccb7_tau30.json",
+      "key": "aggregate.mackey_glass_h10"
+    },
+    {
+      "claim": "dccb7 tau=30 ms learned narma2",
+      "value": "0.0861 \u00b1 0.042 (arcsin 0.619)",
+      "file": "qrc_dccb7_tau30.json",
+      "key": "aggregate.narma2"
+    },
+    {
+      "claim": "dccb7 J=0 learned mackey_glass_h10",
+      "value": "0.09506 \u00b1 0.011 (arcsin 0.282)",
+      "file": "qrc_dccb7_tau100_j0.json",
+      "key": "aggregate.mackey_glass_h10"
+    },
+    {
+      "claim": "dccb7 J=0 learned narma2",
+      "value": "0.3465 \u00b1 0.029 (arcsin 0.609)",
+      "file": "qrc_dccb7_tau100_j0.json",
+      "key": "aggregate.narma2"
+    },
+    {
+      "claim": "tuned ESN narma2",
+      "value": "1.15e-05 (size-matched 2.51e-05)",
+      "file": "qrc_classical_fair_esn.json",
+      "key": "results.narma2"
+    },
+    {
+      "claim": "tuned LSTM narma2",
+      "value": "0.00435 \u00b1 0.0027",
+      "file": "qrc_classical_fair_lstm.json",
+      "key": "results.narma2.lstm_best"
+    },
+    {
+      "claim": "tuned ESN narma10",
+      "value": "0.0107 (size-matched 0.0203)",
+      "file": "qrc_classical_fair_esn.json",
+      "key": "results.narma10"
+    },
+    {
+      "claim": "tuned LSTM narma10",
+      "value": "0.245 \u00b1 0.022",
+      "file": "qrc_classical_fair_lstm.json",
+      "key": "results.narma10.lstm_best"
+    },
+    {
+      "claim": "tuned ESN mackey_glass_h10",
+      "value": "2.83e-06 (size-matched 1.05e-05)",
+      "file": "qrc_classical_fair_esn.json",
+      "key": "results.mackey_glass_h10"
+    },
+    {
+      "claim": "tuned LSTM mackey_glass_h10",
+      "value": "0.00274 \u00b1 0.00059",
+      "file": "qrc_classical_fair_lstm.json",
+      "key": "results.mackey_glass_h10.lstm_best"
+    },
+    {
+      "claim": "Kaggle Delhi weather qrc_arcsin pooled test R\u00b2",
+      "value": "0.698 \u00b1 0.000 (ensemble 0.698)",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "groups.qrc_arcsin"
+    },
+    {
+      "claim": "Kaggle Delhi weather qrc_learned pooled test R\u00b2",
+      "value": "0.735 \u00b1 0.003 (ensemble 0.740)",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "groups.qrc_learned"
+    },
+    {
+      "claim": "Kaggle Delhi weather esn_tuned pooled test R\u00b2",
+      "value": "0.717 \u00b1 0.000 (ensemble 0.717)",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "groups.esn_tuned"
+    },
+    {
+      "claim": "Kaggle Delhi weather esn_learned_win pooled test R\u00b2",
+      "value": "0.707 \u00b1 0.003 (ensemble 0.708)",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "groups.esn_learned_win"
+    },
+    {
+      "claim": "Kaggle Delhi weather esn_learned_mlp pooled test R\u00b2",
+      "value": "0.688 \u00b1 0.011 (ensemble 0.705)",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "groups.esn_learned_mlp"
+    },
+    {
+      "claim": "Kaggle Delhi qrc_learned - qrc_arcsin",
+      "value": "95% CI [+0.016, +0.076]",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "comparisons.qrc_learned - qrc_arcsin"
+    },
+    {
+      "claim": "Kaggle Delhi qrc_learned - esn_tuned",
+      "value": "95% CI [-0.023, +0.062]",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "comparisons.qrc_learned - esn_tuned"
+    },
+    {
+      "claim": "Kaggle Delhi qrc_learned - esn_learned_win",
+      "value": "95% CI [-0.010, +0.075]",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "comparisons.qrc_learned - esn_learned_win"
+    },
+    {
+      "claim": "Kaggle Delhi qrc_learned - esn_learned_mlp",
+      "value": "95% CI [+0.011, +0.111]",
+      "file": "qrc_weather_pool_delhi_kaggle.json",
+      "key": "comparisons.qrc_learned - esn_learned_mlp"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "experiment": "mackey_h10_multiseed",
+  "regime": "B",
+  "readout": "fid_reduced",
+  "horizon": 10,
+  "classical": {
+    "lstm": 0.0024,
+    "esn": 0.0057
+  },
+  "seeds": {
+    "1": {
+      "perspin": 0.0013,
+      "source": "learnable-0a45c7b0"
+    },
+    "2": {
+      "arcsin": 0.02436459782625397,
+      "perspin": 0.0017203309244543767,
+      "enc_std": 0.5406726846621774,
+      "verdict": "HEADROOM: learned 'perspin' beats arcsin (0.0017 vs 0.0244, std 0.54)",
+      "D_eff": 161
+    },
+    "3": {
+      "arcsin": 0.03638288205119325,
+      "perspin": 0.0016225441791411935,
+      "enc_std": 0.36003332114694686,
+      "verdict": "HEADROOM: learned 'perspin' beats arcsin (0.0016 vs 0.0364, std 0.36)",
+      "D_eff": 161
+    }
+  },
+  "aggregate": {
+    "n_seeds": 3,
+    "perspin_mean": 0.0015476250345318567,
+    "perspin_std": 0.00017959060885787574,
+    "arcsin_mean": 0.03037373993872361,
+    "beats_tuned_lstm": "3/3",
+    "beats_esn": "3/3",
+    "verdict": "CONFIRMED: QRC-learned < both classical baselines on all seeds"
+  },
+  "elapsed_hours": 8.454
+}
