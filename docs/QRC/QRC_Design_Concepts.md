@@ -230,3 +230,12 @@ LSTM, tuned linear AR; 95% moving-block bootstrap CIs.
 - **T3 (descriptive):** both QRC designs vs tuned ESN / LSTM / linear AR.
 - **T4 (small-data check, descriptive):** adopted vs current on Kaggle Delhi validation (H5).
 All outcomes are reported.
+
+### Step 3 outcome (2026-10-23)
+C5/C7 **not adopted**: the current design (τ = 30 ms, 653 bins) is the best of 24 (τ, readout) combinations
+on development validation (mean 0.7059; next best 0.7028), below the +0.005 adoption threshold. Per the
+pre-registration no confirmation was run, so Sydney / São Paulo / Toronto remain untouched for a later
+confirmation. Findings: τ is a flat optimum near 30 ms once the gain is set (15 / 60 / 100 ms: 0.701 /
+0.703 / 0.698); compact readouts cost a little on large datasets (bins100 0.697, pca64 0.695) but the
+physics line projection is near-equal with ~3× fewer features (0.702); on the small Kaggle set compact
+readouts help slightly (0.590 vs 0.582), consistent with the data-limit factor.

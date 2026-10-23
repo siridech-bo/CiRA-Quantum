@@ -167,3 +167,24 @@ range, where the QRC's strongly nonlinear feature map gives the linear readout n
 the linear AR and ESN extrapolate far more gracefully. Supplementary (not pre-registered for ETTh2): the
 frozen gain g = 0.35 raises the QRC from −0.15 to +0.36 there, consistent with Confirmation 1, but it
 remains ~0.4 R² behind the classical models — a documented limitation under input drift.
+
+## Step 3 — C5 step time τ + C7 compact readout (pre-registered, commit ed96b17)
+
+**Pre-registered** (`QRC_Design_Concepts.md` §8): at the frozen gain g = 0.35, τ ∈ {15, 30, 60, 100} ms ×
+readout ∈ {bins653, bins200, bins100, pca128, pca64, lines}; adopt the best mean development-validation
+combination only if it beats the current design (τ = 30 ms, bins653) by ≥ 0.005. Source files:
+`qrc_design_c5c7_dev_<dataset>.json`, `qrc_design_c5c7_frozen.json` (script `backend/scripts/qrc_design_c5c7.py`;
+FID traces saved for every τ).
+
+### Mean pooled validation R² over the 8 development datasets (bold = best)
+| τ (s) | bins653 | bins200 | bins100 | pca128 | pca64 | lines |
+|---|---|---|---|---|---|---|
+| 0.015 | 0.7008 | 0.6962 | 0.6841 | 0.6948 | 0.6846 | 0.7002 |
+| 0.03 | **0.7059** | 0.7028 | 0.6966 | 0.7028 | 0.6954 | 0.7021 |
+| 0.06 | 0.7027 | 0.7014 | 0.6969 | 0.7000 | 0.6945 | 0.7022 |
+| 0.1 | 0.6978 | 0.6983 | 0.6973 | 0.6953 | 0.6894 | 0.7000 |
+
+**Decision:** best `0.03|bins653` = 0.7059 vs current 0.7059
+(Δ +0.0000; threshold +0.005) → **NOT ADOPTED — current design kept**.
+
+**T4 small-data check (Kaggle Delhi, 300 training days, validation R²):** τ=0.015: bins653 0.356, bins100 0.311, lines 0.435; τ=0.03: bins653 0.582, bins100 0.590, lines 0.590; τ=0.06: bins653 0.567, bins100 0.568, lines 0.571; τ=0.1: bins653 0.428, bins100 0.439, lines 0.382.
