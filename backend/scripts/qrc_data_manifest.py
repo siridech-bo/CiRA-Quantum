@@ -121,6 +121,9 @@ def main():
     files = sorted(p for p in DATA.iterdir() if p.is_file() and p.name not in ("MANIFEST.md", "manifest.json"))
     entries = []
     for p in files:
+        if p.name.startswith("qrc_design_c1_"):
+            FILES.setdefault(p.name, ("current", "qrc_design_c1.py",
+                                      "design concept C1 (encoding gain) sweep, validation only — tests H1/H2"))
         if p.name in ("qrc_realworld_factors.json", "qrc_realworld_memory_function.json"):
             FILES.setdefault(p.name, ("current", "qrc_realworld_factors.py / memory-function analysis",
                                       "factor analysis of the real-world benchmark (why QRC wins/comparable/loses)"))

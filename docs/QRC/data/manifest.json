@@ -100,6 +100,87 @@
       "description": "dccb7 tau=30 ms"
     },
     {
+      "file": "qrc_design_c1_beijing_pm25.json",
+      "sha256": "42efc572b39126947dbf233a9ea77cef1daee9490e610c140ee7264cb844c2d0",
+      "bytes": 7068,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_era5_bangkok.json",
+      "sha256": "5e3e2af56cd2faebfeb3ee0e342a9cd3c5234796248dd5b6a899f3592d73c530",
+      "bytes": 7913,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_era5_beijing.json",
+      "sha256": "c28aab0e4fbe5a6893b9cf6f08b4f1d3b988f9d8ea3c59803a3032d696f989a6",
+      "bytes": 7826,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_era5_berlin.json",
+      "sha256": "69d3ca8f881714507345a55eb03b423a937feee90fed5832e349cfe4fc20cd29",
+      "bytes": 7836,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_era5_delhi.json",
+      "sha256": "acc7f5256d58ace1461d3a13cabeb1fef500a3f60878aae05c74fb29bfbdda9b",
+      "bytes": 7802,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_era5_mumbai.json",
+      "sha256": "40757af066f7fb005af9894cda8f379c7da0b2cacc079b448c035a24a20aff40",
+      "bytes": 7813,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_etth1.json",
+      "sha256": "8db45049002ff39c5fab4568bafa5dce13c8a4e208147687ccebb54b5b6f06cc",
+      "bytes": 5114,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_kaggle_delhi.json",
+      "sha256": "d01d3d740ba0ec3e3237babab0368339cee67a6795d74a49d2f31d6456a4473a",
+      "bytes": 8078,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c1_santafe.json",
+      "sha256": "52c1ea1d9918ab6a5574d40e1f3027a69c846c2d36d37bf62392f7b52976cfd4",
+      "bytes": 5085,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c1.py",
+      "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
       "file": "qrc_era5_delhi_eval_final.json",
       "sha256": "b4c27db7d9816d729e9cb1c24e4ac499cdcaaa12bbfe55733f52e668851bde7f",
       "bytes": 3337,
@@ -211,7 +292,7 @@
       "file": "qrc_realworld_factors.json",
       "sha256": "76e96027b0b7dbc4160c773251aa39fef49a11fdfd5e0fafc37c872a512b26b7",
       "bytes": 37142,
-      "added": "uncommitted",
+      "added": "8dbd109 2026-10-23",
       "status": "current",
       "script": "qrc_realworld_factors.py / memory-function analysis",
       "description": "factor analysis of the real-world benchmark (why QRC wins/comparable/loses)"
@@ -229,7 +310,7 @@
       "file": "qrc_realworld_memory_function.json",
       "sha256": "9bf873c098e0024f7a40f63985a7bc3b55655652ca7533f1ed55b6c6837ae417",
       "bytes": 2617,
-      "added": "uncommitted",
+      "added": "8dbd109 2026-10-23",
       "status": "current",
       "script": "qrc_realworld_factors.py / memory-function analysis",
       "description": "factor analysis of the real-world benchmark (why QRC wins/comparable/loses)"

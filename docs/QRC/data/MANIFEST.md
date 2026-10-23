@@ -21,6 +21,15 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_dccb7_tau100.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.1)` | dccb7 tau=100 ms | `d5a9e27549c1` |
 | `qrc_dccb7_tau100_j0.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7_j0)` | dccb7 tau=100 ms, J=0 ablation (readout basis of the coupled molecule) | `b87bf09a9845` |
 | `qrc_dccb7_tau30.json` | current | be4f385 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.03)` | dccb7 tau=30 ms | `9352b963e714` |
+| `qrc_design_c1_beijing_pm25.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `42efc572b391` |
+| `qrc_design_c1_era5_bangkok.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `5e3e2af56cd2` |
+| `qrc_design_c1_era5_beijing.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `c28aab0e4fbe` |
+| `qrc_design_c1_era5_berlin.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `69d3ca8f8817` |
+| `qrc_design_c1_era5_delhi.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `acc7f5256d58` |
+| `qrc_design_c1_era5_mumbai.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `40757af066f7` |
+| `qrc_design_c1_etth1.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `8db45049002f` |
+| `qrc_design_c1_kaggle_delhi.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `d01d3d740ba0` |
+| `qrc_design_c1_santafe.json` | current | uncommitted | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `52c1ea1d9918` |
 | `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
 | `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
@@ -33,9 +42,9 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_realworld_era5_delhi.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `591394cb74fc` |
 | `qrc_realworld_era5_mumbai.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `6f02e8af1789` |
 | `qrc_realworld_etth1.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3254e4b2b7a7` |
-| `qrc_realworld_factors.json` | current | uncommitted | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `76e96027b0b7` |
+| `qrc_realworld_factors.json` | current | 8dbd109 2026-10-23 | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `76e96027b0b7` |
 | `qrc_realworld_kaggle_delhi.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `738e3846ae64` |
-| `qrc_realworld_memory_function.json` | current | uncommitted | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `9bf873c098e0` |
+| `qrc_realworld_memory_function.json` | current | 8dbd109 2026-10-23 | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `9bf873c098e0` |
 | `qrc_realworld_santafe.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `795f26b15bcf` |
 | `qrc_weather_bench_step1_v300.json` | current | d7f1bd3 2026-10-21 | `qrc_weather_bench.py` | weather readout variants, symmetric protocol | `63f512768c0d` |
 | `qrc_weather_bench_step2_v300.json` | current | d7f1bd3 2026-10-21 | `qrc_weather_bench.py + qrc_weather_block.py` | weather reservoir variants | `3d86d27ca773` |
