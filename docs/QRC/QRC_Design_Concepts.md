@@ -239,3 +239,33 @@ confirmation. Findings: τ is a flat optimum near 30 ms once the gain is set (15
 0.703 / 0.698); compact readouts cost a little on large datasets (bins100 0.697, pca64 0.695) but the
 physics line projection is near-equal with ~3× fewer features (0.702); on the small Kaggle set compact
 readouts help slightly (0.590 vs 0.582), consistent with the data-limit factor.
+
+## 9. Step 4 — learned encoding on top of the frozen gain (PRE-REGISTERED 2026-10-23, before confirmation data)
+
+Written and committed **before** any learned-g = 0.35 run and before the confirmation cities were
+downloaded. Question: does the published learned encoding (C9, input map) add to the frozen gain rule,
+i.e. are the two improvements complementary?
+
+**Arm.** θ = 0.35·arcsin√s + 0.5·tanh(MLP(s)), per-spin MLP (16 tanh units), last layer zero-initialised
+so training starts exactly at the current design. Training identical to the published learned encoding
+(`qrc_realworld_bench.py learn --gain 0.35`): train-period slice only (last 3000 training steps; fit on
+the first 2000, inner validation on the last 1000, 500-step washout), Adam lr 0.02 with cosine decay,
+30 steps, keep the best inner-validation checkpoint; seeds 0, 1, 2. Readout features: the 653 bins of the
+g = 0.35 pass. Raw FID trace, θ, and encoder weights saved for every seed.
+
+**Development (validation only)** on the 8 development datasets, the same score as Step 3 (pooled
+validation R², ridge α and standardisation chosen on validation). Reference: g = 0.35 fixed (current
+design, mean 0.7059). Descriptive: the existing learned g = 1 encoders (3 seeds).
+
+**Freeze rule.** Adopt the learned g = 0.35 encoding if its seed-mean validation R², averaged over the 8
+datasets, is ≥ g = 0.35 fixed + 0.005. Otherwise keep the current design, report "not adopted", and run no
+confirmation.
+
+**Confirmation (only if adopted).** Untouched Open-Meteo ERA5 daily T + RH, 1970–2025: **Sydney**
+(33.87 S, 151.21 E), **São Paulo** (23.55 S, 46.63 W), **Toronto** (43.65 N, 79.38 W). The protocol is
+identical to Confirmation 1 (splits, normalisation, targets, readout selection, test read once), with the
+tuned ESN, tuned LSTM and tuned linear AR run as in the benchmark.
+- **L1 (primary):** pooled test R²(learned g = 0.35, seed-mean) − R²(g = 0.35 fixed) > 0 with the 95%
+  moving-block bootstrap CI (30 days, 2000 resamples) excluding 0, in at least 2 of 3 cities.
+- **L2 (descriptive):** learned g = 0.35 vs g = 1, tuned ESN, tuned LSTM and linear AR, with CIs.
+All results are reported, including failures.

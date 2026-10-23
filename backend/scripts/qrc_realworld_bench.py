@@ -21,7 +21,8 @@ Models
                data: the input on every spin); ridge readout (alpha, standardisation
                chosen on VAL, refit TRAIN+VAL)
   qrc_learned  same, per-spin encoding correction trained on a train-period slice
-               only (fit = last 3000-1000 train steps, inner val = last 1000)
+               only (fit = last 3000-1000 train steps, inner val = last 1000);
+               --gain g learns on top of the base g*arcsin sqrt s (design step 4)
   esn_tuned    grid size x spectral radius x leak x input scale, 3 inits, selected
                on VAL; esn_matched = same with size <= 653
   lstm_tuned   hidden x layers x lr sweep, 3 inits, multi-output head (all targets),
@@ -208,7 +209,8 @@ def _encoder(d_in, n, hidden=16, scale=0.5):
 def cmd_learn(a, ds):
     import torch
     m = qrc_machine(a.device, torch.complex64)
-    bins = torch.tensor(np.load(Path(a.run_dir) / "X_arcsin.npz")["bins"], device=a.device)
+    gdir = Path(a.run_dir) / ("." if a.gain == 1 else f"design_c1/g{a.gain:g}")
+    bins = torch.tensor(np.load(gdir / ("X_arcsin.npz" if a.gain == 1 else "X.npz"))["bins"], device=a.device)
     tr_end = int(ds["split"]["train"][-1]) + 1
     s0 = max(0, tr_end - a.slice - 500)                                     # 500-step washout
     fit = np.arange(tr_end - a.slice, tr_end - a.slice // 3) - s0
@@ -219,7 +221,7 @@ def cmd_learn(a, ds):
     torch.manual_seed(a.seed)
     enc = _encoder(w.shape[1], m["n"]).to(a.device)
     s_in = torch.tensor(w[s0:tr_end], dtype=torch.float64, device=a.device)
-    base = torch.tensor(np.arcsin(np.sqrt(per[s0:tr_end])), dtype=torch.float64, device=a.device)
+    base = torch.tensor(a.gain * np.arcsin(np.sqrt(per[s0:tr_end])), dtype=torch.float64, device=a.device)
     Yf = torch.tensor(make_targets(sub, fit), dtype=torch.float64, device=a.device)
     Yv = torch.tensor(make_targets(sub, val), dtype=torch.float64, device=a.device)
 
@@ -260,13 +262,14 @@ def cmd_learn(a, ds):
     enc.load_state_dict(best[1])
     with torch.no_grad():
         theta = enc(torch.tensor(w, dtype=torch.float64, device=a.device),
-                    torch.tensor(np.arcsin(np.sqrt(per)), dtype=torch.float64, device=a.device))
+                    torch.tensor(a.gain * np.arcsin(np.sqrt(per)), dtype=torch.float64, device=a.device))
         F = run_pass(m, theta)
         X = fft_feats(F, bins).cpu().numpy()
-    out = Path(a.run_dir) / f"learned_seed{a.seed}"
+    out = Path(a.run_dir) / (f"learned_seed{a.seed}" if a.gain == 1 else f"design_learn/g{a.gain:g}_seed{a.seed}")
     out.mkdir(parents=True, exist_ok=True)
+    torch.save(best[1], out / "encoder.pt")
     np.savez(out / "trace_learned.npz", fids_H=F.cpu().numpy().astype(np.complex64), theta=theta.cpu().numpy(),
-             meta=json.dumps({"dataset": a.dataset, "seed": a.seed, "steps": a.steps, "slice": [s0, tr_end],
+             meta=json.dumps({"dataset": a.dataset, "seed": a.seed, "gain": a.gain, "steps": a.steps, "slice": [s0, tr_end],
                               "step0_val_nmse": base_v, "best_val_nmse": best[0], "best_step": best[2]}))
     np.savez(out / "X_learned.npz", X=X)
     print(f"{a.dataset} seed {a.seed}: best val NMSE {best[0]:.4f} vs {base_v:.4f}", flush=True)
@@ -487,6 +490,7 @@ def main():
     ap.add_argument("--steps", type=int, default=30)
     ap.add_argument("--slice", type=int, default=3000)
     ap.add_argument("--lr", type=float, default=0.02)
+    ap.add_argument("--gain", type=float, default=1.0, help="learn: base encoding gain g (theta = g*arcsin sqrt s + correction)")
     ap.add_argument("--workers", type=int, default=32)
     ap.add_argument("--max-epochs", type=int, default=200)
     ap.add_argument("--patience", type=int, default=40)
