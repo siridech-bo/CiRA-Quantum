@@ -158,3 +158,38 @@ Significance: 95% moving-block bootstrap CI (30 days, 2000 resamples).
 - **S3 (descriptive, no success claim):** QRC g = 0.35 vs tuned ESN, tuned LSTM and tuned linear AR,
   with CIs, reported whatever the outcome.
 All results are reported, including a failure of S1/S2.
+
+## 7. Step 2 — C6 bounded readout features (PRE-REGISTERED 2026-10-23, before ETTh2 was downloaded)
+
+**Problem.** ETTh1's failure appears only in its test period (its validation months resemble training),
+so validation data cannot show whether a robustness fix works, and re-scoring ETTh1's test set after
+designing a fix for it would be test-set tuning.
+
+**Transform family (fixed now).** Applied to the QRC readout features (653 FFT magnitudes) before the
+ridge, all fitted on the training block only:
+- `clipz`: z = (X − μ_train)/σ_train, clipped to [−3, 3]
+- `tanhz`: tanh(z / 3)
+- `rank`: per-feature empirical CDF of the training block (quantile transform); values beyond the
+  training range map to 0 or 1
+- `raw`: identity (reference; the current design)
+The readout stays the benchmark protocol (standardisation flag and ridge α chosen on validation, refit
+train+validation). The tuned ESN is offered the same transform choice (selected on validation).
+
+**Freeze rule (validation only, 8 development datasets, QRC at the frozen gain g = 0.35).** Adopt the
+bounded transform (clipz / tanhz / rank) with the highest mean pooled validation R², provided its mean is
+not below raw by more than 0.005; otherwise keep raw and report C6 as not adopted.
+
+**Confirmation on untouched data with real distribution shift: ETTh2** (ETDataset, Zhou et al. 2021;
+sister series to ETTh1 from a different transformer; never downloaded or examined in this project).
+Same task and split as ETTh1 (inputs OT + HUFL, target OT at h = 1, 6, 12, 24, 48 h; standard
+12/4/4-month split). Models: QRC g = 1 raw, QRC g = 0.35 raw, QRC g = 0.35 + frozen transform, tuned
+ESN (± transform), tuned LSTM, tuned linear AR. 95% moving-block bootstrap CIs.
+
+**Success criteria.**
+- **R1 (primary, ETTh2):** QRC g = 0.35 + frozen transform has pooled test R² ≥ 0, and is not worse
+  than QRC g = 0.35 raw (CI lower bound of the difference > −0.005). If raw fails (R² < 0), the transform
+  must beat it with the CI excluding 0.
+- **R2 (post-hoc, labelled; the 9 development datasets' test sets, already seen):** with the frozen
+  transform, no dataset has negative pooled test R², and no dataset loses more than 0.005 against raw.
+- **R3 (descriptive):** ETTh2 comparison against the tuned ESN / LSTM / linear AR.
+All outcomes are reported, including failures.
