@@ -193,3 +193,10 @@ ESN (± transform), tuned LSTM, tuned linear AR. 95% moving-block bootstrap CIs.
   transform, no dataset has negative pooled test R², and no dataset loses more than 0.005 against raw.
 - **R3 (descriptive):** ETTh2 comparison against the tuned ESN / LSTM / linear AR.
 All outcomes are reported, including failures.
+
+### Step 2 outcome (2026-10-23) and next hypothesis
+C6 **not supported** (R1 FAIL on untouched ETTh2, R2 FAIL post-hoc): bounded transforms do not fix the
+drift failure, which replicates out of sample. Diagnosis: extrapolation, not feature size. Candidate
+next concept (not yet pre-registered or run): **C6b linear skip connection** — let the readout see the
+raw inputs (and a few lags) alongside the QRC features, giving it a linear extrapolation path, as is
+standard in reservoir computing. Fairness: the ESN gets the same skip connection.

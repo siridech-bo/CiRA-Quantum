@@ -17,9 +17,9 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_classical_baseline_v1_superseded.json` | superseded | 81fd9ad 2026-10-22 | `qrc_classical_baseline.py` | first classical baseline: size-only ESN, data seed 1 only — superseded by qrc_classical_fair_* | `c4d5408abbf6` |
 | `qrc_classical_fair_esn.json` | current | 052e4cf 2026-10-21 | `qrc_classical_fair.py --models esn` | fully tuned ESN + size-matched ESN, NARMA-2/10, MG h=10, data seeds 1-3 | `8b5555f0ab84` |
 | `qrc_classical_fair_lstm.json` | current | 6c7b523 2026-10-21 | `qrc_classical_fair.py --models lstm` | tuned LSTM, NARMA-2/10, MG h=10, data seeds 1-3 | `ea3634dc6636` |
-| `qrc_confirm1_cairo.json` | current | uncommitted | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `2068c84689f7` |
-| `qrc_confirm1_chennai.json` | current | uncommitted | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `a5f53c7ef456` |
-| `qrc_confirm1_moscow.json` | current | uncommitted | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `ed07a41c7547` |
+| `qrc_confirm1_cairo.json` | current | 0dcbbec 2026-10-23 | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `2068c84689f7` |
+| `qrc_confirm1_chennai.json` | current | 0dcbbec 2026-10-23 | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `a5f53c7ef456` |
+| `qrc_confirm1_moscow.json` | current | 0dcbbec 2026-10-23 | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `ed07a41c7547` |
 | `qrc_crotonic9_campaign.json` | current | 4f46e47 2026-10-21 | `qrc_learnable_campaign.py (plan crotonic9)` | crotonic-9 learned vs arcsin, NARMA-2/10 + MG h=10, 3 seeds + ablations | `8282d9d66972` |
 | `qrc_dccb7_tau100.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.1)` | dccb7 tau=100 ms | `d5a9e27549c1` |
 | `qrc_dccb7_tau100_j0.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7_j0)` | dccb7 tau=100 ms, J=0 ablation (readout basis of the coupled molecule) | `b87bf09a9845` |
@@ -33,6 +33,9 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_design_c1_etth1.json` | current | ffc0f03 2026-10-23 | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `8db45049002f` |
 | `qrc_design_c1_kaggle_delhi.json` | current | ffc0f03 2026-10-23 | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `d01d3d740ba0` |
 | `qrc_design_c1_santafe.json` | current | ffc0f03 2026-10-23 | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `52c1ea1d9918` |
+| `qrc_design_c6_etth2.json` | current | uncommitted | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `d46e6e1afe6e` |
+| `qrc_design_c6_frozen.json` | current | 34156a7 2026-10-23 | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `3ae53e487d11` |
+| `qrc_design_c6_posthoc.json` | current | uncommitted | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `1763c01bb039` |
 | `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
 | `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |

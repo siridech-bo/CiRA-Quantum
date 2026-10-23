@@ -67,7 +67,7 @@
       "file": "qrc_confirm1_cairo.json",
       "sha256": "2068c84689f7c44b20b0e373ef79bc2b5c5326299983a2e9f66a773da75cdb3b",
       "bytes": 9309,
-      "added": "uncommitted",
+      "added": "0dcbbec 2026-10-23",
       "status": "current",
       "script": "qrc_design_confirm.py",
       "description": "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"
@@ -76,7 +76,7 @@
       "file": "qrc_confirm1_chennai.json",
       "sha256": "a5f53c7ef456a750e00065031ba07cc53816cf4d9e29f15427e58a393b7b98d2",
       "bytes": 9268,
-      "added": "uncommitted",
+      "added": "0dcbbec 2026-10-23",
       "status": "current",
       "script": "qrc_design_confirm.py",
       "description": "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"
@@ -85,7 +85,7 @@
       "file": "qrc_confirm1_moscow.json",
       "sha256": "ed07a41c7547f24dc4b43c338f4b8f3d52c5ccc13041ee077b10e603ac2adf7f",
       "bytes": 9271,
-      "added": "uncommitted",
+      "added": "0dcbbec 2026-10-23",
       "status": "current",
       "script": "qrc_design_confirm.py",
       "description": "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"
@@ -206,6 +206,33 @@
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
+    },
+    {
+      "file": "qrc_design_c6_etth2.json",
+      "sha256": "d46e6e1afe6e4e8098ba8c74db295fbefe300268d5c049631456ea9eb67f9d0a",
+      "bytes": 2352,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c6.py",
+      "description": "Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation \u2014 NOT supported"
+    },
+    {
+      "file": "qrc_design_c6_frozen.json",
+      "sha256": "3ae53e487d114a02fd855d7fbf6d760031af5971a2de3fbf35f7f22a1ef62c8c",
+      "bytes": 2231,
+      "added": "34156a7 2026-10-23",
+      "status": "current",
+      "script": "qrc_design_c6.py",
+      "description": "Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation \u2014 NOT supported"
+    },
+    {
+      "file": "qrc_design_c6_posthoc.json",
+      "sha256": "1763c01bb039c7010cd69d22212d89c1402e1b5825d7a196a5cf197dbb6aa7c7",
+      "bytes": 3490,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_c6.py",
+      "description": "Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation \u2014 NOT supported"
     },
     {
       "file": "qrc_era5_delhi_eval_final.json",

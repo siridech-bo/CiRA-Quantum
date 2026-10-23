@@ -99,3 +99,71 @@ generalised better than re-tuning the gain on each city's validation period.
 
 The gain rule closes most of the gap to the tuned ESN but does not overtake it (comparable in Cairo,
 ESN still significantly better in Chennai and Moscow).
+
+## Step 2 — C6 bounded readout features (pre-registered, commit 53d8e6a)
+
+**Pre-registered** (`QRC_Design_Concepts.md` §7): transforms clipz / tanhz / rank (fitted on training data)
+vs raw; freeze the best bounded transform on development *validation* data at the frozen gain g = 0.35;
+confirm on untouched **ETTh2** (real distribution shift). Source files: `qrc_design_c6_frozen.json`,
+`qrc_design_c6_posthoc.json`, `qrc_design_c6_etth2.json` (script `backend/scripts/qrc_design_c6.py`).
+
+### Freeze (validation only, pooled R²)
+| dataset | raw | clipz | tanhz | rank |
+|---|---|---|---|---|
+| era5_delhi | 0.7645 | 0.7629 | 0.7669 | 0.7495 |
+| era5_mumbai | 0.7167 | 0.7168 | 0.7146 | 0.6978 |
+| era5_bangkok | 0.2957 | 0.2914 | 0.2900 | 0.2577 |
+| era5_beijing | 0.6408 | 0.6408 | 0.6428 | 0.6349 |
+| era5_berlin | 0.5841 | 0.5840 | 0.5865 | 0.5760 |
+| beijing_pm25 | 0.9243 | 0.9207 | 0.9233 | 0.9092 |
+| etth1 | 0.8154 | 0.8152 | 0.8140 | 0.7831 |
+| santafe | 0.9075 | 0.8869 | 0.9157 | 0.9147 |
+| **mean** | **0.7061** | **0.7023** | **0.7067** | **0.6904** |
+
+**Frozen transform: `tanhz`** (committed 34156a7, before ETTh2 was downloaded).
+
+### R1 (primary) — untouched ETTh2, pooled test R²
+| model | test R² |
+|---|---|
+| qrc_g1_raw | -0.1506 |
+| qrc_g035_raw | +0.3632 |
+| qrc_g035_tanhz | +0.2914 |
+| esn_tuned | +0.7911 |
+| lstm_tuned | +0.7467 |
+| linear_ar | +0.8113 |
+
+| difference | point [95% CI] |
+|---|---|
+| qrc_g035_tanhz - qrc_g1_raw | +0.4420 [+0.1122, +0.9325] |
+| qrc_g035_tanhz - qrc_g035_raw | -0.0717 [-0.1880, +0.0320] |
+| qrc_g035_tanhz - esn_tuned | -0.4996 [-0.7535, -0.3002] |
+| qrc_g035_tanhz - lstm_tuned | -0.4553 [-0.7079, -0.2586] |
+| qrc_g035_tanhz - linear_ar | -0.5199 [-0.7757, -0.3144] |
+
+**R1: FAIL** — the frozen transform must have R² ≥ 0 and not be worse than raw
+(CI lower bound > −0.005). ESN transform chosen on validation: `raw`.
+
+### R2 (post-hoc, labelled — development test sets already seen)
+| dataset | raw | tanhz | tanhz − raw |
+|---|---|---|---|
+| era5_delhi | +0.7631 | +0.7579 | -0.0052 [-0.0078, -0.0026] |
+| era5_mumbai | +0.6807 | +0.6728 | -0.0079 [-0.0133, -0.0038] |
+| era5_bangkok | +0.2977 | +0.3142 | +0.0164 [+0.0048, +0.0300] |
+| era5_beijing | +0.6527 | +0.6534 | +0.0007 [-0.0003, +0.0017] |
+| era5_berlin | +0.5988 | +0.6000 | +0.0012 [-0.0001, +0.0025] |
+| beijing_pm25 | +0.9254 | +0.9233 | -0.0021 [-0.0054, -0.0002] |
+| etth1 | -0.2120 | -0.2173 | -0.0053 [-0.1713, +0.1835] |
+| santafe | +0.9139 | +0.9211 | +0.0072 [+0.0026, +0.0119] |
+| kaggle_delhi | +0.6876 | +0.7089 | +0.0214 [-0.0000, +0.0505] |
+
+**R2: FAIL** — negative R²: ['etth1'];
+loss > 0.005: ['era5_delhi', 'era5_mumbai', 'etth1'].
+
+**Verdict: C6 not supported.** Bounding the feature magnitudes does not fix the drift failure (ETTh1 stays
+negative; on untouched ETTh2 the transform is worse than raw). The ETTh1 failure **replicates out of
+sample** on ETTh2 for the standard QRC (g = 1: R² −0.15), while the tuned ESN / LSTM / linear AR reach
+0.75–0.81. The cause is not feature size but extrapolation: under drift the inputs leave the training
+range, where the QRC's strongly nonlinear feature map gives the linear readout no reliable relation;
+the linear AR and ESN extrapolate far more gracefully. Supplementary (not pre-registered for ETTh2): the
+frozen gain g = 0.35 raises the QRC from −0.15 to +0.36 there, consistent with Confirmation 1, but it
+remains ~0.4 R² behind the classical models — a documented limitation under input drift.
