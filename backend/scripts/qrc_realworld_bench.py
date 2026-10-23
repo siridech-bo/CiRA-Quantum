@@ -110,9 +110,9 @@ def load_dataset(name):
               "test": np.arange(i_test, len(w) - max(H))}
         return dict(w=w, targets=[(v, h) for h in H for v in (0, 1)], split=sp, unit="hour",
                     inputs=["temp", "dewpoint"])
-    if name == "etth1":
+    if name in ("etth1", "etth2"):
         import pandas as pd
-        df = pd.read_csv(ROOT / "data/realworld/raw/ETTh1.csv")
+        df = pd.read_csv(ROOT / f"data/realworld/raw/{name.upper().replace('ETTH', 'ETTh')}.csv")
         raw = df[["OT", "HUFL"]].to_numpy(float)
         tr, va, te = 12 * 30 * 24, 4 * 30 * 24, 4 * 30 * 24                  # standard ETT split
         H = (1, 6, 12, 24, 48)
