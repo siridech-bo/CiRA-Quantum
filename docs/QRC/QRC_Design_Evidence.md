@@ -62,3 +62,40 @@ Delhi (300 training days) low gains are unstable (validation R² down to −6.3,
 injection makes the features small and near-collinear, so the readout is ill-conditioned with little
 data. The best gain is therefore data-regime dependent, which bears on H5 (protecting the QRC's
 small-data advantage).
+
+## Confirmation 1 — frozen gain g = 0.35 on untouched cities (pre-registered, commit 29152bf)
+
+**Pre-registered before the data were downloaded** (`QRC_Design_Concepts.md` §6). Untouched ERA5 cities;
+benchmark protocol (train 1971–1999, validation 2000–2004, **test 2005–2025, read once**); source files
+`qrc_confirm1_<city>.json` (script `backend/scripts/qrc_design_confirm.py`; predictions and traces saved).
+
+### S1 / S2 — QRC g = 0.35 vs g = 1 (pooled test R², 95% block-bootstrap CI)
+| city | g = 1 | g = 0.35 | Δ all targets | Δ long (h ≥ 30) | Δ short (h ≤ 10) |
+|---|---|---|---|---|---|
+| chennai | 0.5052 | 0.5846 | +0.0794 [+0.0614, +0.1008] | +0.1372 [+0.1037, +0.1776] | +0.0326 [+0.0231, +0.0425] |
+| cairo | 0.5291 | 0.5441 | +0.0150 [+0.0094, +0.0215] | +0.0256 [+0.0160, +0.0357] | +0.0091 [+0.0041, +0.0145] |
+| moscow | 0.5648 | 0.5984 | +0.0336 [+0.0250, +0.0432] | +0.0644 [+0.0495, +0.0810] | +0.0139 [+0.0085, +0.0198] |
+
+**S1 (≥ 2/3 cities with CI > 0): PASS (3/3).**
+**S2 (mean long-horizon gain ≥ +0.0205, short not worse than −0.005): PASS**
+(long +0.0757, short +0.0185).
+
+### Secondary rule — per-city validation-selected gain vs g = 1
+| city | selected | Δ all targets |
+|---|---|---|
+| chennai | g = 0.5 | +0.0674 [+0.0525, +0.0849] |
+| cairo | g = 0.5 | +0.0026 [-0.0041, +0.0102] |
+| moscow | g = 0.35 | +0.0336 [+0.0250, +0.0432] |
+
+The fixed rule beat the per-city selected rule where they differed (Chennai, Cairo): one frozen gain
+generalised better than re-tuning the gain on each city's validation period.
+
+### S3 (descriptive) — QRC − baseline, g = 1 → g = 0.35
+| city | − tuned ESN | − tuned LSTM | − tuned linear AR |
+|---|---|---|---|
+| chennai | -0.0921 [-0.1133, -0.0743] → -0.0127 [-0.0220, -0.0039] | -0.0697 [-0.0869, -0.0542] → +0.0097 [-0.0020, +0.0225] | -0.0515 [-0.0696, -0.0359] → +0.0279 [+0.0173, +0.0388] |
+| cairo | -0.0171 [-0.0232, -0.0118] → -0.0021 [-0.0054, +0.0010] | +0.0031 [-0.0067, +0.0123] → +0.0181 [+0.0095, +0.0264] | +0.0112 [+0.0020, +0.0202] → +0.0262 [+0.0177, +0.0349] |
+| moscow | -0.0424 [-0.0535, -0.0322] → -0.0089 [-0.0160, -0.0019] | -0.0482 [-0.0577, -0.0394] → -0.0146 [-0.0213, -0.0082] | -0.0323 [-0.0423, -0.0229] → +0.0013 [-0.0041, +0.0067] |
+
+The gain rule closes most of the gap to the tuned ESN but does not overtake it (comparable in Cairo,
+ESN still significantly better in Chennai and Moscow).

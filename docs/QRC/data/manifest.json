@@ -64,6 +64,33 @@
       "description": "tuned LSTM, NARMA-2/10, MG h=10, data seeds 1-3"
     },
     {
+      "file": "qrc_confirm1_cairo.json",
+      "sha256": "2068c84689f7c44b20b0e373ef79bc2b5c5326299983a2e9f66a773da75cdb3b",
+      "bytes": 9309,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_confirm.py",
+      "description": "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"
+    },
+    {
+      "file": "qrc_confirm1_chennai.json",
+      "sha256": "a5f53c7ef456a750e00065031ba07cc53816cf4d9e29f15427e58a393b7b98d2",
+      "bytes": 9268,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_confirm.py",
+      "description": "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"
+    },
+    {
+      "file": "qrc_confirm1_moscow.json",
+      "sha256": "ed07a41c7547f24dc4b43c338f4b8f3d52c5ccc13041ee077b10e603ac2adf7f",
+      "bytes": 9271,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_confirm.py",
+      "description": "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"
+    },
+    {
       "file": "qrc_crotonic9_campaign.json",
       "sha256": "8282d9d66972dbde325391e1f8cc9914b8a2e03c00adf3f0e1b2805833b6c8c5",
       "bytes": 6730,
@@ -103,7 +130,7 @@
       "file": "qrc_design_c1_beijing_pm25.json",
       "sha256": "42efc572b39126947dbf233a9ea77cef1daee9490e610c140ee7264cb844c2d0",
       "bytes": 7068,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -112,7 +139,7 @@
       "file": "qrc_design_c1_era5_bangkok.json",
       "sha256": "5e3e2af56cd2faebfeb3ee0e342a9cd3c5234796248dd5b6a899f3592d73c530",
       "bytes": 7913,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -121,7 +148,7 @@
       "file": "qrc_design_c1_era5_beijing.json",
       "sha256": "c28aab0e4fbe5a6893b9cf6f08b4f1d3b988f9d8ea3c59803a3032d696f989a6",
       "bytes": 7826,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -130,7 +157,7 @@
       "file": "qrc_design_c1_era5_berlin.json",
       "sha256": "69d3ca8f881714507345a55eb03b423a937feee90fed5832e349cfe4fc20cd29",
       "bytes": 7836,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -139,7 +166,7 @@
       "file": "qrc_design_c1_era5_delhi.json",
       "sha256": "acc7f5256d58ace1461d3a13cabeb1fef500a3f60878aae05c74fb29bfbdda9b",
       "bytes": 7802,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -148,7 +175,7 @@
       "file": "qrc_design_c1_era5_mumbai.json",
       "sha256": "40757af066f7fb005af9894cda8f379c7da0b2cacc079b448c035a24a20aff40",
       "bytes": 7813,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -157,7 +184,7 @@
       "file": "qrc_design_c1_etth1.json",
       "sha256": "8db45049002ff39c5fab4568bafa5dce13c8a4e208147687ccebb54b5b6f06cc",
       "bytes": 5114,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -166,7 +193,7 @@
       "file": "qrc_design_c1_kaggle_delhi.json",
       "sha256": "d01d3d740ba0ec3e3237babab0368339cee67a6795d74a49d2f31d6456a4473a",
       "bytes": 8078,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"
@@ -175,7 +202,7 @@
       "file": "qrc_design_c1_santafe.json",
       "sha256": "52c1ea1d9918ab6a5574d40e1f3027a69c846c2d36d37bf62392f7b52976cfd4",
       "bytes": 5085,
-      "added": "uncommitted",
+      "added": "ffc0f03 2026-10-23",
       "status": "current",
       "script": "qrc_design_c1.py",
       "description": "design concept C1 (encoding gain) sweep, validation only \u2014 tests H1/H2"

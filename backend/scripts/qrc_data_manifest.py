@@ -121,6 +121,9 @@ def main():
     files = sorted(p for p in DATA.iterdir() if p.is_file() and p.name not in ("MANIFEST.md", "manifest.json"))
     entries = []
     for p in files:
+        if p.name.startswith("qrc_confirm1_"):
+            FILES.setdefault(p.name, ("current", "qrc_design_confirm.py",
+                                      "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"))
         if p.name.startswith("qrc_design_c1_"):
             FILES.setdefault(p.name, ("current", "qrc_design_c1.py",
                                       "design concept C1 (encoding gain) sweep, validation only — tests H1/H2"))
