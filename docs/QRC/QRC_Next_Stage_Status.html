@@ -82,6 +82,7 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>10-23</td><td><b>Step 3 (C5 tau + C7 compact readout) pre-registered</b></td><td><span class="tag t-run">pre-registered</span> tau x readout search on dev validation; adopt only if +0.005; confirm on untouched Sydney, Sao Paulo, Toronto. QRC_Design_Concepts.md section 8.</td><td>&lt;this commit&gt;</td></tr>
       <tr><td>10-23</td><td><b>Step 2 (C6 bounded features) not supported; drift failure replicates out of sample</b></td><td><span class="tag t-done">negative</span> ETTh2 (untouched): QRC g=1 -0.15, g=0.35 +0.36, g=0.35+tanhz +0.29 vs ESN 0.79 / LSTM 0.75 / linear 0.81. Bounding features does not fix drift; cause is extrapolation. Next candidate: linear skip connection.</td><td>&lt;this commit&gt;</td></tr>
       <tr><td>10-23</td><td><b>Step 2 (C6 bounded features) pre-registered</b></td><td><span class="tag t-run">pre-registered</span> Bounded transforms frozen on dev validation; confirmation on untouched ETTh2 (real distribution shift). QRC_Design_Concepts.md section 7.</td><td>&lt;this commit&gt;</td></tr>
       <tr><td>10-23</td><td><b>Confirmation 1 passed: frozen gain g = 0.35 improves the QRC on 3/3 untouched cities</b></td><td><span class="tag t-done">pass</span> Pooled test R2 +0.079 / +0.015 / +0.034 (all CIs exclude 0); long horizons +0.076, short +0.019. Gap to tuned ESN closed by 79-88% (comparable in Cairo). Fixed rule beat per-city tuning.</td><td>&lt;this commit&gt;</td></tr>

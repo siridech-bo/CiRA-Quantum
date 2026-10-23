@@ -200,3 +200,33 @@ drift failure, which replicates out of sample. Diagnosis: extrapolation, not fea
 next concept (not yet pre-registered or run): **C6b linear skip connection** — let the readout see the
 raw inputs (and a few lags) alongside the QRC features, giving it a linear extrapolation path, as is
 standard in reservoir computing. Fairness: the ESN gets the same skip connection.
+
+## 8. Step 3 — C5 step time τ + C7 compact readout (PRE-REGISTERED 2026-10-23, before confirmation data)
+
+**Current frozen design:** crotonic-9, encoding gain g = 0.35, τ = 30 ms, readout = 653 top FFT-magnitude
+bins of the proton FID (benchmark readout protocol).
+
+**Search space (fixed now), all at g = 0.35:**
+- **C5 τ ∈ {15, 30, 60, 100} ms.**
+- **C7 readout ∈** `bins653` (current) | `bins200`, `bins100` (top-K of the same ranking) | `pca128`,
+  `pca64` (PCA fitted on the training block) | `lines` (physics-informed line projection of the FID onto
+  the D_eff analytic proton lines, real + imaginary parts; SOP §3.2).
+FIDs for every τ are saved (persist rule); readout variants are computed from the saved FIDs.
+
+**Freeze rule (validation only, 8 development datasets; Kaggle Delhi reported separately as the
+small-data check).** Score every (τ, readout) by mean pooled validation R² (benchmark protocol). Adopt the
+best combination **only if** it beats the current design (τ = 30 ms, bins653) by ≥ 0.005 in mean; otherwise
+keep the current design and report C5/C7 as not adopted (then no confirmation run).
+
+**Confirmation on untouched data** (only if a change is adopted): Open-Meteo ERA5 daily T + RH,
+1970–2025, for three cities never downloaded in this project: **Sydney** (−33.87, 151.21), **São Paulo**
+(−23.55, −46.63), **Toronto** (43.65, −79.38). Benchmark protocol (train 1971–1999, validation
+2000–2004, test 2005–2025 read once). Models: QRC current design, QRC adopted design, tuned ESN, tuned
+LSTM, tuned linear AR; 95% moving-block bootstrap CIs.
+
+**Success criteria.**
+- **T1 (primary):** pooled test R²(adopted) − R²(current) > 0 with the 95% CI excluding 0 in ≥ 2 of 3 cities.
+- **T2:** no city loses more than 0.005 (point estimate).
+- **T3 (descriptive):** both QRC designs vs tuned ESN / LSTM / linear AR.
+- **T4 (small-data check, descriptive):** adopted vs current on Kaggle Delhi validation (H5).
+All outcomes are reported.
