@@ -126,3 +126,35 @@ The simulation reads the FID from a copy of the state each step. On real NMR har
 pulse disturbs the ensemble, so experiments typically re-run the input history per readout point or use
 weak/partial readout. Concepts that add readout channels (C3) or pulses (C4, C9) should be costed in
 experiment time, not only simulation time.
+
+## 6. Confirmation 1 — frozen encoding-gain rule on untouched cities (PRE-REGISTERED 2026-10-23)
+
+Written and committed **before** the confirmation data were downloaded or opened.
+
+**Frozen rule (from the 8 development datasets, validation only, `QRC_Design_Evidence.md` step 1).**
+- **Primary:** fixed encoding gain **g = 0.35** (θ = 0.35·arcsin√s). Chosen because it has the best mean
+  rank over the 8 development datasets (2.12 of 6 gains), the best mean long-horizon validation R² (0.618),
+  ties the best mean pooled validation R² (0.700), and beats g = 1 on all 8.
+- **Secondary:** per-dataset gain selected on that dataset's own validation period from
+  {0.2, 0.35, 0.5, 0.75, 1} (0.1 excluded: unstable, never best on pooled R² in development).
+
+**Untouched data.** Open-Meteo ERA5 daily temperature + relative humidity, 1970–2025, for three cities
+never downloaded or examined in this project, chosen for climatic diversity: **Chennai** (13.08 N,
+80.27 E; tropical coastal), **Cairo** (30.04 N, 31.24 E; hot desert), **Moscow** (55.76 N, 37.62 E;
+humid continental).
+
+**Protocol** (identical to the real-world benchmark, `qrc_realworld_bench.py`). Train 1971–1999,
+validation 2000–2004, test 2005-01-01 to end−45 days; normalisation from pre-test data; targets
+temperature and humidity at h = 1, 5, 10, 15, 20, 30, 45 days; readout (standardisation, ridge α) chosen
+on validation, refit on train+validation, test read once. Models: QRC g = 1 (arcsin), QRC g = 0.35,
+QRC per-city-selected g, tuned ESN (+ size-matched), tuned LSTM (3 inits each), tuned linear AR.
+Significance: 95% moving-block bootstrap CI (30 days, 2000 resamples).
+
+**Success criteria.**
+- **S1 (primary):** pooled test R²(QRC g = 0.35) − R²(QRC g = 1) > 0 with the 95% CI excluding 0, in at
+  least 2 of the 3 cities.
+- **S2:** mean over cities of the long-horizon (h ≥ 30 days) test R² improvement ≥ +0.0205; and
+  short-horizon (h ≤ 10 days) test R² not worse by more than 0.005 on average.
+- **S3 (descriptive, no success claim):** QRC g = 0.35 vs tuned ESN, tuned LSTM and tuned linear AR,
+  with CIs, reported whatever the outcome.
+All results are reported, including a failure of S1/S2.
