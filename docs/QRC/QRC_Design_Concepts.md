@@ -269,3 +269,13 @@ tuned ESN, tuned LSTM and tuned linear AR run as in the benchmark.
   moving-block bootstrap CI (30 days, 2000 resamples) excluding 0, in at least 2 of 3 cities.
 - **L2 (descriptive):** learned g = 0.35 vs g = 1, tuned ESN, tuned LSTM and linear AR, with CIs.
 All results are reported, including failures.
+
+### Step 4 outcome (2026-10-24)
+**Not adopted.** Learning the encoding on top of g = 0.35 gives mean development-validation R² 0.7038 vs
+0.7059 for the fixed gain (Δ −0.002, threshold +0.005; better on 4/8, all gains ≤ +0.004, Bangkok −0.017,
+Santa Fe −0.005 driven by one seed). Per the pre-registration no confirmation was run; Sydney / São Paulo /
+Toronto remain untouched. Interpretation: the gain rule and the learned input map are **not complementary** —
+once input overwrite is reduced by g, the learned correction mostly fits the training slice (inner NMSE
+falls 4–35 %) without transferring to the validation period. The fixed g = 0.35 also beats the published
+learned encoding at g = 1 on 6/8 datasets (mean 0.7059 vs 0.6927; Beijing and Berlin are the exceptions), so the earlier learned-encoding gain is
+largely explained by reduced input overwrite. Current design unchanged: g = 0.35, τ = 30 ms, 653 bins.

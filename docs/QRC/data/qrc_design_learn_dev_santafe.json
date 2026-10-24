@@ -1,0 +1,76 @@
+{
+  "dataset": "santafe",
+  "scores": {
+    "g0.35_fixed": 0.9059717658595021,
+    "learned_g0.35": [
+      0.9068098522342763,
+      0.9101798933240453,
+      0.8846775837198244
+    ],
+    "learned_g1": [
+      0.9067793365690404,
+      0.8895182377027162,
+      0.8880516663018797
+    ]
+  },
+  "inner_val_nmse": {
+    "0": {
+      "dataset": "santafe",
+      "seed": 0,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        2700,
+        6200
+      ],
+      "step0_val_nmse": 0.078044123291276,
+      "best_val_nmse": 0.05144005764504639,
+      "best_step": 27
+    },
+    "1": {
+      "dataset": "santafe",
+      "seed": 1,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        2700,
+        6200
+      ],
+      "step0_val_nmse": 0.078044123291276,
+      "best_val_nmse": 0.05564872080270962,
+      "best_step": 27
+    },
+    "2": {
+      "dataset": "santafe",
+      "seed": 2,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        2700,
+        6200
+      ],
+      "step0_val_nmse": 0.078044123291276,
+      "best_val_nmse": 0.05798997640644558,
+      "best_step": 28
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-23T20:17:05+00:00",
+    "git_commit": "ba783acb1ad3acffb6c729069c08b60b0788f97c",
+    "git_dirty": null,
+    "code_version_file": "ba783acb1ad3acffb6c729069c08b60b0788f97c shipped 2026-10-23T02:48:46Z",
+    "host": "b77be1fad027",
+    "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "qutip": "5.3.1",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA A100-SXM4-40GB MIG 7g.40gb",
+    "run": {
+      "dataset": "santafe",
+      "step": "learned encoding at g=0.35, dev (validation only)"
+    }
+  }
+}

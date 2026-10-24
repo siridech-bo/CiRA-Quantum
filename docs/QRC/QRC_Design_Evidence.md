@@ -188,3 +188,27 @@ FID traces saved for every τ).
 (Δ +0.0000; threshold +0.005) → **NOT ADOPTED — current design kept**.
 
 **T4 small-data check (Kaggle Delhi, 300 training days, validation R²):** τ=0.015: bins653 0.356, bins100 0.311, lines 0.435; τ=0.03: bins653 0.582, bins100 0.590, lines 0.590; τ=0.06: bins653 0.567, bins100 0.568, lines 0.571; τ=0.1: bins653 0.428, bins100 0.439, lines 0.382.
+
+## Step 4 — learned encoding on top of the frozen gain g = 0.35 (pre-registered, commit 5b92610)
+
+**Pre-registered** (`QRC_Design_Concepts.md` §9): θ = 0.35·arcsin√s + 0.5·tanh(MLP(s)), zero-initialised,
+trained on a train-period slice only (published learned-encoding recipe, 30 Adam steps), seeds 0–2;
+adopt if the seed-mean validation R², averaged over the 8 development datasets, is ≥ g = 0.35 fixed + 0.005.
+Source files: `qrc_design_learn_dev_<dataset>.json`, `qrc_design_learn_frozen.json` (script
+`backend/scripts/qrc_design_learn.py`; FID trace, θ and encoder weights saved per seed).
+
+### Pooled validation R² (development datasets)
+| dataset | g = 0.35 fixed | learned g = 0.35, seed mean (seeds 0 / 1 / 2) | Δ | learned g = 1 (published) |
+|---|---|---|---|---|
+| era5_delhi | 0.7645 | 0.7687 (0.7655 / 0.7684 / 0.7720) | +0.0042 | 0.7544 |
+| era5_mumbai | 0.7167 | 0.7155 (0.7178 / 0.7193 / 0.7093) | -0.0012 | 0.6787 |
+| era5_bangkok | 0.2957 | 0.2783 (0.2730 / 0.2792 / 0.2827) | -0.0175 | 0.2625 |
+| era5_beijing | 0.6408 | 0.6420 (0.6424 / 0.6431 / 0.6405) | +0.0012 | 0.6419 |
+| era5_berlin | 0.5841 | 0.5853 (0.5837 / 0.5883 / 0.5840) | +0.0012 | 0.5919 |
+| beijing_pm25 | 0.9243 | 0.9255 (0.9265 / 0.9253 / 0.9246) | +0.0012 | 0.9223 |
+| etth1 | 0.8154 | 0.8146 (0.8170 / 0.8130 / 0.8137) | -0.0008 | 0.7954 |
+| santafe | 0.9060 | 0.9006 (0.9068 / 0.9102 / 0.8847) | -0.0054 | 0.8948 |
+
+**Decision:** mean learned 0.7038 vs fixed 0.7059
+(Δ -0.0021; threshold +0.005; better on 4/8) →
+**NOT ADOPTED — current design kept; no confirmation run**. Descriptive: published learned encoding at g = 1, mean 0.6927.

@@ -82,6 +82,7 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>10-24</td><td><b>Step 4 (learned encoding on top of g = 0.35) not adopted</b></td><td><span class="tag t-done">null</span> Mean val R2 learned 0.7038 vs fixed 0.7059 (threshold +0.005). No confirmation run. Fixed g = 0.35 beats published learned g = 1 on 6/8 datasets.</td><td>&lt;this commit&gt;</td></tr>
       <tr><td>10-23</td><td><b>Step 4 dev runs launched (cira2 + cira3 A100)</b></td><td><span class="tag t-todo">running</span> learned encoding at g = 0.35, 3 seeds x 8 dev datasets; ~10 h wall.</td><td>&mdash;</td></tr>
       <tr><td>10-23</td><td><b>Step 4 pre-registered: learned encoding on top of g = 0.35</b></td><td><span class="tag t-todo">pre-reg</span> 3 seeds x 8 dev datasets, validation only; adopt if mean val R2 &ge; g0.35 fixed + 0.005; confirmation on untouched Sydney / Sao Paulo / Toronto. Runs not yet launched.</td><td>&lt;this commit&gt;</td></tr>
       <tr><td>10-23</td><td><b>Step 3 (C5 tau + C7 compact readout) not adopted: current design optimal</b></td><td><span class="tag t-done">null</span> Current (tau 30 ms, 653 bins) best of 24 combos on dev validation (0.7059); no confirmation run, confirmation cities kept untouched. Compact readouts help only on small data.</td><td>&lt;this commit&gt;</td></tr>

@@ -1,0 +1,76 @@
+{
+  "dataset": "era5_bangkok",
+  "scores": {
+    "g0.35_fixed": 0.2957488720016536,
+    "learned_g0.35": [
+      0.2729601400794178,
+      0.27920998722822526,
+      0.2826781500108454
+    ],
+    "learned_g1": [
+      0.2631287498440786,
+      0.2617015441436284,
+      0.2627485980926351
+    ]
+  },
+  "inner_val_nmse": {
+    "0": {
+      "dataset": "era5_bangkok",
+      "seed": 0,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        7457,
+        10957
+      ],
+      "step0_val_nmse": 0.7010214669327616,
+      "best_val_nmse": 0.592323492348772,
+      "best_step": 29
+    },
+    "1": {
+      "dataset": "era5_bangkok",
+      "seed": 1,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        7457,
+        10957
+      ],
+      "step0_val_nmse": 0.7010214669327616,
+      "best_val_nmse": 0.6070005141827354,
+      "best_step": 29
+    },
+    "2": {
+      "dataset": "era5_bangkok",
+      "seed": 2,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        7457,
+        10957
+      ],
+      "step0_val_nmse": 0.7010214669327616,
+      "best_val_nmse": 0.6061062634973156,
+      "best_step": 29
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-23T18:14:40+00:00",
+    "git_commit": "ba783acb1ad3acffb6c729069c08b60b0788f97c",
+    "git_dirty": null,
+    "code_version_file": "ba783acb1ad3acffb6c729069c08b60b0788f97c shipped 2026-10-23T02:48:46Z",
+    "host": "e6f2f8f3e71d",
+    "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "qutip": "5.3.1",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA A100-SXM4-40GB MIG 7g.40gb",
+    "run": {
+      "dataset": "era5_bangkok",
+      "step": "learned encoding at g=0.35, dev (validation only)"
+    }
+  }
+}

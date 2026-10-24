@@ -33,19 +33,28 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_design_c1_etth1.json` | current | ffc0f03 2026-10-23 | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `8db45049002f` |
 | `qrc_design_c1_kaggle_delhi.json` | current | ffc0f03 2026-10-23 | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `d01d3d740ba0` |
 | `qrc_design_c1_santafe.json` | current | ffc0f03 2026-10-23 | `qrc_design_c1.py` | design concept C1 (encoding gain) sweep, validation only — tests H1/H2 | `52c1ea1d9918` |
-| `qrc_design_c5c7_dev_beijing_pm25.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `1522e935ae73` |
-| `qrc_design_c5c7_dev_era5_bangkok.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `1270a1f313df` |
-| `qrc_design_c5c7_dev_era5_beijing.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `fca5aadfe34a` |
-| `qrc_design_c5c7_dev_era5_berlin.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `41b645a2dbda` |
-| `qrc_design_c5c7_dev_era5_delhi.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `baf75ebf893f` |
-| `qrc_design_c5c7_dev_era5_mumbai.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `cb17dc4411ee` |
-| `qrc_design_c5c7_dev_etth1.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `ee68e1885574` |
-| `qrc_design_c5c7_dev_kaggle_delhi.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `4911c08276ba` |
-| `qrc_design_c5c7_dev_santafe.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `a6833be8e607` |
-| `qrc_design_c5c7_frozen.json` | current | uncommitted | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `6adfd7242562` |
+| `qrc_design_c5c7_dev_beijing_pm25.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `1522e935ae73` |
+| `qrc_design_c5c7_dev_era5_bangkok.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `1270a1f313df` |
+| `qrc_design_c5c7_dev_era5_beijing.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `fca5aadfe34a` |
+| `qrc_design_c5c7_dev_era5_berlin.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `41b645a2dbda` |
+| `qrc_design_c5c7_dev_era5_delhi.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `baf75ebf893f` |
+| `qrc_design_c5c7_dev_era5_mumbai.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `cb17dc4411ee` |
+| `qrc_design_c5c7_dev_etth1.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `ee68e1885574` |
+| `qrc_design_c5c7_dev_kaggle_delhi.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `4911c08276ba` |
+| `qrc_design_c5c7_dev_santafe.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `a6833be8e607` |
+| `qrc_design_c5c7_frozen.json` | current | b6ef841 2026-10-23 | `qrc_design_c5c7.py` | Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted | `6adfd7242562` |
 | `qrc_design_c6_etth2.json` | current | edd0806 2026-10-23 | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `d46e6e1afe6e` |
 | `qrc_design_c6_frozen.json` | current | 34156a7 2026-10-23 | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `3ae53e487d11` |
 | `qrc_design_c6_posthoc.json` | current | edd0806 2026-10-23 | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `1763c01bb039` |
+| `qrc_design_learn_dev_beijing_pm25.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec82f5d92765` |
+| `qrc_design_learn_dev_era5_bangkok.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `35e5a2e34a46` |
+| `qrc_design_learn_dev_era5_beijing.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `31305e03907e` |
+| `qrc_design_learn_dev_era5_berlin.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ca632f635889` |
+| `qrc_design_learn_dev_era5_delhi.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `9b4df36fea20` |
+| `qrc_design_learn_dev_era5_mumbai.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `7fcd01bc174e` |
+| `qrc_design_learn_dev_etth1.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ce7b112c7a4d` |
+| `qrc_design_learn_dev_santafe.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `af021334bfbb` |
+| `qrc_design_learn_frozen.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec62e2a78811` |
 | `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
 | `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |

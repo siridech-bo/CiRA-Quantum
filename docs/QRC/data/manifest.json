@@ -211,7 +211,7 @@
       "file": "qrc_design_c5c7_dev_beijing_pm25.json",
       "sha256": "1522e935ae739e012cd22edc4cc14533fa8d27f637f76ef3d1a92e52fb28f754",
       "bytes": 1633,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -220,7 +220,7 @@
       "file": "qrc_design_c5c7_dev_era5_bangkok.json",
       "sha256": "1270a1f313df9ac77d142a8278c12b7e0049505d972479954211b5cb3ee21dba",
       "bytes": 1645,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -229,7 +229,7 @@
       "file": "qrc_design_c5c7_dev_era5_beijing.json",
       "sha256": "fca5aadfe34af817f34a3ebc9582f313e902883fdfa9be0d801471f4a580e13c",
       "bytes": 1628,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -238,7 +238,7 @@
       "file": "qrc_design_c5c7_dev_era5_berlin.json",
       "sha256": "41b645a2dbda775ab92141e9df650daca359838806e85e8d06bda841e9d9846b",
       "bytes": 1633,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -247,7 +247,7 @@
       "file": "qrc_design_c5c7_dev_era5_delhi.json",
       "sha256": "baf75ebf893f1e51d396314d0c4f6c68ad7a5c08db7c26a9291b5335e5bf722f",
       "bytes": 1627,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -256,7 +256,7 @@
       "file": "qrc_design_c5c7_dev_era5_mumbai.json",
       "sha256": "cb17dc4411eed166fc0296e9399f7c82b65f9c3b19c622cccabf2aacf5a33c2f",
       "bytes": 1631,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -265,7 +265,7 @@
       "file": "qrc_design_c5c7_dev_etth1.json",
       "sha256": "ee68e18855745f5ed3753cd5cd879230fd1c68c5e04fa722f500025a5aeda666",
       "bytes": 1621,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -274,7 +274,7 @@
       "file": "qrc_design_c5c7_dev_kaggle_delhi.json",
       "sha256": "4911c08276bab00c6df082d17b530aad8d4bf295808979a921bef39793d3fc05",
       "bytes": 1611,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -283,7 +283,7 @@
       "file": "qrc_design_c5c7_dev_santafe.json",
       "sha256": "a6833be8e607d687cedbc361826d54b28968937f623ac712001b161f78357c8f",
       "bytes": 1624,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -292,7 +292,7 @@
       "file": "qrc_design_c5c7_frozen.json",
       "sha256": "6adfd72425627295005cc50ed54ca4d0a08898a66b14c2361a50b610ab1fc396",
       "bytes": 1699,
-      "added": "uncommitted",
+      "added": "b6ef841 2026-10-23",
       "status": "current",
       "script": "qrc_design_c5c7.py",
       "description": "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only \u2014 not adopted"
@@ -323,6 +323,87 @@
       "status": "current",
       "script": "qrc_design_c6.py",
       "description": "Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation \u2014 NOT supported"
+    },
+    {
+      "file": "qrc_design_learn_dev_beijing_pm25.json",
+      "sha256": "ec82f5d9276509b0178a16970a649aacf20c95f958c80ff11c4714dc623afeac",
+      "bytes": 1783,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_dev_era5_bangkok.json",
+      "sha256": "35e5a2e34a46984b26c3838408f789b322b775a0696b459565d618ac4f2daf38",
+      "bytes": 1780,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_dev_era5_beijing.json",
+      "sha256": "31305e03907e890d80d68411f3163ffaf95772d07bb73bc299283454f81eeb02",
+      "bytes": 1781,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_dev_era5_berlin.json",
+      "sha256": "ca632f635889e124a4191c7d11d1fc1bdb6ac2503bdf814575c0da7d8a1a383c",
+      "bytes": 1773,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_dev_era5_delhi.json",
+      "sha256": "9b4df36fea2052562da6deb4175d27c39a57bdc556c7f610b8a7e5f6438949c5",
+      "bytes": 1775,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_dev_era5_mumbai.json",
+      "sha256": "7fcd01bc174ea12a4b0fcf9e1146889e56934d6deb78875323e3bd18897a35f8",
+      "bytes": 1779,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_dev_etth1.json",
+      "sha256": "ce7b112c7a4d4ae852f1f0a55245f9859d7b8d67777a309098bebe562e62d188",
+      "bytes": 1741,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_dev_santafe.json",
+      "sha256": "af021334bfbbd2fb7ff873c197063817e81b0481beae426345df403c194b185b",
+      "bytes": 1752,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_learn_frozen.json",
+      "sha256": "ec62e2a78811a63e80c8a895adbe00de37d2b45b3ddfd77fb45dc12a12b15b12",
+      "bytes": 1712,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_learn.py",
+      "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
     },
     {
       "file": "qrc_era5_delhi_eval_final.json",

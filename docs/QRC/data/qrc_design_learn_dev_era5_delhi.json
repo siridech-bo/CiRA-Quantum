@@ -1,0 +1,76 @@
+{
+  "dataset": "era5_delhi",
+  "scores": {
+    "g0.35_fixed": 0.7644957832556665,
+    "learned_g0.35": [
+      0.7655171716198153,
+      0.7684491940569922,
+      0.7720048629339853
+    ],
+    "learned_g1": [
+      0.7546862807183036,
+      0.7541626022558177,
+      0.7542385173658978
+    ]
+  },
+  "inner_val_nmse": {
+    "0": {
+      "dataset": "era5_delhi",
+      "seed": 0,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        7457,
+        10957
+      ],
+      "step0_val_nmse": 0.38326393952207527,
+      "best_val_nmse": 0.28906415710340116,
+      "best_step": 28
+    },
+    "1": {
+      "dataset": "era5_delhi",
+      "seed": 1,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        7457,
+        10957
+      ],
+      "step0_val_nmse": 0.38326393952207527,
+      "best_val_nmse": 0.30797699907776216,
+      "best_step": 27
+    },
+    "2": {
+      "dataset": "era5_delhi",
+      "seed": 2,
+      "gain": 0.35,
+      "steps": 30,
+      "slice": [
+        7457,
+        10957
+      ],
+      "step0_val_nmse": 0.38326393952207527,
+      "best_val_nmse": 0.2994212541986308,
+      "best_step": 27
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-23T15:45:22+00:00",
+    "git_commit": "ba783acb1ad3acffb6c729069c08b60b0788f97c",
+    "git_dirty": null,
+    "code_version_file": "ba783acb1ad3acffb6c729069c08b60b0788f97c shipped 2026-10-23T02:48:46Z",
+    "host": "e6f2f8f3e71d",
+    "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "qutip": "5.3.1",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA A100-SXM4-40GB MIG 7g.40gb",
+    "run": {
+      "dataset": "era5_delhi",
+      "step": "learned encoding at g=0.35, dev (validation only)"
+    }
+  }
+}

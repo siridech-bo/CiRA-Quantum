@@ -121,6 +121,9 @@ def main():
     files = sorted(p for p in DATA.iterdir() if p.is_file() and p.name not in ("MANIFEST.md", "manifest.json"))
     entries = []
     for p in files:
+        if p.name.startswith("qrc_design_learn_"):
+            FILES.setdefault(p.name, ("current", "qrc_design_learn.py",
+                                      "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted"))
         if p.name.startswith("qrc_design_c5c7_"):
             FILES.setdefault(p.name, ("current", "qrc_design_c5c7.py",
                                       "Step 3 C5 tau + C7 compact readout (pre-registered ed96b17), validation only — not adopted"))
