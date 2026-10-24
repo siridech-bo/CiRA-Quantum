@@ -121,6 +121,9 @@ def main():
     files = sorted(p for p in DATA.iterdir() if p.is_file() and p.name not in ("MANIFEST.md", "manifest.json"))
     entries = []
     for p in files:
+        if p.name.startswith("qrc_paired_tests"):
+            FILES.setdefault(p.name, ("current", "qrc_paired_tests.py",
+                                      "paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout"))
         if p.name.startswith("qrc_design_learn_"):
             FILES.setdefault(p.name, ("current", "qrc_design_learn.py",
                                       "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted"))

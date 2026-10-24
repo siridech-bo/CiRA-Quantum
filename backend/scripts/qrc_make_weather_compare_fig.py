@@ -2,17 +2,22 @@
 including the classical-ESN baseline (our exact band + Paper-4 digitized band).
 
 Paper-4 QRC/QRC+RBF/ESN values are digitized (approximate, +/-~0.03) from
-Hou et al. Fig 4b at our horizons. Our values are from the committed run.
+Hou et al. Fig 4b at our horizons -- external literature values, the only
+numbers typed in here. Our values are read from docs/QRC/data/qrc_paper4_weather_v2.json.
 """
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import matplotlib
 import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+
+DATA = Path(__file__).resolve().parents[2] / "docs" / "QRC" / "data"
+FIG = Path(__file__).resolve().parents[2] / "docs" / "QRC" / "figures"
 
 H = [1, 5, 10, 15, 20, 30, 45]
 
@@ -31,7 +36,7 @@ paper = {
 }
 
 # --- This work (simulation) ---
-run = json.load(open("artifacts/qrc_paper4_weather_v2.json"))
+run = json.loads((DATA / "qrc_paper4_weather_v2.json").read_text(encoding="utf-8"))
 q = run["qrc_weather"]
 e = run["esn_weather"]
 sizes = sorted(e, key=int)
@@ -66,6 +71,6 @@ for j, var in enumerate(("temp", "humidity")):
         a.legend(fontsize=8, ncol=2, loc="lower left")
 fig.suptitle("Weather forecasting: this simulation vs Hou et al. 2026 experiment, "
              "with classical-ESN baselines (Paper-4 values digitized from Fig 4b)", y=1.02)
-fig.savefig("../docs/QRC/figures/fig6_weather_sim_vs_expt.png", dpi=150,
+fig.savefig(FIG / "fig6_weather_sim_vs_expt.png", dpi=150,
             bbox_inches="tight")
 print("saved fig6 (with ESN bands)")

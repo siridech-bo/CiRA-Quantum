@@ -4,6 +4,13 @@ across two optimizer recipes (loose vs stabilized).
 Source: per-seed runs of qrc_learnable_9spin.py (--system 6 --task narma2,
 leakage-free 3-way split). Values transcribed from the run logs. No GPU.
 
+LEGACY / SUPERSEDED (2026-10): the numbers below are typed in from 2026-08 run logs
+(observable-readout era, pre-campaign, no raw traces in docs/QRC/data), so Fig 15 is
+not traceable to the data package. The publication claim is the reduced-FID
+campaign (docs/QRC/data/qrc_6spin_campaign.json; figP2 in
+docs/QRC/figures/code/qrc_paper_figures.py; paired tests in qrc_paired_tests.py).
+Do not cite Fig 15.
+
 Finding: the per-spin advantage over arcsin is ROBUST to the optimizer recipe
 (loose: lr 0.04; tight: lr 0.02 + grad-clip + best-val checkpoint) -- 4/5 seeds
 beat, ~40% mean, paired p~0.04 either way. Learned *global* stays unreliable

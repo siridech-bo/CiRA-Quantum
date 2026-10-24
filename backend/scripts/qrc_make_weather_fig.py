@@ -1,14 +1,21 @@
-"""Weather QRC-vs-ESN R² figure for the reproduction report."""
+"""Weather QRC-vs-ESN R² figure for the reproduction report (Fig 4).
+
+Reads docs/QRC/data/qrc_paper4_weather_v2.json (nothing typed in). CPU only.
+"""
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-d = json.load(open("artifacts/qrc_paper4_weather_v2.json"))
+DATA = Path(__file__).resolve().parents[2] / "docs" / "QRC" / "data"
+FIG = Path(__file__).resolve().parents[2] / "docs" / "QRC" / "figures"
+
+d = json.loads((DATA / "qrc_paper4_weather_v2.json").read_text(encoding="utf-8"))
 q = d["qrc_weather"]
 e = d["esn_weather"]
 H = sorted((int(h) for h in q), key=int)
@@ -31,5 +38,5 @@ for j, var in enumerate(("temp", "humidity")):
         a.legend(fontsize=8, ncol=2)
 fig.suptitle("Weather forecasting: QRC vs classical ESN "
              "(QRC+RBF beats ESN-10000 at long horizons)", y=1.02)
-fig.savefig("../docs/QRC/figures/fig4_weather.png", dpi=150, bbox_inches="tight")
-print("saved ../docs/QRC/figures/fig4_weather.png")
+fig.savefig(FIG / "fig4_weather.png", dpi=150, bbox_inches="tight")
+print(f"saved {FIG / 'fig4_weather.png'}")

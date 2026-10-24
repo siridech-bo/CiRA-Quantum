@@ -1,5 +1,12 @@
 """Publication-grade classical baseline for the reduced-FID learnable-QRC result.
 
+SUPERSEDED (2026-10): this baseline swept only the ESN reservoir size and used data
+seed 1 only. It is replaced by qrc_classical_fair.py (full ESN grid + tuned LSTM,
+data seeds 1-3, docs/QRC/data/qrc_classical_fair_{esn,lstm}.json); its output is
+archived as docs/QRC/data/qrc_classical_baseline_v1_superseded.json. Fig 20
+(fig20_classical_baseline.png) written by this script is SUPERSEDED by figP3
+(docs/QRC/figures/code/qrc_paper_figures.py). Do not cite either.
+
 Decoupled from the ~40 h QRC campaign: re-scores the QRC operating points from the
 saved campaign summary and builds STRONG classical baselines on the SAME tasks /
 leakage-free 3-way split (`_three_way`) / test-NMSE metric, so the QRC-vs-classical

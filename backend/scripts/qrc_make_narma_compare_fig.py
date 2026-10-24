@@ -1,27 +1,45 @@
-"""Figure: our simulated NARMA NMSE vs Paper 4's *experimental* Table I."""
+"""Figure 5: our simulated NARMA NMSE vs Paper 4's *experimental* Table I.
+
+Every number is read from the committed data package
+``docs/QRC/data/qrc_paper4_narma.json`` (written by qrc_reproduce_paper4.py):
+  * this work  -> ``qrc_narma[order].nmse_paper`` (NMSE in Paper 4's definition,
+    standard 653-peak FID readout, regime A: fixed encoding, ridge readout only)
+  * Hou et al. -> ``paper_table_i[order].best`` (their Table I, as transcribed
+    into the same file by the reproduction script)
+Nothing is typed in here. CPU only. Run from anywhere:
+  python backend/scripts/qrc_make_narma_compare_fig.py
+"""
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-orders = [2, 5, 10, 15, 20]
-ours = [5.19e-6, 5.21e-5, 2.46e-5, 1.82e-5, 3.24e-6]        # this work (sim)
-paper = [1.74e-7, 4.44e-5, 5.84e-5, 6.37e-5, 4.34e-5]        # Hou et al., Table I (expt)
+REPO = Path(__file__).resolve().parents[2]
+SRC = REPO / "docs" / "QRC" / "data" / "qrc_paper4_narma.json"
+OUT = REPO / "docs" / "QRC" / "figures" / "fig5_narma_vs_experiment.png"
+
+d = json.loads(SRC.read_text(encoding="utf-8"))
+orders = sorted(int(k) for k in d["qrc_narma"])
+ours = [d["qrc_narma"][str(n)]["nmse_paper"] for n in orders]        # this work (sim)
+paper = [d["paper_table_i"][str(n)]["best"] for n in orders]          # Hou et al., Table I (expt)
+cfg = d["config"]["feature_cfg"]
 
 fig, ax = plt.subplots(figsize=(6.4, 4.3))
 ax.plot(orders, paper, "s--", color="#dc2626", lw=2, ms=8,
         label="Hou et al. 2026 (experiment, Table I)")
 ax.plot(orders, ours, "o-", color="#2563eb", lw=2, ms=8,
-        label="This work (simulation, FID-653)")
+        label=f"This work (simulation, {cfg['readout'].upper()}-{cfg['n_peaks']})")
 ax.set_yscale("log")
 ax.set_xlabel("NARMA order n")
-ax.set_ylabel("NMSE (log scale, lower = better)")
+ax.set_ylabel("NMSE (Paper-4 definition, log scale, lower = better)")
 ax.set_title("NARMA: simulation vs Paper-4 experiment")
 ax.set_xticks(orders)
 ax.grid(alpha=0.3, which="both")
 ax.legend()
-fig.savefig("../docs/QRC/figures/fig5_narma_vs_experiment.png", dpi=150,
-            bbox_inches="tight")
-print("saved ../docs/QRC/figures/fig5_narma_vs_experiment.png")
+fig.savefig(OUT, dpi=150, bbox_inches="tight")
+print(f"saved {OUT} (from {SRC.name}): ours={['%.3g' % v for v in ours]}")

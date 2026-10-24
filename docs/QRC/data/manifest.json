@@ -94,7 +94,7 @@
       "file": "qrc_confirm2_saopaulo.json",
       "sha256": "67fc88efdbe6da5177c5c3c0331fd65b18c3a50d334b16b296f675eee17edb0d",
       "bytes": 9210,
-      "added": "uncommitted",
+      "added": "bcbcd81 2026-10-24",
       "status": "current",
       "script": "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
       "description": "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"
@@ -103,7 +103,7 @@
       "file": "qrc_confirm2_sydney.json",
       "sha256": "c54aa00c748b666581510d76b03abd394687cd86146781f7d43d9ee91751d3d1",
       "bytes": 9180,
-      "added": "uncommitted",
+      "added": "bcbcd81 2026-10-24",
       "status": "current",
       "script": "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
       "description": "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"
@@ -112,7 +112,7 @@
       "file": "qrc_confirm2_toronto.json",
       "sha256": "9e2eefe5974546ca52b995cbadae6442835e26fba746b491eef6bf5f9076b658",
       "bytes": 9171,
-      "added": "uncommitted",
+      "added": "bcbcd81 2026-10-24",
       "status": "current",
       "script": "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
       "description": "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"
@@ -449,6 +449,24 @@
       "status": "superseded",
       "script": "qrc_era5_weather.py eval",
       "description": "ERA5 Delhi, encoder seed 0 only (interim)"
+    },
+    {
+      "file": "qrc_paired_tests.json",
+      "sha256": "ae3b6854b61f305b55126fe82ab56bd2893bb28a0b25a20cbddfffb4b136c344",
+      "bytes": 84619,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_paired_tests.py",
+      "description": "paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout"
+    },
+    {
+      "file": "qrc_paired_tests.md",
+      "sha256": "1d56edd6a59bed2520bfcddd2abb4ae933fe36f1e04ec97ead5c72555bbad485",
+      "bytes": 10544,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_paired_tests.py",
+      "description": "paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout"
     },
     {
       "file": "qrc_paper4_narma.json",
