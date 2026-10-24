@@ -20,6 +20,9 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_confirm1_cairo.json` | current | 0dcbbec 2026-10-23 | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `2068c84689f7` |
 | `qrc_confirm1_chennai.json` | current | 0dcbbec 2026-10-23 | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `a5f53c7ef456` |
 | `qrc_confirm1_moscow.json` | current | 0dcbbec 2026-10-23 | `qrc_design_confirm.py` | Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025 | `ed07a41c7547` |
+| `qrc_confirm2_saopaulo.json` | current | uncommitted | `qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde` | Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025 | `67fc88efdbe6` |
+| `qrc_confirm2_sydney.json` | current | uncommitted | `qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde` | Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025 | `c54aa00c748b` |
+| `qrc_confirm2_toronto.json` | current | uncommitted | `qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde` | Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025 | `9e2eefe59745` |
 | `qrc_crotonic9_campaign.json` | current | 4f46e47 2026-10-21 | `qrc_learnable_campaign.py (plan crotonic9)` | crotonic-9 learned vs arcsin, NARMA-2/10 + MG h=10, 3 seeds + ablations | `8282d9d66972` |
 | `qrc_dccb7_tau100.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7, tau 0.1)` | dccb7 tau=100 ms | `d5a9e27549c1` |
 | `qrc_dccb7_tau100_j0.json` | current | 6bfdf11 2026-10-22 | `qrc_learnable_campaign.py (plan dccb7_j0)` | dccb7 tau=100 ms, J=0 ablation (readout basis of the coupled molecule) | `b87bf09a9845` |
@@ -46,15 +49,15 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_design_c6_etth2.json` | current | edd0806 2026-10-23 | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `d46e6e1afe6e` |
 | `qrc_design_c6_frozen.json` | current | 34156a7 2026-10-23 | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `3ae53e487d11` |
 | `qrc_design_c6_posthoc.json` | current | edd0806 2026-10-23 | `qrc_design_c6.py` | Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported | `1763c01bb039` |
-| `qrc_design_learn_dev_beijing_pm25.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec82f5d92765` |
-| `qrc_design_learn_dev_era5_bangkok.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `35e5a2e34a46` |
-| `qrc_design_learn_dev_era5_beijing.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `31305e03907e` |
-| `qrc_design_learn_dev_era5_berlin.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ca632f635889` |
-| `qrc_design_learn_dev_era5_delhi.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `9b4df36fea20` |
-| `qrc_design_learn_dev_era5_mumbai.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `7fcd01bc174e` |
-| `qrc_design_learn_dev_etth1.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ce7b112c7a4d` |
-| `qrc_design_learn_dev_santafe.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `af021334bfbb` |
-| `qrc_design_learn_frozen.json` | current | uncommitted | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec62e2a78811` |
+| `qrc_design_learn_dev_beijing_pm25.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec82f5d92765` |
+| `qrc_design_learn_dev_era5_bangkok.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `35e5a2e34a46` |
+| `qrc_design_learn_dev_era5_beijing.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `31305e03907e` |
+| `qrc_design_learn_dev_era5_berlin.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ca632f635889` |
+| `qrc_design_learn_dev_era5_delhi.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `9b4df36fea20` |
+| `qrc_design_learn_dev_era5_mumbai.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `7fcd01bc174e` |
+| `qrc_design_learn_dev_etth1.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ce7b112c7a4d` |
+| `qrc_design_learn_dev_santafe.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `af021334bfbb` |
+| `qrc_design_learn_frozen.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec62e2a78811` |
 | `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
 | `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
@@ -79,6 +82,8 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_weather_learned_leakfree_seed1.json` | current | dc32403 2026-10-22 | `qrc_weather_learn.py + qrc_weather_bench.py` | weather learned encoding, seed 1 | `fe561b64332d` |
 | `qrc_weather_learned_leakfree_seed2.json` | current | dc32403 2026-10-22 | `qrc_weather_learn.py + qrc_weather_bench.py` | weather learned encoding, seed 2 | `ae08c8e97c19` |
 | `qrc_weather_pool_delhi_kaggle.json` | current | 469c9d2 2026-10-22 | `qrc_weather_pool.py` | Kaggle Delhi pooled seeds: learned QRC vs ESN, ESN with trained input stage | `58946235718f` |
+| `TRACES_MANIFEST.json` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `d764b1ada130` |
+| `TRACES_MANIFEST.md` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `82fd8570b925` |
 
 ## Headline numbers (extracted)
 

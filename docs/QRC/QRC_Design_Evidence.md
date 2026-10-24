@@ -212,3 +212,47 @@ Source files: `qrc_design_learn_dev_<dataset>.json`, `qrc_design_learn_frozen.js
 **Decision:** mean learned 0.7038 vs fixed 0.7059
 (Δ -0.0021; threshold +0.005; better on 4/8) →
 **NOT ADOPTED — current design kept; no confirmation run**. Descriptive: published learned encoding at g = 1, mean 0.6927.
+
+## Confirmation 2 — the final design on untouched cities (pre-registered, commit 7965cde)
+
+**Pre-registered before the data were downloaded** (`QRC_Design_Concepts.md` §10). Final design frozen
+from Steps 1–4: g = 0.35, τ = 30 ms, 653-bin FID readout (SOP standard, D = 653). Untouched ERA5 cities
+Sydney, São Paulo, Toronto; protocol identical to Confirmation 1 (**test 2005–2025, read once**). Source
+files `qrc_confirm2_<city>.json` (script `qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde`; FID traces,
+features and predictions saved).
+
+### Pooled test R²
+| city | QRC final (g = 0.35) | QRC g = 1 | tuned ESN | ESN ≤ 653 | tuned LSTM | linear AR |
+|---|---|---|---|---|---|---|
+| sydney | 0.4480 | 0.4242 | 0.4569 | 0.4560 | 0.4528 | 0.4383 |
+| saopaulo | 0.2822 | 0.2309 | 0.2805 | 0.2746 | 0.2836 | 0.2582 |
+| toronto | 0.4795 | 0.4537 | 0.4840 | 0.4831 | 0.4813 | 0.4762 |
+
+### F1 — replication of the gain effect: QRC g = 0.35 − g = 1 (95% block-bootstrap CI)
+| city | g = 1 | g = 0.35 | Δ all targets | Δ long (h ≥ 30) | Δ short (h ≤ 10) |
+|---|---|---|---|---|---|
+| sydney | 0.4242 | 0.4480 | +0.0238 [+0.0178, +0.0299] | +0.0465 [+0.0358, +0.0581] | +0.0060 [+0.0018, +0.0103] |
+| saopaulo | 0.2309 | 0.2822 | +0.0513 [+0.0434, +0.0590] | +0.1035 [+0.0875, +0.1189] | +0.0201 [+0.0145, +0.0256] |
+| toronto | 0.4537 | 0.4795 | +0.0257 [+0.0207, +0.0316] | +0.0507 [+0.0406, +0.0623] | +0.0094 [+0.0059, +0.0132] |
+
+**F1 (CI > 0 in ≥ 2/3 cities): PASS (3/3).**
+
+### F2 — non-inferiority of the final design (margin δ = 0.02 R²): QRC final − baseline
+| city | − tuned ESN | − ESN ≤ 653 (descriptive) | − tuned LSTM | − tuned linear AR |
+|---|---|---|---|---|
+| sydney | -0.0089 [-0.0128, -0.0052] | -0.0080 [-0.0118, -0.0044] | -0.0048 [-0.0083, -0.0014] | +0.0097 [+0.0054, +0.0142] |
+| saopaulo | +0.0017 [-0.0020, +0.0052] | +0.0076 [+0.0034, +0.0115] | -0.0014 [-0.0061, +0.0034] | +0.0240 [+0.0183, +0.0298] |
+| toronto | -0.0046 [-0.0080, -0.0015] | -0.0037 [-0.0069, -0.0006] | -0.0018 [-0.0060, +0.0025] | +0.0033 [-0.0015, +0.0074] |
+
+**F2-ESN: PASS (3/3); F2-LSTM: PASS
+(3/3); F2-AR: PASS (3/3)** — CI lower bound > −0.02.
+Non-inferiority is not superiority: per the pre-registration no win over a baseline is claimed unless its CI
+lies wholly above 0 (descriptive).
+
+### F3 (descriptive) — all six confirmation cities (Confirmation 1 + 2), QRC final − baseline
+| baseline | mean Δ pooled R² | cities QRC significantly better | cities baseline significantly better |
+|---|---|---|---|
+| esn_tuned | -0.0059 | 0/6 | 4/6 |
+| esn_matched | -0.0041 | 1/6 | 4/6 |
+| lstm_tuned | +0.0009 | 1/6 | 2/6 |
+| linear_ar | +0.0154 | 4/6 | 0/6 |

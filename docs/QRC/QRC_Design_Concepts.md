@@ -308,3 +308,15 @@ tuned LSTM (3 inits), tuned linear AR, all tuned on validation exactly as in the
 - **F3 (descriptive):** short (h ≤ 10) and long (h ≥ 30) horizon breakdown, size-matched ESN, per-target
   R², and the QRC − baseline differences pooled over all six confirmation cities (Confirmation 1 + 2).
 All results are reported, including failures of F1 or F2.
+
+### Confirmation 2 outcome (2026-10-24)
+**F1 PASS (3/3), F2 PASS for every baseline (ESN 3/3, LSTM 3/3, linear AR 3/3).** Pooled test R², final
+design vs g = 1: Sydney 0.448 vs 0.424, São Paulo 0.282 vs 0.231, Toronto 0.480 vs 0.454 (all CIs > 0;
+long-horizon gains +0.047 to +0.104). Against the tuned baselines the final design is within 0.009 R² of the
+best model in every city: the tuned ESN remains significantly better in Sydney (−0.009) and Toronto
+(−0.005) and is tied in São Paulo; the tuned LSTM is significantly better only in Sydney (−0.005); the QRC
+beats linear AR in Sydney and São Paulo. Over all six confirmation cities (descriptive F3): mean Δ vs tuned
+ESN −0.006 (ESN significantly better in 4/6, QRC in 0/6), vs tuned LSTM +0.001 (2/6 vs 1/6), vs linear AR
++0.015 (QRC better in 4/6). Claim supported: **the final physical QRC design is non-inferior to tuned
+classical reservoirs and LSTMs on untouched real-world forecasting, but not superior to the tuned ESN.**
+Details: `QRC_Design_Evidence.md` (Confirmation 2).

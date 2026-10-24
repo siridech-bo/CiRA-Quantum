@@ -130,6 +130,12 @@ def main():
         if p.name.startswith("qrc_design_c6_"):
             FILES.setdefault(p.name, ("current", "qrc_design_c6.py",
                                       "Step 2 C6 bounded features (pre-registered 53d8e6a): freeze / post-hoc dev test / ETTh2 confirmation — NOT supported"))
+        if p.name.startswith("qrc_confirm2_"):
+            FILES.setdefault(p.name, ("current", "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
+                                      "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"))
+        if p.name.startswith("TRACES_MANIFEST"):
+            FILES.setdefault(p.name, ("current", "qrc_trace_manifest.py",
+                                      "SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification)"))
         if p.name.startswith("qrc_confirm1_"):
             FILES.setdefault(p.name, ("current", "qrc_design_confirm.py",
                                       "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"))

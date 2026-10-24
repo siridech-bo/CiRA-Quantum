@@ -91,6 +91,33 @@
       "description": "Confirmation 1 (pre-registered 29152bf): frozen gain g=0.35 on an untouched city, test 2005-2025"
     },
     {
+      "file": "qrc_confirm2_saopaulo.json",
+      "sha256": "67fc88efdbe6da5177c5c3c0331fd65b18c3a50d334b16b296f675eee17edb0d",
+      "bytes": 9210,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
+      "description": "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"
+    },
+    {
+      "file": "qrc_confirm2_sydney.json",
+      "sha256": "c54aa00c748b666581510d76b03abd394687cd86146781f7d43d9ee91751d3d1",
+      "bytes": 9180,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
+      "description": "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"
+    },
+    {
+      "file": "qrc_confirm2_toronto.json",
+      "sha256": "9e2eefe5974546ca52b995cbadae6442835e26fba746b491eef6bf5f9076b658",
+      "bytes": 9171,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
+      "description": "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"
+    },
+    {
       "file": "qrc_crotonic9_campaign.json",
       "sha256": "8282d9d66972dbde325391e1f8cc9914b8a2e03c00adf3f0e1b2805833b6c8c5",
       "bytes": 6730,
@@ -328,7 +355,7 @@
       "file": "qrc_design_learn_dev_beijing_pm25.json",
       "sha256": "ec82f5d9276509b0178a16970a649aacf20c95f958c80ff11c4714dc623afeac",
       "bytes": 1783,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -337,7 +364,7 @@
       "file": "qrc_design_learn_dev_era5_bangkok.json",
       "sha256": "35e5a2e34a46984b26c3838408f789b322b775a0696b459565d618ac4f2daf38",
       "bytes": 1780,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -346,7 +373,7 @@
       "file": "qrc_design_learn_dev_era5_beijing.json",
       "sha256": "31305e03907e890d80d68411f3163ffaf95772d07bb73bc299283454f81eeb02",
       "bytes": 1781,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -355,7 +382,7 @@
       "file": "qrc_design_learn_dev_era5_berlin.json",
       "sha256": "ca632f635889e124a4191c7d11d1fc1bdb6ac2503bdf814575c0da7d8a1a383c",
       "bytes": 1773,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -364,7 +391,7 @@
       "file": "qrc_design_learn_dev_era5_delhi.json",
       "sha256": "9b4df36fea2052562da6deb4175d27c39a57bdc556c7f610b8a7e5f6438949c5",
       "bytes": 1775,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -373,7 +400,7 @@
       "file": "qrc_design_learn_dev_era5_mumbai.json",
       "sha256": "7fcd01bc174ea12a4b0fcf9e1146889e56934d6deb78875323e3bd18897a35f8",
       "bytes": 1779,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -382,7 +409,7 @@
       "file": "qrc_design_learn_dev_etth1.json",
       "sha256": "ce7b112c7a4d4ae852f1f0a55245f9859d7b8d67777a309098bebe562e62d188",
       "bytes": 1741,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -391,7 +418,7 @@
       "file": "qrc_design_learn_dev_santafe.json",
       "sha256": "af021334bfbbd2fb7ff873c197063817e81b0481beae426345df403c194b185b",
       "bytes": 1752,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -400,7 +427,7 @@
       "file": "qrc_design_learn_frozen.json",
       "sha256": "ec62e2a78811a63e80c8a895adbe00de37d2b45b3ddfd77fb45dc12a12b15b12",
       "bytes": 1712,
-      "added": "uncommitted",
+      "added": "3ae7323 2026-10-24",
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
@@ -620,6 +647,24 @@
       "status": "current",
       "script": "qrc_weather_pool.py",
       "description": "Kaggle Delhi pooled seeds: learned QRC vs ESN, ESN with trained input stage"
+    },
+    {
+      "file": "TRACES_MANIFEST.json",
+      "sha256": "d764b1ada130fa6ae6e0c68411d94a4b0352f43212d4bab9bb7c2cfbfa7d841c",
+      "bytes": 166740,
+      "added": "aa06a51 2026-10-24",
+      "status": "current",
+      "script": "qrc_trace_manifest.py",
+      "description": "SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification)"
+    },
+    {
+      "file": "TRACES_MANIFEST.md",
+      "sha256": "82fd8570b925314bd05f1f46fbbf8c399f3e42b23f89f402ef10ef7d9b68cb51",
+      "bytes": 2871,
+      "added": "aa06a51 2026-10-24",
+      "status": "current",
+      "script": "qrc_trace_manifest.py",
+      "description": "SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification)"
     }
   ],
   "headline": [
