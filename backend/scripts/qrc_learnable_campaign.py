@@ -189,6 +189,8 @@ def main():
     ap.add_argument("--run-dir", default=None)
     ap.add_argument("--out", default=None)
     ap.add_argument("--plan", choices=sorted(PLANS), default="6spin")
+    ap.add_argument("--shard", default=None,
+                    help="K/N: run only jobs K, K+N, K+2N, ... of the plan (split across hosts)")
     ap.add_argument("--system", default="6", help="int n or preset (crotonic9_paper4)")
     ap.add_argument("--readout-qubits", default=None,
                     help="FID-detected spins, comma list (crotonic: 4,5,6,7,8)")
@@ -216,16 +218,20 @@ def main():
     # Job plan: (task, seed, ablation?, horizon). ablation runs perspin with
     # tau->0 (--no-memory), which must collapse if the gain is quantum-mediated.
     plan = PLANS[args.plan]
+    if args.shard:
+        k, n = (int(x) for x in args.shard.split("/"))
+        plan = plan[k::n]
 
     run_dir = args.run_dir or str(Path(__file__).resolve().parents[1] / "artifacts" / "qrc_runs" / "campaign_local")
     log = ProgressLogger(run_dir=run_dir, title="QRC learnable confirmation campaign")
-    log.event("config", f"plan={args.plan} ({len(plan)} jobs) | system={args.system} "
+    log.event("config", f"plan={args.plan} shard={args.shard or 'all'} ({len(plan)} jobs) | system={args.system} "
               f"coupling={args.coupling_scale}x readout_qubits={args.readout_qubits or 'all'} "
               f"V={args.n_virtual} reduced-FID T={args.T} steps={args.steps} "
               f"propagator={args.propagator} budget={args.budget_hours}h")
 
     summary = {"experiment": "learnable_campaign", "regime": "B (trained encoding)",
-               "readout": "fid_reduced", "plan": args.plan, "system": args.system,
+               "readout": "fid_reduced", "plan": args.plan, "shard": args.shard, "plan_jobs": [list(j) for j in plan],
+               "system": args.system,
                "readout_qubits": _readout_qubits(args), "n_virtual": args.n_virtual,
                "coupling_scale": args.coupling_scale, "propagator": args.propagator,
                "tau": args.tau, "lines_coupling_scale": args.lines_coupling_scale,
