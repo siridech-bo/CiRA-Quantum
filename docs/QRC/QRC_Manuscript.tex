@@ -43,11 +43,11 @@ $\arcsin\sqrt{s}$ encoding by ${\sim}19\times$ (NARMA-2) and ${\sim}2.6\times$
 (NARMA-10), confirmed across random seeds; a $\tau\!\to\!0$ ablation that removes the
 reservoir's cross-step memory collapses the improvement to a mean predictor,
 establishing the gain is carried by the quantum reservoir. Benchmarked against strong,
-tuned classical baselines the comparison is task dependent: a size-1000 echo-state
-network (ESN) matches or beats the QRC on the NARMA tasks, whereas on long-horizon
-chaotic prediction (Mackey--Glass, $h{=}10$) the learned QRC outperforms both a tuned
-LSTM (${\sim}1.6\times$) and the ESN (${\sim}3.7\times$), confirmed across three seeds.
-We therefore report no blanket quantum advantage, but a principled,
+tuned classical baselines (three data seeds, validation-selected), the learned QRC beats a
+tuned LSTM on NARMA-10 (${\sim}2\times$) and long-horizon chaotic prediction
+(Mackey--Glass, $h{=}10$; ${\sim}1.8\times$) and matches it on NARMA-2, but a fully tuned
+echo-state network (ESN) is one to three orders of magnitude better on every task,
+including at a size-matched reservoir. We therefore report no quantum advantage, but a principled,
 differentiable readout and a \emph{quantum-mediated} encoding-learning method, together
 with an honest, task-resolved characterization of when they help.
 \end{abstract}
@@ -369,14 +369,14 @@ reservoir.
 
 \begin{table}[t]
 \caption{\label{tab:learned}Learned per-spin encoding (regime B) vs arcsin (regime A),
-test NMSE (mean$\pm$s.d. over seeds), and the $\tau\!\to\!0$ ablation.}
+test NMSE (mean$\pm$sample s.d.\ over seeds), and the $\tau\!\to\!0$ ablation (seed 1).}
 \begin{ruledtabular}
 \begin{tabular}{lccc}
 task (seeds) & arcsin (A) & learned (B) & $\tau\!\to\!0$ (B) \\ \colrule
-NARMA-2 (3)  & $0.101\pm0.006$ & $\mathbf{0.0052\pm0.0013}$ & 0.9994 \\
-NARMA-10 (3) & $0.312\pm0.013$ & $\mathbf{0.120\pm0.019}$   & 0.9974 \\
+NARMA-2 (3)  & $0.101\pm0.007$ & $\mathbf{0.0052\pm0.0016}$ & 0.9994 \\
+NARMA-10 (3) & $0.312\pm0.017$ & $\mathbf{0.120\pm0.023}$   & 0.9974 \\
 MG $h{=}1$ (2) & $0.00063$     & $\mathbf{0.000076}$        & --- \\
-MG $h{=}10$ (3) & $0.0304$     & $\mathbf{0.00155\pm0.00018}$ & --- \\
+MG $h{=}10$ (3) & $0.028\pm0.007$ & $\mathbf{0.00154\pm0.00023}$ & --- \\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
@@ -405,42 +405,44 @@ classical preprocessing---the central quantum claim of this work.
 
 \subsection{Comparison to strong classical baselines}\label{sec:classical}
 We compare regime B against a hyperparameter-tuned LSTM~\cite{Hochreiter1997} (sweep
-over hidden $\in\{32,64,128,256\}$, layers $\in\{1,2\}$, learning rate; cosine
-schedule, gradient clipping, five initializations, validation early-stopping) and a
-leaky ESN~\cite{Jaeger2001} (reservoir sizes $\{100,300,600,1000\}$), all on the
-identical split and metric (Table~\ref{tab:classical}, Fig.~\ref{fig:td}).
+over hidden size, layers and learning rate; cosine schedule, gradient clipping, three
+initializations, validation early-stopping) and a fully tuned leaky ESN~\cite{Jaeger2001}
+(grid over size $\{200,350,1000\}$, spectral radius, leak rate, input scale and ridge
+penalty, three initializations; also restricted to size $\le350$, comparable to the QRC's
+322 readout features), each selected on validation, on data seeds 1--3, with the
+identical leakage-free split and metric (Table~\ref{tab:classical}, Fig.~\ref{fig:td}).
 
 \begin{table}[t]
-\caption{\label{tab:classical}QRC-learned vs tuned LSTM vs ESN, test NMSE.}
+\caption{\label{tab:classical}QRC-learned vs tuned LSTM vs tuned ESN, test NMSE (mean over
+three seeds).}
 \begin{ruledtabular}
-\begin{tabular}{lccc}
-task & QRC-learned & LSTM (tuned) & ESN ($N{=}1000$) \\ \colrule
-NARMA-2 & 0.0052 & 0.0114 & $\mathbf{0.0046}$ \\
-NARMA-10 & 0.120 & 0.234 & $\mathbf{0.029}$ \\
-MG $h{=}1$ & 0.00008 & 0.0003 & $\sim0$ \\
-MG $h{=}10$ & $\mathbf{0.00155}$ & 0.0024 & 0.0057 \\
+\begin{tabular}{lcccc}
+task & QRC-learned & LSTM (tuned) & ESN ($N{\le}350$) & ESN ($N{\le}1000$) \\ \colrule
+NARMA-2 & 0.0052 & 0.0044 & $2.5\times10^{-5}$ & $\mathbf{1.1\times10^{-5}}$ \\
+NARMA-10 & 0.120 & 0.245 & 0.020 & $\mathbf{0.011}$ \\
+MG $h{=}10$ & 0.00154 & 0.0027 & $1.1\times10^{-5}$ & $\mathbf{2.8\times10^{-6}}$ \\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
 
 \begin{figure}[t]
 \includegraphics[width=\columnwidth]{figP3_task_dependent.png}
-\caption{\label{fig:td}(left) Task-dependent comparison: a size-1000 ESN wins the
-NARMA benchmarks, while QRC-learned wins long-horizon chaotic prediction
-(Mackey--Glass $h{=}10$). (right) NMSE-vs-$n_{\mathrm{train}}$ learning curves for the
-tuned LSTM and ESN, with the QRC-learned operating point ($\star$) overlaid.}
+\caption{\label{fig:td}QRC-learned vs the fairly tuned LSTM and ESN (test NMSE, log
+scale; error bars are the sample s.d.\ over seeds). The learned QRC beats the tuned LSTM on
+NARMA-10 and Mackey--Glass $h{=}10$; the tuned ESN, also when size-matched, is one to
+three orders of magnitude better on every task.}
 \end{figure}
 
-Two honest findings. First, tuning the LSTM removes most of the apparent QRC advantage
-seen against an untuned baseline (the NARMA-2 LSTM improves ${\sim}12\times$); the
-learned QRC still betters the tuned LSTM by ${\sim}2\times$ on the NARMA tasks. Second,
-a well-sized classical ESN matches the QRC on NARMA-2 and outperforms it
-${\sim}4\times$ on NARMA-10, so we claim no quantum advantage there. However, on the
-one discriminative task---long-horizon chaotic prediction (MG $h{=}10$, where one-step
-prediction is trivial for all models)---the learned QRC outperforms both the tuned
-LSTM (${\sim}1.6\times$) and the ESN (${\sim}3.7\times$), confirmed across three seeds
-($0.00155\pm0.00018$, beating both baselines 3/3). The advantage thus appears
-specifically where nonlinear fading memory is essential.
+Two honest findings. First, against a tuned LSTM the learned QRC is ahead on NARMA-10
+(${\sim}2\times$) and Mackey--Glass $h{=}10$ (${\sim}1.8\times$) and comparable on NARMA-2.
+Second, tuning matters decisively for the ESN: an ESN tuned over size alone (spectral
+radius and leak fixed) gave 0.0046 / 0.029 / 0.0057 on the three tasks and appeared to
+lose to the QRC on Mackey--Glass $h{=}10$, but tuning spectral radius, leak, input scale and
+ridge penalty improves it by two to three orders of magnitude, and it then beats the QRC
+on every task, by ${\sim}11\times$ (NARMA-10) to ${\sim}500\times$ (NARMA-2, Mackey--Glass
+$h{=}10$), even when restricted to size $\le350$. An earlier version of this comparison,
+which reported a QRC win over the ESN on Mackey--Glass $h{=}10$, used the size-only ESN and
+is superseded. We therefore claim no advantage over classical reservoirs.
 
 \section{Discussion}\label{sec:discussion}
 The learned-encoding gain is a genuine, ablation-controlled improvement to a quantum
@@ -450,9 +452,9 @@ vanishes when the quantum memory is removed. The picture against classical model
 task dependent. The reservoir operates in a \emph{decoherence-limited} regime: $T_2$
 collapses the state faster than the Ising dynamics populate the $2^n$ Hilbert space, so
 the effective dimension the readout accesses is modest~\cite{Martinez2021}. On NARMA
-benchmarks---which reward a large linear-memory reservoir---a size-1000 ESN
-consequently matches or beats the six-spin QRC. On long-horizon chaotic prediction,
-where nonlinear fading memory dominates, the learned QRC wins. A decisive many-body
+and Mackey--Glass benchmarks a fully tuned ESN consequently beats the six-spin QRC by
+one to three orders of magnitude, while the QRC remains ahead of a tuned LSTM on the
+memory-bound tasks. A decisive many-body
 quantum advantage across task classes would require entangling dynamics faster than
 decoherence (long $T_2\times$ strong coupling), a regime our substrate does not reach.
 
@@ -460,16 +462,16 @@ decoherence (long $T_2\times$ strong coupling), a regime our substrate does not 
 wall; scaling requires checkpointing or a parameter-shift estimator. (ii) Simulated
 dynamics; on-device validation via the parameter-shift rule is the natural next step.
 (iii) A single molecule and coupling scale; the qualitative claims (encoding helps;
-gain is quantum-mediated; task-dependent classical comparison) should be checked across
+gain is quantum-mediated; classical comparison) should be checked across
 systems.
 
 \section{Conclusion}\label{sec:conclusion}
 We introduced a physics-informed, differentiable reduced-FID readout and a
 gradient-trained encoding for a nuclear-spin quantum reservoir, and showed---multi-seed
 and ablation-confirmed---that learning the encoding produces a quantum-mediated gain
-over the standard encoding, while being honest that a strong classical reservoir
-remains competitive or superior on the NARMA benchmarks and that the QRC's advantage
-appears---confirmed across three seeds---on hard chaotic prediction. Next: on-device
+over the standard encoding, while being honest that a fully tuned classical reservoir
+remains far superior on all three synthetic benchmarks, the QRC being ahead only of a
+tuned LSTM on the memory-bound tasks. Next: on-device
 encoding training via the parameter-shift rule; scaling past six qubits; and pushing
 toward the coherence-over-decoherence regime where the full
 Hilbert space contributes.

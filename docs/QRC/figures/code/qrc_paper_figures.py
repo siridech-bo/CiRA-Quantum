@@ -3,12 +3,13 @@
 Generates (docs/QRC/figures/):
   figP1_spectrum.png       — physics-informed reduced-FID spectrum + analytic lines
   figP2_quantum_mediated.png — arcsin vs QRC-learned per task, with tau->0 ablation
-  figP3_task_dependent.png  — QRC-learned vs tuned-LSTM vs ESN (bars) + learning curves
+  figP3_task_dependent.png  — QRC-learned vs fairly tuned LSTM / ESN / size-matched ESN
   figP4_encoding.png        — arcsin vs learned per-spin encoding map (if encoding_detail
                               available from a run; else arcsin-only placeholder)
 
-Numbers are the confirmed results (campaign learnable-campaign-01ce463b, classical
-classical-baseline-548dbea6, mackey-h10 learnable-0a45c7b0 + mackey-h10-confirm-2d21b56f).
+Every number is read from the committed data package docs/QRC/data/ (6-spin campaign,
+MG h=10 seed 1 + confirm, fair classical baselines qrc_classical_fair_{esn,lstm}.json);
+nothing is typed in. figP1/figP4 read a run's saved trace / encoding_detail.json.
 CPU, no GPU. Lives in docs/QRC/figures/code/; writes PNGs to its parent (figures/).
 Run: python docs/QRC/figures/code/qrc_paper_figures.py
 """
@@ -35,26 +36,50 @@ from qrc_learnable_9spin import build_system  # noqa: E402
 
 FIGDIR = _HERE.parents[1]                      # docs/QRC/figures (write PNGs here)
 RUNS = _BACKEND / "artifacts" / "qrc_runs"
+# Pinned runs (archived with the raw traces): 6-spin MG h=10 seed 1 and seed 2.
+SPECTRUM_TRACE = RUNS / "learnable-0a45c7b0" / "learned_encoding_fid.npz"
+ENCODING_DETAIL = RUNS / "mackey-h10-confirm-2d21b56f" / "trace_seed2" / "encoding_detail.json"
 
-# ---- confirmed numbers (test NMSE), multi-seed mean +/- s.d. ---------------
-ARC = {"NARMA-2": 0.101, "NARMA-10": 0.312, "MG h=10": 0.0304}
-QRC = {"NARMA-2": 0.0052, "NARMA-10": 0.120, "MG h=10": 0.00155}
-QRC_STD = {"NARMA-2": 0.0013, "NARMA-10": 0.019, "MG h=10": 0.00018}
-ABL = {"NARMA-2": 0.9994, "NARMA-10": 0.9974}
-LSTM = {"NARMA-2": 0.0114, "NARMA-10": 0.234, "MG h=10": 0.0024}
-ESN = {"NARMA-2": 0.0046, "NARMA-10": 0.029, "MG h=10": 0.0057}
+# ---- numbers: read from the committed data package (docs/QRC/data), never typed in ----
+DATA = _HERE.parents[2] / "data"
+TASKS = {"NARMA-2": "narma2", "NARMA-10": "narma10", "MG h=10": "mackey_glass_h10"}
 
 
-def _latest(glob_pat, fname):
-    hits = sorted(RUNS.glob(f"{glob_pat}/**/{fname}"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not hits:
-        hits = sorted(RUNS.glob(f"{glob_pat}/{fname}"), key=lambda p: p.stat().st_mtime, reverse=True)
-    return hits[0] if hits else None
+def _j(name):
+    return json.loads((DATA / name).read_text(encoding="utf-8"))
+
+
+def numbers():
+    """Test NMSE per task: arcsin, QRC-learned (mean, s.d., per-seed), tau->0 ablation,
+    fairly tuned LSTM / ESN / size-matched ESN (data seeds 1-3, qrc_classical_fair.py)."""
+    jobs = _j("qrc_6spin_campaign.json")["jobs"]
+    s1 = _j("qrc_6spin_mackey_h10_seed1.json")["conditions"]
+    conf = _j("qrc_6spin_mackey_h10_confirm.json")["seeds"]
+    arc, lrn, abl = {}, {}, {}
+    for lab, key in (("NARMA-2", "narma2"), ("NARMA-10", "narma10")):
+        arc[lab] = [j["arcsin"] for j in jobs if j["task"] == key and not j["ablation"]]
+        lrn[lab] = [j["perspin"] for j in jobs if j["task"] == key and not j["ablation"]]
+        abl[lab] = [j["perspin"] for j in jobs if j["task"] == key and j["ablation"]][0]
+    arc["MG h=10"] = [s1["arcsin"]["test_nmse"]] + [conf[s]["arcsin"] for s in ("2", "3")]
+    lrn["MG h=10"] = [s1["perspin"]["test_nmse"]] + [conf[s]["perspin"] for s in ("2", "3")]
+    esn, lstm = _j("qrc_classical_fair_esn.json")["results"], _j("qrc_classical_fair_lstm.json")["results"]
+    return {"arcsin": {t: float(np.mean(v)) for t, v in arc.items()},
+            "qrc": {t: float(np.mean(v)) for t, v in lrn.items()},
+            "qrc_std": {t: float(np.std(v, ddof=1)) for t, v in lrn.items()},
+            "qrc_seeds": lrn, "ablation": abl,
+            "lstm": {t: lstm[k]["lstm_best"]["mean"] for t, k in TASKS.items()},
+            "esn": {t: esn[k]["esn_best"]["mean"] for t, k in TASKS.items()},
+            "esn_matched": {t: esn[k]["esn_matched"]["mean"] for t, k in TASKS.items()}}
+
+
+N = numbers()
+ARC, QRC, QRC_STD, ABL = N["arcsin"], N["qrc"], N["qrc_std"], N["ablation"]
+LSTM, ESN, ESN_M = N["lstm"], N["esn"], N["esn_matched"]
 
 
 def fig_spectrum():
     """Physics-informed reduced-FID spectrum with the analytic D_eff lines marked."""
-    trace = _latest("learnable-*", "learned_encoding_fid.npz")
+    trace = SPECTRUM_TRACE if SPECTRUM_TRACE.exists() else None
     fig, ax = plt.subplots(figsize=(7.2, 3.8))
     sysm = build_system("6", 137, coupling_scale=2.0)               # exact run system
     ls = physics_informed_lines(sysm.system)
@@ -99,43 +124,25 @@ def fig_quantum_mediated():
 
 
 def fig_task_dependent():
-    """QRC-learned vs tuned-LSTM vs ESN (bars) + NMSE-vs-n_train learning curves."""
+    """QRC-learned vs fairly tuned LSTM, tuned ESN and size-matched ESN (test NMSE, log)."""
     tasks = list(QRC)
-    x = np.arange(len(tasks)); w = 0.26
-    fig, (axL, axR) = plt.subplots(1, 2, figsize=(11.5, 4.2))
-    axL.bar(x - w, [QRC[t] for t in tasks], w, yerr=[QRC_STD[t] for t in tasks],
-            capsize=3, ecolor="#1b3a5c", label="QRC-learned", color="#4da3ff")
-    axL.bar(x, [LSTM[t] for t in tasks], w, label="LSTM (tuned)", color="#cb4b4b")
-    axL.bar(x + w, [ESN[t] for t in tasks], w, label="ESN (N=1000)", color="#e07b3c")
-    axL.set_yscale("log"); axL.set_ylabel("test NMSE (log)"); axL.set_xticks(x); axL.set_xticklabels(tasks)
-    axL.set_title("Task-dependent: ESN wins NARMA; QRC-learned wins MG h=10", fontsize=9.5)
-    axL.legend(fontsize=8); axL.grid(alpha=0.2, axis="y")
-
-    res = _latest("classical-baseline-*", "results.json")
-    if res is not None:
-        d = json.loads(Path(res).read_text(encoding="utf-8"))
-        # Correct QRC points (the classical run's stored qrc_perspin for mackey used
-        # the h=1 campaign value; use the confirmed per-task numbers instead).
-        qrc_pt = {"narma10": QRC["NARMA-10"], "mackey_glass_h10": QRC["MG h=10"]}
-        colors = {"narma10": "#7bd88f", "mackey_glass_h10": "#c98bdb"}
-        for key, c in colors.items():
-            r = d["tasks"].get(key, {})
-            lc = r.get("learning_curve")
-            if not lc:
-                continue
-            axR.plot(lc["n_trains"], lc["lstm"], "-o", color=c, lw=1.4, label=f"{key} LSTM")
-            axR.plot(lc["n_trains"], lc["esn"], "--s", color=c, lw=1.2, alpha=0.7, label=f"{key} ESN")
-            axR.scatter([735], [qrc_pt[key]], marker="*", s=140, color=c,
-                        edgecolor="k", zorder=5, label=f"{key} QRC-learned")
-        axR.set_yscale("log"); axR.set_xlabel("n_train"); axR.set_ylabel("test NMSE (log)")
-        axR.set_title("Data-efficiency (learning curves)", fontsize=9.5)
-        axR.legend(fontsize=6.5); axR.grid(alpha=0.2)
+    x = np.arange(len(tasks)); w = 0.2
+    fig, ax = plt.subplots(figsize=(7.6, 4.2))
+    ax.bar(x - 1.5 * w, [QRC[t] for t in tasks], w, yerr=[QRC_STD[t] for t in tasks],
+           capsize=3, ecolor="#1b3a5c", label="QRC-learned (6 spins)", color="#4da3ff")
+    ax.bar(x - 0.5 * w, [LSTM[t] for t in tasks], w, label="LSTM (tuned)", color="#cb4b4b")
+    ax.bar(x + 0.5 * w, [ESN_M[t] for t in tasks], w, label="ESN (tuned, N<=350)", color="#f0a868")
+    ax.bar(x + 1.5 * w, [ESN[t] for t in tasks], w, label="ESN (tuned, N<=1000)", color="#e07b3c")
+    ax.set_yscale("log"); ax.set_ylabel("test NMSE (log)"); ax.set_xticks(x); ax.set_xticklabels(tasks)
+    ax.set_title("Synthetic benchmarks: the learned QRC beats the tuned LSTM on NARMA-10 and MG h=10;\n"
+                 "a fully tuned ESN is 1-3 orders of magnitude better on every task", fontsize=9)
+    ax.legend(fontsize=7.5); ax.grid(alpha=0.2, axis="y")
     _save(fig, "figP3_task_dependent.png")
 
 
 def fig_encoding():
     """arcsin vs learned per-spin encoding map + validation-loss curve (real run)."""
-    detail = _latest("*", "encoding_detail.json")          # any run (confirm runs save it)
+    detail = ENCODING_DETAIL if ENCODING_DETAIL.exists() else None
     fig, (axL, axR) = plt.subplots(1, 2, figsize=(10.2, 4.0))
     sg = np.linspace(0, 0.5, 21)
     axL.plot(sg, np.arcsin(np.sqrt(np.clip(sg, 0, 1))), color="#3fb950", lw=2.4, label="arcsin(sqrt(s))")

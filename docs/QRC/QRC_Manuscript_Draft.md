@@ -1,5 +1,8 @@
 # Physics-informed spectral readout and trainable input encoding for a nuclear-spin quantum reservoir computer
 
+> **SUPERSEDED (2026-10-24).** This Markdown copy predates the fair classical baselines. Its ESN comparison ("QRC beats the ESN ~3.7x on Mackey-Glass h=10") is wrong: a fully tuned ESN beats the QRC on every synthetic task. The current text is `QRC_Manuscript.tex`; numbers are in `docs/QRC/data/` (see `MANIFEST.md`).
+
+
 **Draft manuscript — target: *Phys. Rev. X Quantum* (alt: *Phys. Rev. Research* / *Phys. Rev. Applied*).**
 Status: results core confirmed; classical-baseline section marked *[preliminary]* pending the strengthened baseline. Numbers below are from campaign `learnable-campaign-01ce463b` and the SOP conventions in `QRC_STANDARD_PROCEDURES.md`.
 
