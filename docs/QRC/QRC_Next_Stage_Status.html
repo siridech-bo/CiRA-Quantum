@@ -82,6 +82,7 @@
   <div class="scroll"><table>
     <thead><tr><th>When</th><th>Subtask</th><th>Result</th><th>Commit</th></tr></thead>
     <tbody>
+      <tr><td>10-24</td><td><b>Confirmation 2 launched (cira3: Sydney, Sao Paulo; cira2: Toronto)</b></td><td><span class="tag t-todo">running</span> Data downloaded after pre-registration. ESN grid | QRC g = 0.35 + g = 1 (traces saved) | tuned LSTM | confirm eval. ~1 h/city.</td><td>bd016c3</td></tr>
       <tr><td>10-24</td><td><b>Confirmation 2 pre-registered: final design on untouched Sydney / Sao Paulo / Toronto</b></td><td><span class="tag t-todo">pre-reg</span> g = 0.35, tau = 30 ms, 653 bins. F1: g0.35 &minus; g1 CI &gt; 0 in &ge; 2/3 cities. F2: non-inferiority vs tuned ESN / LSTM / linear AR (margin 0.02 R2), per baseline. Committed before download.</td><td>&lt;this commit&gt;</td></tr>
       <tr><td>10-24</td><td><b>Step 4 (learned encoding on top of g = 0.35) not adopted</b></td><td><span class="tag t-done">null</span> Mean val R2 learned 0.7038 vs fixed 0.7059 (threshold +0.005). No confirmation run. Fixed g = 0.35 beats published learned g = 1 on 6/8 datasets.</td><td>&lt;this commit&gt;</td></tr>
       <tr><td>10-23</td><td><b>Step 4 dev runs launched (cira2 + cira3 A100)</b></td><td><span class="tag t-todo">running</span> learned encoding at g = 0.35, 3 seeds x 8 dev datasets; ~10 h wall.</td><td>&mdash;</td></tr>
