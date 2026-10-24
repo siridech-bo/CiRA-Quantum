@@ -279,3 +279,32 @@ once input overwrite is reduced by g, the learned correction mostly fits the tra
 falls 4–35 %) without transferring to the validation period. The fixed g = 0.35 also beats the published
 learned encoding at g = 1 on 6/8 datasets (mean 0.7059 vs 0.6927; Beijing and Berlin are the exceptions), so the earlier learned-encoding gain is
 largely explained by reduced input overwrite. Current design unchanged: g = 0.35, τ = 30 ms, 653 bins.
+
+## 10. Confirmation 2 — the final design on untouched cities (PRE-REGISTERED 2026-10-24, before the data were downloaded)
+
+Written and committed **before** the Sydney / São Paulo / Toronto data were downloaded or opened.
+
+**Frozen final design** (Steps 1–4; nothing is selected on these cities): crotonic-9 reservoir, fixed
+encoding gain **g = 0.35** (θ = 0.35·arcsin√s, no learned correction), τ = 30 ms, proton FID, |FFT| at
+**653 bins** (SOP standard readout, D = 653), ridge readout (α and standardisation chosen on validation,
+refit on train+validation, test read once).
+
+**Untouched data.** Open-Meteo ERA5 daily T + RH, 1970–2025: **Sydney** (33.87 S, 151.21 E; humid
+subtropical coastal, southern hemisphere), **São Paulo** (23.55 S, 46.63 W; subtropical highland),
+**Toronto** (43.65 N, 79.38 W; humid continental, lake-moderated). Protocol identical to Confirmation 1
+(§6): train 1971–1999, validation 2000–2004, test 2005-01-01 to end−45 days; T and RH at h = 1, 5, 10, 15,
+20, 30, 45 days. Models: QRC final design, QRC g = 1 (published design), tuned ESN (+ size-matched ≤ 653),
+tuned LSTM (3 inits), tuned linear AR, all tuned on validation exactly as in the benchmark. Significance:
+95% moving-block bootstrap CI (30 days, 2000 resamples), paired on the same test days.
+
+**Pre-registered criteria** (Δ = pooled test R² difference, mean over the 14 targets).
+- **F1 (replication of the gain effect):** Δ(final − g = 1) > 0 with the CI excluding 0 in ≥ 2 of 3 cities.
+- **F2 (competitiveness; non-inferiority, margin δ = 0.02 R²):** separately for each baseline
+  b ∈ {tuned ESN, tuned LSTM, tuned linear AR}: the CI lower bound of Δ(final − b) > −0.02 in ≥ 2 of 3
+  cities. F2 is reported per baseline (F2-ESN, F2-LSTM, F2-AR); no superiority over the ESN is claimed
+  unless a CI lies wholly above 0, and that would be reported as descriptive. *Disclosure:* δ = 0.02 was set
+  with knowledge of the Confirmation 1 results (§6, where the final design's CI lower bounds vs the tuned
+  ESN were −0.022, −0.005, −0.016); the Confirmation 2 data were untouched when it was set.
+- **F3 (descriptive):** short (h ≤ 10) and long (h ≥ 30) horizon breakdown, size-matched ESN, per-target
+  R², and the QRC − baseline differences pooled over all six confirmation cities (Confirmation 1 + 2).
+All results are reported, including failures of F1 or F2.
