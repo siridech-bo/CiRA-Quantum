@@ -59,6 +59,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True)
     ap.add_argument("--run-dir", required=True)
+    ap.add_argument("--grid", default=",".join(GRID), help="gains passed to qrc_design_c1.py (Confirmation 2: 0.35,1)")
+    ap.add_argument("--prereg", default="29152bf", help="pre-registration commit (Confirmation 2: 7965cde)")
     a = ap.parse_args()
     ds = load_dataset(a.dataset)
     run = Path(a.run_dir)
@@ -68,7 +70,8 @@ def main():
     cols = {"all": np.arange(len(H)), "long": np.where(H >= 30)[0], "short": np.where(H <= 10)[0]}
 
     c1 = json.loads((run / "design_c1" / "c1_results.json").read_text(encoding="utf-8"))
-    g_sel = max(GRID, key=lambda g: c1["gains"][g]["val"]["pooled"])          # secondary rule (VAL only)
+    grid = tuple(f"{float(g):g}" for g in a.grid.split(","))
+    g_sel = max(grid, key=lambda g: c1["gains"][g]["val"]["pooled"])          # secondary rule (VAL only)
     preds = {}
     for label, g in (("qrc_g1", "1"), ("qrc_g035", PRIMARY), ("qrc_gsel", g_sel)):
         preds[label] = np.stack([test_preds(np.load(run / "design_c1" / f"g{g}" / "X.npz")["X"], ds)])
@@ -80,7 +83,7 @@ def main():
     lin, L = linear_ar(ds)
     preds["linear_ar"] = lin[None]
 
-    res = {"dataset": a.dataset, "preregistration_commit": "29152bf", "rule_primary_g": float(PRIMARY),
+    res = {"dataset": a.dataset, "preregistration_commit": a.prereg, "rule_primary_g": float(PRIMARY),
            "rule_secondary_g": float(g_sel), "n_test": int(len(Y)), "groups": {}, "tests": {}}
     for g, P in preds.items():
         per = [float(r2_cols(Y, p).mean()) for p in P]
@@ -95,7 +98,7 @@ def main():
         res["tests"][f"S3 g1 - {b}"] = boot(Y, preds["qrc_g1"], preds[b], {"all": cols["all"]})
     s1 = res["tests"]["S1_S2 g0.35 - g1"]["all"]
     res["S1_pass"] = bool(s1["ci95"][0] > 0)
-    res["provenance"] = provenance(dataset=a.dataset, grid=list(GRID), primary=PRIMARY, secondary=g_sel,
+    res["provenance"] = provenance(dataset=a.dataset, grid=list(grid), primary=PRIMARY, secondary=g_sel,
                                    linear_ar_lags=int(L))
     np.savez(run / "confirm_predictions.npz", Y_test=Y, **{f"pred_{k}": v for k, v in preds.items()})
     (run / "confirm.json").write_text(json.dumps(res, indent=2, default=float), encoding="utf-8")
