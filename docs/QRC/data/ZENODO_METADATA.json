@@ -1,0 +1,32 @@
+{
+ "_comment": "DRAFT Zenodo deposition metadata shared by every record of the QRC trace archive. backend/scripts/qrc_zenodo_package.py --upload appends the record id / contents to title and description, and refuses to upload while any TODO remains. Fill creators (name 'Family, Given', affiliation, optional orcid) and the related GitHub identifier. No tokens or passwords belong in this file; the upload token is read from env ZENODO_TOKEN.",
+ "metadata": {
+  "upload_type": "dataset",
+  "title": "Raw NMR spin-reservoir FID traces for quantum reservoir computing forecasting benchmarks",
+  "description": "<p>Raw simulation outputs behind the CiRA Quantum quantum-reservoir-computing (QRC) study: per-input-step free-induction-decay (FID) waveforms of simulated NMR spin reservoirs (crotonic acid 9-spin, DCCB 7-spin and smaller learnable-encoding systems) driven by real-world and synthetic time series, together with the learned input encoders, test predictions, classical baselines (tuned ESN / LSTM) and run logs.</p><p>Each raw trace (<code>trace*.npz</code>, key <code>fids_H</code>, complex64, steps x 2048 points at 0.3 ms) is the expensive GPU-evolved quantity; all reported metrics are computed offline from them with the standard 653-bin |FFT| FID-spectrum readout. Recomputable feature matrices are omitted to stay within the record quota and can be rebuilt with the included script. Every file is listed with its SHA-256 in SHA256SUMS and in the full manifest (tools/TRACES_MANIFEST.json).</p><p>The archive is split into linked records; see each record's README.md.</p>",
+  "creators": [
+   {"name": "TODO author list", "affiliation": "TODO"}
+  ],
+  "license": "cc-by-4.0",
+  "access_right": "open",
+  "language": "eng",
+  "version": "TODO (e.g. 1.0, matching the manuscript submission)",
+  "keywords": [
+   "quantum reservoir computing",
+   "NMR",
+   "free induction decay",
+   "time-series forecasting",
+   "spin systems",
+   "simulation data"
+  ],
+  "related_identifiers": [
+   {
+    "identifier": "TODO GitHub repository URL (code that generated and analyses these traces)",
+    "relation": "isSupplementTo",
+    "scheme": "url",
+    "resource_type": "software"
+   }
+  ],
+  "notes": "Generated with the CiRA Quantum code base (branch qrc-simulation); the producing git commit is recorded in each record's README.md and in tools/TRACES_MANIFEST.json (provenance)."
+ }
+}
