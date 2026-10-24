@@ -113,6 +113,25 @@ PLANS = {
         ("narma2", 1, False, 1), ("narma2", 2, False, 1), ("narma2", 3, False, 1),
         ("narma2", 1, True, 1),
     ],
+    # publication package: 6-spin headline claims to 5 seeds, tau->0 ablation to 3 seeds
+    # (seeds 1-3 / 1-2 / ablation seed 1 are in run learnable-campaign-01ce463b + MG h=10 runs)
+    "6spin_pub": [
+        ("narma2", 4, False, 1), ("narma2", 5, False, 1),
+        ("narma10", 4, False, 1), ("narma10", 5, False, 1),
+        ("mackey_glass", 4, False, 10), ("mackey_glass", 5, False, 10),
+        ("mackey_glass", 3, False, 1), ("mackey_glass", 4, False, 1), ("mackey_glass", 5, False, 1),
+        ("narma2", 2, True, 1), ("narma2", 3, True, 1),
+        ("narma10", 2, True, 1), ("narma10", 3, True, 1),
+    ],
+    # re-run of the original 6-spin jobs to recover their FID traces (the 2026-08 run kept
+    # only one) and to check run-to-run reproducibility of the published numbers
+    "6spin_retrace": [
+        ("narma2", 1, False, 1), ("narma2", 2, False, 1), ("narma2", 3, False, 1),
+        ("narma2", 1, True, 1),
+        ("narma10", 1, False, 1), ("narma10", 2, False, 1), ("narma10", 3, False, 1),
+        ("narma10", 1, True, 1),
+        ("mackey_glass", 1, False, 1), ("mackey_glass", 2, False, 1),
+    ],
     # J=0 ablation (run with --coupling-scale 0 --lines-coupling-scale 1)
     "dccb7_j0": [
         ("mackey_glass", 1, False, 10), ("mackey_glass", 2, False, 10),
@@ -149,9 +168,9 @@ def qrc_job(task, seed, device, args, log, trace_dir, no_memory=False, horizon=1
     label = f"fid_reduced (D_eff={ls.d_eff})"
     # Per-job trace subdir so traces don't overwrite each other across jobs.
     job_trace_dir = None
-    if trace_dir and not no_memory:
+    if trace_dir:                       # ablations too (traces reset each step, labelled)
         hz = f"_h{horizon}" if horizon != 1 else ""
-        job_trace_dir = str(Path(trace_dir) / f"trace_{task}{hz}_s{seed}")
+        job_trace_dir = str(Path(trace_dir) / f"trace_{task}{hz}_s{seed}{'_nomem' if no_memory else ''}")
         Path(job_trace_dir).mkdir(parents=True, exist_ok=True)
     results, base, verdict = train(
         sysm, g, device, CDT, task=task, T=args.T, washout=args.washout,

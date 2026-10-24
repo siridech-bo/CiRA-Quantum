@@ -197,7 +197,7 @@ def make_fid_reduced_post(sysm, g, device, readout_qubits=None, lines_system=Non
     return post, 2 * ls.d_eff, ls
 
 
-def capture_fid(angle_fn, inputs, sysm, g, device, cdt):
+def capture_fid(angle_fn, inputs, sysm, g, device, cdt, reset_each_step=False):
     """Forward-only pass returning the per-step transverse-magnetization FID
     ``(T, V)`` complex — ``fid[t,v] = Σ_k ⟨σx_k⟩ + i⟨σy_k⟩`` over the V dense
     nodes. Reconstructed from the x/y/z observables (needs which=('x','y','z')),
@@ -205,7 +205,8 @@ def capture_fid(angle_fn, inputs, sysm, g, device, cdt):
     waveform (SOP persist-waveform rule) so the FID/spectrum viewer + offline
     metrics work without a retrain."""
     with torch.no_grad():
-        F = forward_features([angle_fn(x) for x in inputs], sysm, g, device, cdt)
+        F = forward_features([angle_fn(x) for x in inputs], sysm, g, device, cdt,
+                             reset_each_step=reset_each_step)
     V, n = g["V"], sysm.n
     ro = g.get("readout_qubits") or list(range(n))             # detected spins
     Fr = F.reshape(F.shape[0], V, 3, n)[:, :, :, ro].cpu().numpy()   # t, v, axis, spin
@@ -214,15 +215,16 @@ def capture_fid(angle_fn, inputs, sysm, g, device, cdt):
 
 
 def _save_learned_trace(trace_dir, label, angle_fn, inputs, u, washout, n_tr,
-                        sysm, g, device, cdt, seed, task, log=None):
+                        sysm, g, device, cdt, seed, task, log=None,
+                        fname="learned_encoding_fid.npz", no_memory=False):
     """Persist the final encoding's FID waveform as a §1-schema trace .npz in the
     run-dir (``resolve_trace_path`` finds any .npz there), so ``/fid`` renders it."""
     import json
     from pathlib import Path
 
-    fid = capture_fid(angle_fn, inputs, sysm, g, device, cdt)
+    fid = capture_fid(angle_fn, inputs, sysm, g, device, cdt, reset_each_step=no_memory)
     T = int(fid.shape[0])
-    path = Path(trace_dir) / "learned_encoding_fid.npz"
+    path = Path(trace_dir) / fname
     np.savez(
         str(path),
         fids=fid,
@@ -232,6 +234,7 @@ def _save_learned_trace(trace_dir, label, angle_fn, inputs, u, washout, n_tr,
         seed=np.int64(seed),
         meta_json=json.dumps({"experiment": "learnable_encoding", "condition": label,
                               "task": task, "n_spins": sysm.n, "V": g["V"],
+                              "quantum_memory": not no_memory,
                               "trace_readout": "transverse_FID",
                               "readout_qubits": list(g.get("readout_qubits") or range(sysm.n)),
                               "system_labels": list(sysm.system.labels)}),
@@ -451,6 +454,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
     sg = np.linspace(0.0, smax, 21)
     results = {"arcsin": (base, None, None, None)}   # (test, val_curve, std, angle_map)
     trained_angle_fns = {}                           # label -> (angle_fn, inputs) for tracing
+    encoders = {}                                    # label -> best-val encoder state_dict
 
     def run_learned(label, n_out):
         torch.manual_seed(seed)          # vary encoder init with the run seed
@@ -483,6 +487,7 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
         if best_state is not None:                   # report test at best-val, not final
             enc.load_state_dict(best_state)
         trained_angle_fns[label] = (lambda x, e=enc: enc_angles(e, x, sysm.n), enc_inputs)
+        encoders[label] = {k: v.detach().cpu() for k, v in enc.state_dict().items()}
         dt = time.time() - t0
         with torch.no_grad():
             _, nmse_test = _ridge_fit_eval(feats(lambda x: enc_angles(enc, x, sysm.n), enc_inputs), y_use, device)
@@ -566,7 +571,13 @@ def train(sysm, g, device, cdt, task="narma2", T=300, washout=30, steps=100,
             else:
                 af, inp, trace_label = arcsin_ang, list(u), "arcsin"
             _save_learned_trace(trace_dir, trace_label, af, inp, u, washout, n_tr,
-                                sysm, g, device, cdt, seed, task, log)
+                                sysm, g, device, cdt, seed, task, log, no_memory=no_memory)
+            if trace_label != "arcsin":         # the baseline's waveform too (persist rule)
+                _save_learned_trace(trace_dir, "arcsin", arcsin_ang, list(u), u, washout, n_tr,
+                                    sysm, g, device, cdt, seed, task, log,
+                                    fname="arcsin_encoding_fid.npz", no_memory=no_memory)
+            if trace_label in encoders:         # trained encoder weights (re-trace without retraining)
+                torch.save(encoders[trace_label], Path(trace_dir) / "encoder.pt")
             # also persist the encoding detail (angle maps + val curve) for figures
             import json as _json
             detail = {
