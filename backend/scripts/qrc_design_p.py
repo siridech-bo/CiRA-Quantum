@@ -69,7 +69,7 @@ def _pass(m, theta, channels):
             if channels:
                 out["fids_C"].append(bp.fid(vec, ro_c))
                 out["z"].append(z)
-                out["pops"].append(vec.reshape(d, d).diagonal().real)
+                out["pops"].append(vec.reshape(d, d).diagonal().real.clone())  # clone: a view would keep the whole state alive
             if k % 5000 == 0:
                 print(f"  step {k}/{th.shape[0]} ({time.time() - t0:.0f}s)", flush=True)
     return {k: torch.stack(v) for k, v in out.items()}
