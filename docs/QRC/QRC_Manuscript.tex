@@ -23,15 +23,19 @@
 \usepackage{bm}
 \usepackage{physics}
 \usepackage{booktabs}
-\usepackage{siunitx}
 \usepackage{hyperref}
+% siunitx loads array, which breaks RevTeX 4.2 tables with p{} columns ("Extra \or");
+% the two unit macros used here are defined directly instead.
+\newcommand{\SI}[2]{\ensuremath{#1\,\mathrm{#2}}}
+\newcommand{\SIrange}[3]{\ensuremath{#1\text{--}#2\,\mathrm{#3}}}
 \graphicspath{{figures/}}
+% ragged-right p{} table cells (RevTeX-safe; no array package)
+\newcommand{\rr}{\raggedright\let\\\tabularnewline}
 
 \begin{document}
 
-\title{A nuclear-spin quantum reservoir computer on real-world forecasting:\\
-pre-registered confirmation of non-inferiority, not superiority,\\
-to tuned classical models}
+\title{A nuclear-spin quantum reservoir computer on real-world forecasting:
+pre-registered confirmation of non-inferiority, not superiority, to tuned classical models}
 
 \author{[Author list to confirm]}
 \affiliation{CiRA Quantum}
@@ -413,39 +417,20 @@ repository commit that fixed the rule and criteria before the step was run (and,
 confirmations, before the data were downloaded). Dev = mean pooled validation $R^2$
 over the eight counted development datasets.}
 % Source: QRC_Design_Concepts.md sections 3 and 6-10; git log of that file.
+\small
 \begin{ruledtabular}
-\begin{tabular}{llll}
-step & pre-registration commit & freeze / success rule & outcome \\ \colrule
-1: encoding gain $g$ (C1) & \texttt{a1dfb00} (hypotheses H1, H2) &
-  H1: memory rises as $g$ falls; H2: long-horizon gain without short-horizon loss &
-  H1 8/8, H2 6/8; $g=0.35$ frozen \\
-Confirmation 1 & \texttt{29152bf} &
-  S1: $\Delta(g{=}0.35-g{=}1)>0$, CI excl.\ 0, $\ge2/3$ cities; S2: long $\ge+0.0205$ &
-  S1 pass 3/3; S2 pass \\
-2: bounded features (C6) & \texttt{53d8e6a} (transform frozen \texttt{34156a7}) &
-  R1 on untouched ETTh2: $R^2\ge0$ and not worse than raw &
-  R1 fail; not supported \\
-3: step time $\tau$ + compact readout (C5, C7) & \texttt{ed96b17} &
-  adopt only if Dev $\ge$ current $+0.005$ &
-  not adopted (best = current) \\
-4: learned encoding on top of $g$ & \texttt{5b92610} &
-  adopt only if Dev $\ge$ fixed $g=0.35$ $+0.005$ &
-  not adopted ($\Delta=-0.0021$) \\
-Confirmation 2 (final design) & \texttt{7965cde} &
-  F1: replicate S1; F2: non-inferiority, margin $\delta=0.02$, per baseline &
-  F1 pass 3/3; F2 pass 3/3 (ESN, LSTM, AR) \\
-5: readout-side variants (R1--R5) & \texttt{a7cb3e6} &
-  adopt best if Dev $\ge$ base $+0.005$, worse on $\le2/8$ &
-  kernel (RFF) adopted \\
-Confirmation 3 (kernel readout) & \texttt{a7cb3e6} &
-  G1: $\Delta(\mathrm{kernel}-\mathrm{base})>0$, CI excl.\ 0, $\ge2/3$; G2: non-inferior to ESN-kernel, $\ge2/3$ &
-  G1 fail 0/3; G2 fail 1/3; withdrawn \\
-Drift test (level handling) & \texttt{a4111de} &
-  D1: $\Delta(\mathrm{level}-\mathrm{base})>0$, CI excl.\ 0, on both series &
-  D1 pass 2/2 \\
-6: paper encoding; $^{13}$C / population readout & \texttt{d022533} &
-  as step 5, plus gain must survive dropping the best dataset &
-  not adopted; Conf.\ 4 not run \\
+\begin{tabular}{p{0.21\textwidth}p{0.17\textwidth}p{0.34\textwidth}p{0.19\textwidth}}
+\rr step & \rr pre-registration commit & \rr freeze / success rule & \rr outcome \\ \colrule
+\rr 1: encoding gain $g$ (C1) & \rr \texttt{a1dfb00} (hypotheses H1, H2) & \rr H1: memory rises as $g$ falls; H2: long-horizon gain without short-horizon loss & \rr H1 8/8, H2 6/8; $g=0.35$ frozen \\
+\rr Confirmation 1 & \rr \texttt{29152bf} & \rr S1: $\Delta(g{=}0.35-g{=}1)>0$, CI excl.\ 0, $\ge2/3$ cities; S2: long $\ge+0.0205$ & \rr S1 pass 3/3; S2 pass \\
+\rr 2: bounded features (C6) & \rr \texttt{53d8e6a} (transform frozen \texttt{34156a7}) & \rr R1 on untouched ETTh2: $R^2\ge0$ and not worse than raw & \rr R1 fail; not supported \\
+\rr 3: step time $\tau$ + compact readout (C5, C7) & \rr \texttt{ed96b17} & \rr adopt only if Dev $\ge$ current $+0.005$ & \rr not adopted (best = current) \\
+\rr 4: learned encoding on top of $g$ & \rr \texttt{5b92610} & \rr adopt only if Dev $\ge$ fixed $g=0.35$ $+0.005$ & \rr not adopted ($\Delta=-0.0021$) \\
+\rr Confirmation 2 (final design) & \rr \texttt{7965cde} & \rr F1: replicate S1; F2: non-inferiority, margin $\delta=0.02$, per baseline & \rr F1 pass 3/3; F2 pass 3/3 (ESN, LSTM, AR) \\
+\rr 5: readout-side variants (R1--R5) & \rr \texttt{a7cb3e6} & \rr adopt best if Dev $\ge$ base $+0.005$, worse on $\le2/8$ & \rr kernel (RFF) adopted \\
+\rr Confirmation 3 (kernel readout) & \rr \texttt{a7cb3e6} & \rr G1: $\Delta(\mathrm{kernel}-\mathrm{base})>0$, CI excl.\ 0, $\ge2/3$; G2: non-inferior to ESN-kernel, $\ge2/3$ & \rr G1 fail 0/3; G2 fail 1/3; withdrawn \\
+\rr Drift test (level handling) & \rr \texttt{a4111de} & \rr D1: $\Delta(\mathrm{level}-\mathrm{base})>0$, CI excl.\ 0, on both series & \rr D1 pass 2/2 \\
+\rr 6: paper encoding; $^{13}$C / population readout & \rr \texttt{d022533} & \rr as step 5, plus gain must survive dropping the best dataset & \rr not adopted; Conf.\ 4 not run \\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
@@ -471,17 +456,18 @@ three replicates; QRC arcsin is deterministic). QRC: crotonic-9, $g=1$, $\tau=\S
 matched ESN, tuned LSTM): $+$ significantly better, $-$ significantly worse, $\approx$
 95\% CI contains 0.}
 % Source: QRC_RealWorld_Benchmark.md; linear AR: QRC_RealWorld_Factors.md section 1.
+\scriptsize\setlength{\tabcolsep}{2pt}
 \begin{ruledtabular}
 \begin{tabular}{lcccccccc}
-dataset & test & QRC arcsin & QRC learned & tuned ESN & ESN $\le653$ & tuned LSTM & linear AR & sig. \\ \colrule
-Delhi (Kaggle, daily) & 500 d & 0.694 & $\mathbf{0.731\pm0.002}$ & $0.716\pm0.001$ & $0.717\pm0.001$ & $0.416\pm0.081$ & 0.689 & $+\,\approx\,\approx\,+$ \\
+dataset & test & QRC arcsin & QRC learned & ESN & ESN $\le653$ & LSTM & lin.\ AR & sig. \\ \colrule
+Delhi (Kaggle) & 500 d & 0.694 & $\mathbf{0.731\pm0.002}$ & $0.716\pm0.001$ & $0.717\pm0.001$ & $0.416\pm0.081$ & 0.689 & $+\,\approx\,\approx\,+$ \\
 Delhi (ERA5, daily) & 7625 d & 0.747 & $0.755\pm0.000$ & $0.765\pm0.003$ & $0.765\pm0.003$ & $\mathbf{0.769\pm0.004}$ & 0.737 & $+\,-\,-\,-$ \\
 Mumbai (ERA5) & 7625 d & 0.600 & $0.621\pm0.001$ & $\mathbf{0.706\pm0.003}$ & $0.706\pm0.003$ & $0.694\pm0.015$ & 0.666 & $+\,-\,-\,-$ \\
 Bangkok (ERA5) & 7625 d & 0.297 & $0.322\pm0.000$ & $\mathbf{0.333\pm0.002}$ & $0.332\pm0.007$ & $0.272\pm0.020$ & 0.299 & $+\,\approx\,\approx\,+$ \\
 Beijing (ERA5) & 7625 d & 0.638 & $0.647\pm0.002$ & $0.649\pm0.001$ & $0.649\pm0.001$ & $\mathbf{0.651\pm0.004}$ & 0.635 & $+\,\approx\,\approx\,\approx$ \\
 Berlin (ERA5) & 7625 d & 0.563 & $0.600\pm0.000$ & $0.604\pm0.002$ & $0.604\pm0.002$ & $\mathbf{0.616\pm0.008}$ & 0.605 & $+\,\approx\,\approx\,-$ \\
-Beijing station (hourly) & 8712 h & 0.901 & $0.914\pm0.002$ & $0.931\pm0.000$ & $\mathbf{0.931\pm0.000}$ & $0.926\pm0.003$ & 0.930 & $+\,-\,-\,-$ \\
-ETTh1 (hourly) & 2832 h & $-0.238$ & $-2.939\pm3.992$ & $0.662\pm0.009$ & $0.574\pm0.015$ & $0.250\pm0.111$ & $\mathbf{0.732}$ & $-\,-\,-\,-$ \\
+Beijing PM2.5 & 8712 h & 0.901 & $0.914\pm0.002$ & $0.931\pm0.000$ & $\mathbf{0.931\pm0.000}$ & $0.926\pm0.003$ & 0.930 & $+\,-\,-\,-$ \\
+ETTh1 & 2832 h & $-0.238$ & $-2.939\pm3.992$ & $0.662\pm0.009$ & $0.574\pm0.015$ & $0.250\pm0.111$ & $\mathbf{0.732}$ & $-\,-\,-\,-$ \\
 Santa Fe laser A & 2383 & 0.910 & $0.918\pm0.008$ & $0.958\pm0.005$ & $0.958\pm0.005$ & $\mathbf{0.971\pm0.003}$ & 0.717 & $+\,-\,-\,-$ \\
 \end{tabular}
 \end{ruledtabular}
@@ -773,9 +759,10 @@ size-matched ESN (---); its kernel-readout scores are in the text.}
 % Source: qrc_confirm1_{chennai,cairo,moscow}.json and qrc_confirm2_{sydney,saopaulo,toronto}.json,
 % key groups.<model>.pooled (rounded to 4 d.p.); Confirmation 2 rows identical to
 % QRC_Design_Evidence.md "Pooled test R^2" table.
+\footnotesize\setlength{\tabcolsep}{4pt}
 \begin{ruledtabular}
 \begin{tabular}{llcccccc}
- & city & QRC standard ($g=1$) & QRC final ($g=0.35$) & tuned ESN & ESN $\le653$ & tuned LSTM & linear AR \\ \colrule
+ & city & QRC $g=1$ & QRC final & tuned ESN & ESN $\le653$ & tuned LSTM & linear AR \\ \colrule
 Conf.\ 1 & Chennai   & 0.5052 & 0.5846 & 0.5973 & 0.5973 & 0.5749 & 0.5567 \\
          & Cairo     & 0.5291 & 0.5441 & 0.5462 & 0.5429 & 0.5260 & 0.5179 \\
          & Moscow    & 0.5648 & 0.5984 & 0.6073 & 0.6073 & 0.6130 & 0.5971 \\ \colrule
@@ -798,19 +785,20 @@ baseline (S3 descriptive in Confirmation 1; F2 non-inferiority, margin $-0.02$ o
 CI lower bound, in Confirmation 2; descriptive in Confirmation 3).}
 % Source: QRC_Design_Evidence.md, Confirmation 1 (S1/S2 table; S3 table, values after the arrow,
 % i.e. at g=0.35) and Confirmation 2 (F1 table; F2 table).
+\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{ruledtabular}
 \begin{tabular}{llcccc}
- & city & final $-$ standard & final $-$ tuned ESN & final $-$ tuned LSTM & final $-$ linear AR \\ \colrule
-Conf.\ 1 & Chennai & $+0.0794\ [+0.0614,+0.1008]$ & $-0.0127\ [-0.0220,-0.0039]$ & $+0.0097\ [-0.0020,+0.0225]$ & $+0.0279\ [+0.0173,+0.0388]$ \\
-         & Cairo   & $+0.0150\ [+0.0094,+0.0215]$ & $-0.0021\ [-0.0054,+0.0010]$ & $+0.0181\ [+0.0095,+0.0264]$ & $+0.0262\ [+0.0177,+0.0349]$ \\
-         & Moscow  & $+0.0336\ [+0.0250,+0.0432]$ & $-0.0089\ [-0.0160,-0.0019]$ & $-0.0146\ [-0.0213,-0.0082]$ & $+0.0013\ [-0.0041,+0.0067]$ \\ \colrule
-Conf.\ 2 & Sydney  & $+0.0238\ [+0.0178,+0.0299]$ & $-0.0089\ [-0.0128,-0.0052]$ & $-0.0048\ [-0.0083,-0.0014]$ & $+0.0097\ [+0.0054,+0.0142]$ \\
-         & S\~{a}o Paulo & $+0.0513\ [+0.0434,+0.0590]$ & $+0.0017\ [-0.0020,+0.0052]$ & $-0.0014\ [-0.0061,+0.0034]$ & $+0.0240\ [+0.0183,+0.0298]$ \\
-         & Toronto & $+0.0257\ [+0.0207,+0.0316]$ & $-0.0046\ [-0.0080,-0.0015]$ & $-0.0018\ [-0.0060,+0.0025]$ & $+0.0033\ [-0.0015,+0.0074]$ \\ \colrule
+ & city & final $-$ standard & final $-$ ESN & final $-$ LSTM & final $-$ AR \\ \colrule
+Conf.\ 1 & Chennai & \shortstack{$+0.0794$\\ $[+0.0614,+0.1008]$} & \shortstack{$-0.0127$\\ $[-0.0220,-0.0039]$} & \shortstack{$+0.0097$\\ $[-0.0020,+0.0225]$} & \shortstack{$+0.0279$\\ $[+0.0173,+0.0388]$} \\
+         & Cairo   & \shortstack{$+0.0150$\\ $[+0.0094,+0.0215]$} & \shortstack{$-0.0021$\\ $[-0.0054,+0.0010]$} & \shortstack{$+0.0181$\\ $[+0.0095,+0.0264]$} & \shortstack{$+0.0262$\\ $[+0.0177,+0.0349]$} \\
+         & Moscow  & \shortstack{$+0.0336$\\ $[+0.0250,+0.0432]$} & \shortstack{$-0.0089$\\ $[-0.0160,-0.0019]$} & \shortstack{$-0.0146$\\ $[-0.0213,-0.0082]$} & \shortstack{$+0.0013$\\ $[-0.0041,+0.0067]$} \\ \colrule
+Conf.\ 2 & Sydney  & \shortstack{$+0.0238$\\ $[+0.0178,+0.0299]$} & \shortstack{$-0.0089$\\ $[-0.0128,-0.0052]$} & \shortstack{$-0.0048$\\ $[-0.0083,-0.0014]$} & \shortstack{$+0.0097$\\ $[+0.0054,+0.0142]$} \\
+         & S\~{a}o Paulo & \shortstack{$+0.0513$\\ $[+0.0434,+0.0590]$} & \shortstack{$+0.0017$\\ $[-0.0020,+0.0052]$} & \shortstack{$-0.0014$\\ $[-0.0061,+0.0034]$} & \shortstack{$+0.0240$\\ $[+0.0183,+0.0298]$} \\
+         & Toronto & \shortstack{$+0.0257$\\ $[+0.0207,+0.0316]$} & \shortstack{$-0.0046$\\ $[-0.0080,-0.0015]$} & \shortstack{$-0.0018$\\ $[-0.0060,+0.0025]$} & \shortstack{$+0.0033$\\ $[-0.0015,+0.0074]$} \\ \colrule
  & & kernel $-$ plain (G1) & & & \\
-Conf.\ 3 & Lagos & $-0.0862\ [-0.1723,-0.0331]$ & $-0.0491\ [-0.0649,-0.0360]$ & $+0.0143\ [+0.0006,+0.0270]$ & $+0.0021\ [-0.0148,+0.0181]$ \\
-         & Mexico City & $-0.1788\ [-0.2873,-0.1015]$ & $-0.0040\ [-0.0197,+0.0123]$ & $+0.0523\ [+0.0362,+0.0677]$ & $+0.0319\ [+0.0148,+0.0486]$ \\
-         & Stockholm & $-0.0066\ [-0.0133,-0.0005]$ & $-0.0092\ [-0.0144,-0.0044]$ & $+0.0173\ [+0.0095,+0.0251]$ & $+0.0010\ [-0.0033,+0.0050]$ \\
+Conf.\ 3 & Lagos & \shortstack{$-0.0862$\\ $[-0.1723,-0.0331]$} & \shortstack{$-0.0491$\\ $[-0.0649,-0.0360]$} & \shortstack{$+0.0143$\\ $[+0.0006,+0.0270]$} & \shortstack{$+0.0021$\\ $[-0.0148,+0.0181]$} \\
+         & Mexico City & \shortstack{$-0.1788$\\ $[-0.2873,-0.1015]$} & \shortstack{$-0.0040$\\ $[-0.0197,+0.0123]$} & \shortstack{$+0.0523$\\ $[+0.0362,+0.0677]$} & \shortstack{$+0.0319$\\ $[+0.0148,+0.0486]$} \\
+         & Stockholm & \shortstack{$-0.0066$\\ $[-0.0133,-0.0005]$} & \shortstack{$-0.0092$\\ $[-0.0144,-0.0044]$} & \shortstack{$+0.0173$\\ $[+0.0095,+0.0251]$} & \shortstack{$+0.0010$\\ $[-0.0033,+0.0050]$} \\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
@@ -984,13 +972,17 @@ pulses do not touch (which, with a diagonal Hamiltonian, needs a coherent transf
 step), or longer-$T_1$, more strongly coupled molecules, followed by on-device tests.
 
 \begin{acknowledgments}
+\sloppy
 [Funding and computing acknowledgments to be added.] Reproduction code, data and
-conventions: internal repository (\texttt{backend/scripts/qrc\_realworld\_bench.py},
-\texttt{qrc\_design\_confirm.py}, \texttt{qrc\_design\_c1.py}, \texttt{qrc\_learnable\_campaign.py},
-\texttt{qrc\_classical\_fair.py}, \texttt{qrc\_design\_r.py}, \texttt{qrc\_lagos\_diag.py}; \texttt{docs/QRC/QRC\_Design\_Concepts.md} for the
-pre-registrations, \texttt{docs/QRC/data/MANIFEST.md} for every number,
-\texttt{QRC\_STANDARD\_PROCEDURES.md}). Raw FID traces are archived with SHA-256
-checksums (\texttt{docs/QRC/data/TRACES\_MANIFEST.md}).
+conventions: repository \url{https://github.com/siridech-bo/CiRA-Quantum}, branch
+\texttt{qrc-simulation}. Scripts are in \url{backend/scripts/} (\url{qrc_realworld_bench.py},
+\url{qrc_design_c1.py}, \url{qrc_design_confirm.py}, \url{qrc_design_r.py},
+\url{qrc_design_p.py}, \url{qrc_lagos_diag.py}, \url{qrc_learnable_campaign.py},
+\url{qrc_classical_fair.py}). The pre-registrations are in
+\url{docs/QRC/QRC_Design_Concepts.md}, the conventions in
+\url{docs/QRC/QRC_STANDARD_PROCEDURES.md}, and the source of every number in
+\url{docs/QRC/data/MANIFEST.md}. Raw FID traces are archived with SHA-256 checksums
+(\url{docs/QRC/data/TRACES_MANIFEST.md}).
 \end{acknowledgments}
 
 \begin{thebibliography}{99}
