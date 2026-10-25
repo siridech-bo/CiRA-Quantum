@@ -4,6 +4,8 @@ every variant is applied identically to the validation-selected tuned ESN (3 ini
 
   dev      VALIDATION-only scores for every variant, QRC and ESN, on one dataset
   freeze   aggregate the 8 development datasets, apply the freeze rule (P1), write the decision
+  confirm3 Confirmation 3 (untouched city, frozen variant; G1/G2/G3)
+  drift    drift test (untouched shifted series, delta_lags; D1/D2)
   posthoc  POST-HOC test-set drift check (ETTh1 / ETTh2, test sets already seen), labelled
 
 Variants: base | delta (last-value re-centring) | lags (raw input lags appended) | ar_residual
@@ -189,7 +191,7 @@ def test_pooled(name, F, ds, ar):
     o_f, o_te = (off(fit, "test"), off(sp["test"], "test")) if off else (0.0, 0.0)
     P = fit_predict(X, ds, fit, sp["test"], o_f, o_te)[s]
     pred = np.stack([P[a_idx[k]][:, k] for k in range(len(ds["targets"]))], axis=1)
-    return float(r2_cols(Yte, pred).mean()), hp
+    return float(r2_cols(Yte, pred).mean()), hp, pred
 
 
 def cmd_posthoc(a, ds):
@@ -258,15 +260,83 @@ def cmd_freeze(_a, _ds=None):
     print(f"ADOPTED: {adopted}")
 
 
+def boot(Y, A, B, block):
+    """moving-block bootstrap of pooled R2 difference (mean over replicate groups A, B)."""
+    rng = np.random.default_rng(0)
+    n, d = len(Y), []
+    for _ in range(2000):
+        i = np.concatenate([np.arange(s, s + block) for s in rng.choice(n - block + 1, n // block + 1)])[:n]
+        d.append(np.mean([r2_cols(Y[i], x[i]).mean() for x in A]) - np.mean([r2_cols(Y[i], x[i]).mean() for x in B]))
+    pt = float(np.mean([r2_cols(Y, x).mean() for x in A]) - np.mean([r2_cols(Y, x).mean() for x in B]))
+    return {"point": pt, "ci95": np.percentile(d, [2.5, 97.5]).tolist(), "frac_positive": float((np.array(d) > 0).mean())}
+
+
+def _test_preds(a, ds, variant):
+    """test predictions [replicates, n, targets] for QRC/ESN (base + variant), LSTM, AR, persistence."""
+    root = Path(a.run_root)
+    ar = AR(ds)
+    cfg, _ = select_esn(root / "esn_grid.npz")
+    F = feats_qrc(root)
+    E = [esn_states(ds["w"], int(cfg["size"]), cfg["sr"], cfg["leak"], cfg["inscale"], i) for i in INITS]
+    sp = ds["split"]
+    P = {"qrc_base": [test_pooled("base", F, ds, ar)[2]], f"qrc_{variant}": [test_pooled(variant, F, ds, ar)[2]],
+         "esn_base": [test_pooled("base", X, ds, ar)[2] for X in E],
+         f"esn_{variant}": [test_pooled(variant, X, ds, ar)[2] for X in E],
+         "lstm_tuned": list(np.load(root / "lstm.npz")["preds"]),
+         "linear_ar": [ar.predict(np.concatenate([sp["train"], sp["val"]]), sp["test"])],
+         "persistence": [offsets(ds, sp["test"])]}
+    return {k: np.stack(v) for k, v in P.items()}, cfg, ar.L
+
+
+def _confirm(a, ds, variant, tests, block, prereg, tag):
+    sp = ds["split"]
+    Y = make_targets(ds, sp["test"])
+    P, cfg, L = _test_preds(a, ds, variant)
+    res = {"dataset": a.dataset, "preregistration_commit": prereg, "variant": variant,
+           "readout": "fid bins653 (D=653) + variant", "esn_cfg": cfg, "ar_lags": L, "block": block,
+           "test_input_shift_sd": ((ds["w"][sp["test"]].mean(0) - ds["w"][sp["train"]].mean(0))
+                                   / ds["w"][sp["train"]].std(0)).tolist(),
+           "groups": {k: {"pooled": float(np.mean([r2_cols(Y, p).mean() for p in v]))} for k, v in P.items()},
+           "tests": {}}
+    for name, (x, y) in tests.items():
+        res["tests"][name] = boot(Y, P[x], P[y], block)
+    res["provenance"] = provenance(dataset=a.dataset, step=tag)
+    np.savez(Path(a.run_root) / f"{tag}_predictions.npz", Y_test=Y, **{f"pred_{k}": v for k, v in P.items()})
+    for out in (Path(a.run_root) / f"{tag}.json", DATA / f"qrc_{tag}_{a.dataset.replace('era5_', '')}.json"):
+        out.write_text(json.dumps(res, indent=2, default=str), encoding="utf-8")
+    for g, v in res["groups"].items():
+        print(f"  {g:18s} pooled test R2 {v['pooled']:+.4f}")
+    for k, v in res["tests"].items():
+        print(f"  {k:34s} {v['point']:+.4f} [{v['ci95'][0]:+.4f}, {v['ci95'][1]:+.4f}]")
+
+
+def cmd_confirm3(a, ds):
+    """Confirmation 3 (§11): frozen variant on an untouched city; G1 / G2 / G3."""
+    v = json.loads((DATA / "qrc_design_r_frozen.json").read_text(encoding="utf-8"))["adopted"]
+    t = {f"G1 qrc_{v} - qrc_base": (f"qrc_{v}", "qrc_base"), f"G2 qrc_{v} - esn_{v}": (f"qrc_{v}", f"esn_{v}"),
+         f"G3 qrc_{v} - esn_base": (f"qrc_{v}", "esn_base"), f"G3 qrc_{v} - lstm_tuned": (f"qrc_{v}", "lstm_tuned"),
+         f"G3 qrc_{v} - linear_ar": (f"qrc_{v}", "linear_ar"), "G3 qrc_base - esn_base": ("qrc_base", "esn_base")}
+    _confirm(a, ds, v, t, 30, "a7cb3e6", "confirm3")
+
+
+def cmd_drift(a, ds):
+    """Drift test (§12): delta_lags on untouched shifted series; D1 primary, D2 descriptive."""
+    v = "delta_lags"
+    t = {"D1 qrc_delta_lags - qrc_base": ("qrc_delta_lags", "qrc_base")}
+    for b in ("esn_base", "esn_delta_lags", "lstm_tuned", "linear_ar", "persistence"):
+        t[f"D2 qrc_delta_lags - {b}"] = ("qrc_delta_lags", b)
+    _confirm(a, ds, v, t, 30 if ds["unit"] == "day" else 168, "a4111de", "drift")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["dev", "freeze", "posthoc"])
+    ap.add_argument("cmd", choices=["dev", "freeze", "posthoc", "confirm3", "drift"])
     ap.add_argument("--dataset", default=None)
     ap.add_argument("--run-root", default=None)
     a = ap.parse_args()
     if a.cmd == "freeze":
         return cmd_freeze(a)
-    (cmd_posthoc if a.cmd == "posthoc" else cmd_dev)(a, load_dataset(a.dataset))
+    {"posthoc": cmd_posthoc, "dev": cmd_dev, "confirm3": cmd_confirm3, "drift": cmd_drift}[a.cmd](a, load_dataset(a.dataset))
 
 
 if __name__ == "__main__":

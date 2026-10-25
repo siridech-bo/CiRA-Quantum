@@ -121,6 +121,19 @@ def load_dataset(name):
         sp = {"washout": 240, "train": np.arange(240, tr), "val": np.arange(tr, tr + va),
               "test": np.arange(tr + va, tr + va + te - max(H))}
         return dict(w=w, targets=[(0, h) for h in H], split=sp, unit="hour", inputs=["OT", "HUFL"])
+    if name in ("exchange", "electricity"):
+        # drift test (QRC_Design_Concepts.md §12): LTSF series, 70/10/20 split, target = var0
+        f = {"exchange": "exchange_rate.txt.gz", "electricity": "electricity.txt.gz"}[name]
+        M = np.loadtxt(ROOT / "data/realworld/raw" / f, delimiter=",")
+        raw = np.column_stack([M[:, 0], M[:, 1]]) if name == "exchange" else np.column_stack([M[:, -1], M.mean(1)])
+        H = (1, 5, 10, 20) if name == "exchange" else (1, 6, 12, 24, 48)
+        n = len(raw)
+        i_val, i_test = int(0.7 * n), int(0.8 * n)
+        w = _minmax(raw, i_test)
+        sp = {"washout": 240, "train": np.arange(240, i_val), "val": np.arange(i_val, i_test),
+              "test": np.arange(i_test, n - max(H))}
+        return dict(w=w, targets=[(0, h) for h in H], split=sp, unit="day" if name == "exchange" else "hour",
+                    inputs=["target", "aux"])
     raise KeyError(name)
 
 
