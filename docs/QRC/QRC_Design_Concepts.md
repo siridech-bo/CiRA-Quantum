@@ -418,13 +418,17 @@ Pooled test R²:
   Mexico City −0.111 [−0.212, −0.040], Stockholm −0.006 [−0.013, +0.000] (non-inferior).
 - **G3 (descriptive):** QRC-rff vs ESN base −0.135 / −0.183 / −0.016; vs LSTM −0.072 / −0.127 / **+0.011**;
   vs AR −0.084 / −0.147 / −0.006. Base readout (the frozen design, unchanged) vs ESN base:
-  Lagos **−0.049 [−0.065, −0.036]** (outside the 0.02 margin — the first untouched city where the base design
-  is inferior), Mexico City −0.004 [−0.020, +0.012] (non-inferior, barely), Stockholm −0.009 [−0.014, −0.004]
+  Lagos **−0.049 [−0.065, −0.036]** (outside the 0.02 margin — the largest gap in any untouched city; with Chennai, lower bound
+  −0.0220, one of two cities outside it), Mexico City −0.004 [−0.020, +0.012] (non-inferior, barely), Stockholm −0.009 [−0.014, −0.004]
   (non-inferior). Test-input shift: Lagos +0.51 / −0.36 s.d., Mexico City +0.50 / −0.24, Stockholm +0.14 / −0.03.
 
 **Conclusion:** the Santa-Fe-driven dev gain does not transfer; the kernel readout overfits under even modest
 input shift (largest losses where the shift is largest). **rff is withdrawn; the frozen design keeps the plain
-ridge readout.** The base-design result on 9 untouched cities is now 8 non-inferior, 1 inferior (Lagos).
+ridge readout.** Over all 9 untouched cities the base design is non-inferior to the tuned ESN in 7/9 (fails: Chennai, Lagos),
+to the LSTM in 8/9 and to linear AR in 9/9; ESN significantly better in 6/9, mean −0.0109 (`qrc_diag_lagos.json`).
+**Post-hoc Lagos diagnosis** (`scripts/qrc_lagos_diag.py`): the gap grows with horizon (T h=1 +0.016 → h=45 −0.159);
+Lagos temperature anomalies have 30-day autocorrelation 0.32 (0.23 detrended) vs 0.02–0.12 elsewhere, the strongest
+correlate of the QRC−ESN gap over 9 cities (r = −0.93, driven by Lagos) — slow anomalies need the long memory the QRC lacks.
 Data: `qrc_confirm3_{lagos,mexicocity,stockholm}.json`; traces + predictions `backend/artifacts/qrc_runs/step5/era5_*`.
 
 ### Drift test outcome (2026-10-25) — D1 MET on both datasets

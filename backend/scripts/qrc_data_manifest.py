@@ -130,6 +130,9 @@ def main():
         if p.name.startswith("qrc_paired_tests"):
             FILES.setdefault(p.name, ("current", "qrc_paired_tests.py",
                                       "paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout"))
+        if p.name.startswith("qrc_diag_lagos"):
+            FILES.setdefault(p.name, ("current", "qrc_lagos_diag.py",
+                                      "POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities"))
         if p.name.startswith("qrc_design_r_"):
             FILES.setdefault(p.name, ("current", "qrc_design_r.py dev|freeze|posthoc",
                                       "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"))

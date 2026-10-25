@@ -157,7 +157,7 @@
       "file": "qrc_confirm3_lagos.json",
       "sha256": "dc660eb29b1e5891670101cafad2378f44b596dbe74f68b9dc83194a3682a05e",
       "bytes": 2423,
-      "added": "uncommitted",
+      "added": "08fd10f 2026-10-25",
       "status": "current",
       "script": "qrc_design_r.py confirm3",
       "description": "Confirmation 3 (pre-registered a7cb3e6): adopted rff readout on an untouched city \u2014 G1/G2 NOT met"
@@ -166,7 +166,7 @@
       "file": "qrc_confirm3_mexicocity.json",
       "sha256": "e25818705ae5310c7fd6abc0a7c4d54a856eec6e4eaccb771988300a9c2181ac",
       "bytes": 2435,
-      "added": "uncommitted",
+      "added": "08fd10f 2026-10-25",
       "status": "current",
       "script": "qrc_design_r.py confirm3",
       "description": "Confirmation 3 (pre-registered a7cb3e6): adopted rff readout on an untouched city \u2014 G1/G2 NOT met"
@@ -175,7 +175,7 @@
       "file": "qrc_confirm3_stockholm.json",
       "sha256": "f73018c92723ff405535540d6943263f8c824c68c4546b931c5cf6bc2de496ab",
       "bytes": 2458,
-      "added": "uncommitted",
+      "added": "08fd10f 2026-10-25",
       "status": "current",
       "script": "qrc_design_r.py confirm3",
       "description": "Confirmation 3 (pre-registered a7cb3e6): adopted rff readout on an untouched city \u2014 G1/G2 NOT met"
@@ -595,10 +595,19 @@
       "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
     },
     {
+      "file": "qrc_diag_lagos.json",
+      "sha256": "14640bcc16cfcae907426a57b860bd7ddbee36d9879fb8737b79642dcc2e1acb",
+      "bytes": 19008,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_lagos_diag.py",
+      "description": "POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities"
+    },
+    {
       "file": "qrc_drift_electricity.json",
       "sha256": "9832d28023d7b9d707d8d7ba88d53b05043c24d06e933c347b4d60cacdbe8453",
       "bytes": 2499,
-      "added": "uncommitted",
+      "added": "08fd10f 2026-10-25",
       "status": "current",
       "script": "qrc_design_r.py drift",
       "description": "drift test (pre-registered a4111de): delta_lags level handling on untouched exchange / electricity \u2014 D1 met"
@@ -607,7 +616,7 @@
       "file": "qrc_drift_exchange.json",
       "sha256": "7b8eea385d647f214ff47f00979919476e679d8d316361c535dd50e30f104483",
       "bytes": 2510,
-      "added": "uncommitted",
+      "added": "08fd10f 2026-10-25",
       "status": "current",
       "script": "qrc_design_r.py drift",
       "description": "drift test (pre-registered a4111de): delta_lags level handling on untouched exchange / electricity \u2014 D1 met"

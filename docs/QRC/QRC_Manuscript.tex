@@ -1,7 +1,7 @@
 % A pre-registered real-world forecasting benchmark of a simulated nuclear-spin
 % quantum reservoir computer.
 % Target: Physical Review Research (RevTeX 4.2). Compile: pdflatex x2 (self-contained
-% bibliography). Figures expected in ./figures/ (figP1-figP4).
+% bibliography). No figures are included in this version (mechanism figures figP1-figP4 moved out).
 %
 % NUMBER PROVENANCE. Every number below is copied from a version-controlled source;
 % the source is named in a LaTeX comment next to each table / paragraph:
@@ -39,9 +39,9 @@ to tuned classical models}
 
 \date{\today}
 
-% TODO 5-seed update: the ~19x / ~2.6x six-spin ratios below come from 3 seeds (Table tab:learned).
-% Sources for the abstract: QRC_Design_Evidence.md (Confirmation 1, Confirmation 2,
-% F3), QRC_RealWorld_Benchmark.md (tally), QRC_Fair_Comparison.md, qrc_6spin_campaign.json.
+% Sources for the abstract: QRC_Design_Evidence.md (Confirmation 1, Confirmation 2, F3),
+% QRC_Design_Concepts.md sections 11-12 outcomes (Confirmation 3, drift test), qrc_diag_lagos.json
+% (f3_pooled_9), QRC_RealWorld_Benchmark.md (tally), qrc_paired_tests.md (synthetic ratios).
 \begin{abstract}
 Claims for quantum reservoir computing (QRC) rest mostly on synthetic benchmarks and
 on comparisons with weakly tuned classical models. We instead evaluate a simulated
@@ -56,22 +56,22 @@ development datasets the best QRC variant (a learned input encoding) was never
 significantly better than the tuned ESN and was significantly worse on five. A memory analysis traced the long-horizon gap to
 input overwrite, and a single physical parameter---an encoding gain $g$ that scales the
 input pulse angle, frozen at $g=0.35$ on validation data---improved the pooled test
-$R^2$ over the standard encoding ($g=1$) in all six untouched cities, by $+0.015$ to
-$+0.079$. Three further pre-registered changes (bounded features, step time and
-compact readout, a learned encoding on top of the gain) were not adopted or not
-supported, and are reported. In the final pre-registered confirmation (Sydney,
-S\~{a}o Paulo, Toronto), the frozen design is non-inferior to the tuned ESN, LSTM and
-linear AR in 3/3 cities (margin $0.02$ in $R^2$, set after the first confirmation
-and disclosed). It is not superior: pooled over all six untouched cities the tuned
-ESN is significantly better in 4/6 and the QRC in 0/6 (mean $\Delta R^2=-0.006$). The
-QRC fails under input distribution shift (ETTh1/ETTh2). As a mechanism study, on
-synthetic tasks a gradient-trained per-spin encoding beats the fixed encoding by
-${\sim}19\times$ (NARMA-2) and ${\sim}2.6\times$ (NARMA-10) in test error, the gain
-collapses when cross-step reservoir memory is removed, and the error grows
-${\sim}38$--$126\times$ when the spin--spin couplings are switched off; yet a fully tuned
-ESN is one to three orders of magnitude better on every synthetic task. We claim
-non-inferiority to tuned classical models on untouched real-world data, and no
-quantum advantage.
+$R^2$ over the standard encoding ($g=1$) in all six cities where it was tested, by
+$+0.015$ to $+0.079$. Four further pre-registered changes (bounded features, step time
+and compact readout, a learned encoding on top of the gain, a kernel readout) were not
+adopted or failed confirmation; all are reported. In the second confirmation the frozen
+design is non-inferior to the tuned ESN, LSTM and linear AR in 3/3 cities (margin
+$0.02$ in $R^2$, set after the first confirmation and disclosed). Over all nine
+untouched cities it is within the margin of the tuned ESN in 7/9, of the LSTM in 8/9
+and of linear AR in 9/9, but never better than the ESN, which is significantly ahead
+in 6/9 (mean $\Delta R^2=-0.011$; worst in Lagos, $-0.049$, where slow temperature
+anomalies demand long memory). The QRC fails under input distribution shift; a
+pre-registered test on two untouched, shifted series confirms that classical level
+handling (last-value re-centring plus raw input lags) removes most of the failure, but
+it gives the QRC no edge over the tuned classical models. On synthetic tasks a
+gradient-trained encoding improves the reservoir through its cross-step memory, yet a
+tuned ESN is one to three orders of magnitude better. We claim non-inferiority to tuned
+classical models on most untouched real-world data, and no quantum advantage.
 \end{abstract}
 
 \maketitle
@@ -95,33 +95,31 @@ capacity), where a well-tuned classical reservoir is a demanding reference. Seco
 the classical baseline is often weakly tuned. Our own synthetic results illustrate
 both points: on NARMA and Mackey--Glass a gradient-trained QRC encoding beats a tuned
 LSTM on two of three tasks, but a fully tuned ESN is one to three orders of magnitude
-better on all three (Sec.~\ref{sec:mechanism}). An ESN tuned over size alone made the
-QRC look competitive; tuning its spectral radius, leak, input scale and ridge penalty
-removed that impression. We therefore make real-world forecasting the primary test,
-and design the study so that its conclusion cannot be produced by selection on the
-test data.
+better on all three (Sec.~\ref{sec:mechanism}). We therefore make real-world
+forecasting the primary test, and design the study so that its conclusion cannot be
+produced by selection on the test data.
 
 The study has three stages. (i) A \emph{development benchmark} on nine real-world
 datasets (daily weather, hourly air quality and transformer load, a chaotic laser),
 in which the standard QRC is compared with a tuned ESN, LSTM and linear AR model
-(Sec.~\ref{sec:bench}). (ii) Four \emph{design steps}, each pre-registered in a
+(Sec.~\ref{sec:bench}). (ii) Five \emph{design steps}, each pre-registered in a
 commit before it was run, developed on validation periods only and adopted only if it
-cleared a fixed threshold (Sec.~\ref{sec:design}). (iii) Two \emph{pre-registered
-confirmations} on six cities whose data were downloaded only after the frozen rule and
-the success criteria were committed (Sec.~\ref{sec:confirm}). A separate mechanism
-section uses synthetic tasks, where ablations are cheap and clean, to ask which parts
-of the reservoir carry the computation (Sec.~\ref{sec:mechanism}).
+cleared a fixed threshold (Sec.~\ref{sec:design}). (iii) Three \emph{pre-registered
+confirmations} on nine cities, and a pre-registered \emph{drift test} on two shifted
+non-weather series, whose data were downloaded only after the rules and success
+criteria were committed (Secs.~\ref{sec:confirm} and \ref{sec:drift}). A short
+section uses synthetic tasks, where ablations are cheap, to ask which parts of the
+reservoir carry the computation (Sec.~\ref{sec:mechanism}).
 
 Our contributions are: (1) a leakage-controlled, pre-registered real-world
 forecasting protocol for a physical QRC, with all failures reported; (2) the finding
 that the long-horizon gap of an NMR reservoir is largely input overwrite, removable by
 one physical parameter (the encoding gain), confirmed out of sample in six untouched
-cities; (3) pre-registered evidence that the final design is non-inferior to---but not
-better than---tuned classical models on untouched data, together with a documented
-failure under input distribution shift; and (4) an ablation-controlled mechanism
-study showing that a learned input encoding improves a quantum reservoir through its
-cross-step memory and spin--spin coupling, set against a fair classical comparison in
-which the tuned ESN remains far ahead.
+cities; (3) pre-registered evidence on nine untouched cities that the final design is
+mostly non-inferior to---but never better than---tuned classical models, with the
+remaining gap located in long memory; and (4) a pre-registered drift test showing
+that the QRC's failure under input shift is fixed by classical level handling, not by
+the reservoir.
 
 % ======================================================================
 \section{The physical reservoir and its readout}\label{sec:model}
@@ -292,10 +290,15 @@ transformer record (inputs oil temperature and load, target oil temperature, sta
 12/4/4-month split); and the Santa Fe laser A chaotic series. Weather targets are each
 variable at horizons $h=1,5,10,15,20,30,45$~days (14 targets); the other datasets use
 their own horizon sets. % TODO add dataset citations (ERA5/Open-Meteo, ETDataset, UCI PRSA, Santa Fe) -- no bib keys yet.
-The six \emph{confirmation} datasets are further ERA5 cities with exactly the ERA5
-protocol: Chennai, Cairo and Moscow (Confirmation 1) and Sydney, S\~{a}o Paulo and
-Toronto (Confirmation 2), chosen for climatic diversity; ETTh2 serves as the untouched
-distribution-shift test of design step~2.
+The nine \emph{confirmation} datasets are further ERA5 cities with exactly the ERA5
+protocol: Chennai, Cairo and Moscow (Confirmation 1), Sydney, S\~{a}o Paulo and
+Toronto (Confirmation 2), and Lagos, Mexico City and Stockholm (Confirmation 3), chosen
+for climatic diversity; ETTh2 serves as the untouched distribution-shift test of design
+step~2. The \emph{drift test} (Sec.~\ref{sec:drift}) uses two standard long-term
+forecasting series: daily exchange rates 1990--2016 (target the first currency, second
+input the second; horizons 1, 5, 10, 20 days) and hourly electricity consumption
+2012--2014 (target the last of 321 clients, second input the mean over all clients;
+horizons 1, 6, 12, 24, 48~h), each split chronologically 70/10/20\%.
 
 \subsection{Models and validation-only selection}
 \emph{QRC}: the crotonic-9 reservoir of Sec.~\ref{sec:model}, 653-bin FID readout
@@ -358,6 +361,15 @@ Confirmation 1 & \texttt{29152bf} &
 Confirmation 2 (final design) & \texttt{7965cde} &
   F1: replicate S1; F2: non-inferiority, margin $\delta=0.02$, per baseline &
   F1 pass 3/3; F2 pass 3/3 (ESN, LSTM, AR) \\
+5: readout-side variants (R1--R5) & \texttt{a7cb3e6} &
+  adopt best if Dev $\ge$ base $+0.005$, worse on $\le2/8$ &
+  kernel (RFF) adopted \\
+Confirmation 3 (kernel readout) & \texttt{a7cb3e6} &
+  G1: $\Delta(\mathrm{kernel}-\mathrm{base})>0$, CI excl.\ 0, $\ge2/3$; G2: non-inferior to ESN-kernel, $\ge2/3$ &
+  G1 fail 0/3; G2 fail 1/3; withdrawn \\
+Drift test (level handling) & \texttt{a4111de} &
+  D1: $\Delta(\mathrm{level}-\mathrm{base})>0$, CI excl.\ 0, on both series &
+  D1 pass 2/2 \\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
@@ -428,7 +440,7 @@ Each step below was pre-registered (Table~\ref{tab:prereg}) and developed on the
 validation periods of the eight counted development datasets (Kaggle Delhi, with only
 300 training days and a 60-day inner split, is reported separately as a small-data
 check). No test block is used in any step except the untouched ETTh2 confirmation of
-step~2.
+step~2 and a labelled post-hoc check of step~5 on the already-seen ETT test sets.
 
 \subsection{Step 1: encoding gain}\label{sec:step1}
 We swept $g\in\{0.1,0.2,0.35,0.5,0.75,1\}$ in Eq.~\eqref{eq:gain} (regime A, no
@@ -519,9 +531,26 @@ of the development benchmark is largely explained by reduced input overwrite, an
 two improvements are not complementary: once $g$ is reduced, the learned correction
 mostly fits the training slice without transferring to validation.
 
-\paragraph*{Final design.} Steps 1--4 freeze the final design: crotonic-9, fixed gain
+\subsection{Step 5: readout-side variants (kernel adopted, then withdrawn)}\label{sec:step5}
+% Source: QRC_Design_Concepts.md section 11 + "Step 5 outcome"; qrc_design_r_{dev_*,frozen,posthoc_*}.json.
+Five readout-side variants were added on top of the 653 features and given identically
+to the tuned ESN (validation-selected hyperparameters): last-value re-centring
+(``delta''), raw input lags (``lags'', and both together, ``level handling''), a ridge
+fit to the residual of the tuned linear AR, delay-embedded feature principal
+components (classical memory, labelled as such), and a random-Fourier-feature kernel
+readout (2000 features). By the pre-registered rule the kernel readout was adopted
+(mean development validation $R^2$ 0.7115 vs 0.7061; worse on 2/8), but the whole gain
+came from Santa Fe ($+0.059$); without it the change was $-0.002$. It then failed its
+confirmation (Sec.~\ref{sec:conf3}) and is withdrawn. A post-hoc check on the seen ETT
+test sets, labelled as such, showed the kernel readout collapsing under drift and
+level handling helping (ETTh2 $+0.36\to+0.74$, ETTh1 $-0.21\to+0.23$); that
+observation is what the drift test of Sec.~\ref{sec:drift} confirms on untouched data.
+
+\paragraph*{Final design.} Steps 1--5 leave the final design: crotonic-9, fixed gain
 $g=0.35$ (no learned correction), $\tau=\SI{30}{ms}$, 653-bin FID readout ($D=653$),
-ridge readout. It is regime A: no gradient enters the quantum dynamics.
+ridge readout. It is regime A: no gradient enters the quantum dynamics. Where inputs
+can drift, level handling is added to the readout as classical features
+(Sec.~\ref{sec:drift}).
 
 % ======================================================================
 \section{Pre-registered confirmations on untouched cities}\label{sec:confirm}
@@ -567,11 +596,38 @@ the tuned ESN remains significantly better in Sydney ($-0.0089$) and Toronto
 Sydney ($-0.0048$); the QRC is significantly better than linear AR in Sydney and S\~{a}o
 Paulo.
 
+\subsection{Confirmation 3: the kernel readout (not confirmed)}\label{sec:conf3}
+% Source: qrc_confirm3_{lagos,mexicocity,stockholm}.json; QRC_Design_Concepts.md "Confirmation 3 outcome";
+% base-design F3 CIs vs LSTM / AR: qrc_diag_lagos.json f3_per_city (same bootstrap as qrc_design_r.py).
+Confirmation 3 (commit \texttt{a7cb3e6}, before the data were downloaded) tested the
+step-5 kernel readout on Lagos, Mexico City and Stockholm. G1 required it to beat the
+plain ridge readout (CI excluding 0) in $\ge2/3$ cities; it was significantly
+\emph{worse} in all three ($-0.086$, $-0.179$, $-0.007$; Table~\ref{tab:confirmDelta}).
+G2, non-inferiority to the tuned ESN given the same kernel readout, passed only in
+Stockholm. The losses are largest where the test inputs are most shifted (Lagos and
+Mexico City, $+0.5$ training s.d.\ in temperature): the kernel extrapolates badly. The
+kernel readout is withdrawn and the final design is unchanged. Scored descriptively,
+the final design was non-inferior to the tuned ESN in Mexico City ($-0.0040$) and
+Stockholm ($-0.0092$) and better than the tuned LSTM in all three cities, but in Lagos
+it was clearly behind the ESN ($-0.0491$, CI $[-0.0649,-0.0360]$)---the largest gap in
+any untouched city, and with Chennai (lower bound $-0.0220$) one of the two cities
+outside the margin.
+
+\paragraph*{Why Lagos.} (Post-hoc, descriptive; nine cities.) The Lagos gap grows with
+horizon, from $+0.016$ ($T$, $h=1$) to $-0.159$ ($T$, $h=45$). Lagos temperature
+anomalies (deviations from the seasonal cycle) are unusually persistent: their 30-day
+autocorrelation is 0.32 (0.23 after removing the linear trend), against 0.02--0.12 in
+the other eight cities, and across the nine cities this statistic is the strongest
+correlate of the QRC$-$ESN gap ($r=-0.93$; driven by Lagos). Slow, small anomalies are
+exactly what the QRC's shorter memory (Sec.~\ref{sec:bench}) cannot hold, so the Lagos
+result locates the remaining gap rather than contradicting the others.
+
 \begin{table*}[t]
-\caption{\label{tab:confirmR2}Pooled test $R^2$ on the six untouched cities (test
+\caption{\label{tab:confirmR2}Pooled test $R^2$ on the nine untouched cities (test
 2005--2025, 7625 days, read once). QRC: crotonic-9, $\tau=\SI{30}{ms}$, 653-bin FID
 readout ($D=653$), regime A; ``final'' $=$ frozen gain $g=0.35$, ``standard'' $=g=1$.
-Classical models: mean over three replicates.}
+Classical models: mean over three replicates. Confirmation 3 did not run $g=1$ or the
+size-matched ESN (---); its kernel-readout scores are in the text.}
 % Source: qrc_confirm1_{chennai,cairo,moscow}.json and qrc_confirm2_{sydney,saopaulo,toronto}.json,
 % key groups.<model>.pooled (rounded to 4 d.p.); Confirmation 2 rows identical to
 % QRC_Design_Evidence.md "Pooled test R^2" table.
@@ -583,7 +639,10 @@ Conf.\ 1 & Chennai   & 0.5052 & 0.5846 & 0.5973 & 0.5973 & 0.5749 & 0.5567 \\
          & Moscow    & 0.5648 & 0.5984 & 0.6073 & 0.6073 & 0.6130 & 0.5971 \\ \colrule
 Conf.\ 2 & Sydney    & 0.4242 & 0.4480 & 0.4569 & 0.4560 & 0.4528 & 0.4383 \\
          & S\~{a}o Paulo & 0.2309 & 0.2822 & 0.2805 & 0.2746 & 0.2836 & 0.2582 \\
-         & Toronto   & 0.4537 & 0.4795 & 0.4840 & 0.4831 & 0.4813 & 0.4762 \\
+         & Toronto   & 0.4537 & 0.4795 & 0.4840 & 0.4831 & 0.4813 & 0.4762 \\ \colrule
+Conf.\ 3 & Lagos     & --- & 0.5415 & 0.5906 & --- & 0.5272 & 0.5395 \\
+         & Mexico City & --- & 0.5102 & 0.5142 & --- & 0.4579 & 0.4783 \\
+         & Stockholm & --- & 0.5829 & 0.5921 & --- & 0.5656 & 0.5819 \\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
@@ -591,9 +650,10 @@ Conf.\ 2 & Sydney    & 0.4242 & 0.4480 & 0.4569 & 0.4560 & 0.4528 & 0.4383 \\
 \begin{table*}[t]
 \caption{\label{tab:confirmDelta}Paired differences in pooled test $R^2$, point
 estimate and 95\% moving-block bootstrap CI (30-day blocks, 2000 resamples). First
-column: the gain effect (S1 / F1). Remaining columns: final design minus each tuned
+column: the gain effect (S1 / F1); for Confirmation 3, the pre-registered G1, kernel
+readout minus plain readout. Remaining columns: final design minus each tuned
 baseline (S3 descriptive in Confirmation 1; F2 non-inferiority, margin $-0.02$ on the
-CI lower bound, in Confirmation 2).}
+CI lower bound, in Confirmation 2; descriptive in Confirmation 3).}
 % Source: QRC_Design_Evidence.md, Confirmation 1 (S1/S2 table; S3 table, values after the arrow,
 % i.e. at g=0.35) and Confirmation 2 (F1 table; F2 table).
 \begin{ruledtabular}
@@ -604,287 +664,134 @@ Conf.\ 1 & Chennai & $+0.0794\ [+0.0614,+0.1008]$ & $-0.0127\ [-0.0220,-0.0039]$
          & Moscow  & $+0.0336\ [+0.0250,+0.0432]$ & $-0.0089\ [-0.0160,-0.0019]$ & $-0.0146\ [-0.0213,-0.0082]$ & $+0.0013\ [-0.0041,+0.0067]$ \\ \colrule
 Conf.\ 2 & Sydney  & $+0.0238\ [+0.0178,+0.0299]$ & $-0.0089\ [-0.0128,-0.0052]$ & $-0.0048\ [-0.0083,-0.0014]$ & $+0.0097\ [+0.0054,+0.0142]$ \\
          & S\~{a}o Paulo & $+0.0513\ [+0.0434,+0.0590]$ & $+0.0017\ [-0.0020,+0.0052]$ & $-0.0014\ [-0.0061,+0.0034]$ & $+0.0240\ [+0.0183,+0.0298]$ \\
-         & Toronto & $+0.0257\ [+0.0207,+0.0316]$ & $-0.0046\ [-0.0080,-0.0015]$ & $-0.0018\ [-0.0060,+0.0025]$ & $+0.0033\ [-0.0015,+0.0074]$ \\
+         & Toronto & $+0.0257\ [+0.0207,+0.0316]$ & $-0.0046\ [-0.0080,-0.0015]$ & $-0.0018\ [-0.0060,+0.0025]$ & $+0.0033\ [-0.0015,+0.0074]$ \\ \colrule
+ & & kernel $-$ plain (G1) & & & \\
+Conf.\ 3 & Lagos & $-0.0862\ [-0.1723,-0.0331]$ & $-0.0491\ [-0.0649,-0.0360]$ & $+0.0143\ [+0.0006,+0.0270]$ & $+0.0021\ [-0.0148,+0.0181]$ \\
+         & Mexico City & $-0.1788\ [-0.2873,-0.1015]$ & $-0.0040\ [-0.0197,+0.0123]$ & $+0.0523\ [+0.0362,+0.0677]$ & $+0.0319\ [+0.0148,+0.0486]$ \\
+         & Stockholm & $-0.0066\ [-0.0133,-0.0005]$ & $-0.0092\ [-0.0144,-0.0044]$ & $+0.0173\ [+0.0095,+0.0251]$ & $+0.0010\ [-0.0033,+0.0050]$ \\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
 
-\subsection{All six untouched cities}
-Pooling the descriptive comparisons over all six confirmation cities
-(Table~\ref{tab:pool6}) gives the summary we stand behind. The final design is close to
-the tuned ESN but slightly and consistently below it (mean $\Delta=-0.0059$; ESN
-significantly better in 4/6 cities, the QRC in none); it is level with the tuned LSTM
-(mean $+0.0009$; 2/6 vs 1/6) and better than linear AR (mean $+0.0154$; QRC
-significantly better in 4/6, AR in none). The supported claim is
-\emph{non-inferiority} of a physical QRC to tuned classical models on untouched
-real-world forecasting, \emph{not} superiority to the tuned ESN.
+\subsection{All nine untouched cities}
+Pooling the descriptive comparisons over all nine confirmation cities
+(Table~\ref{tab:pool9}) gives the summary we stand behind. The final design is close to
+the tuned ESN but consistently below it (mean $\Delta=-0.0109$; ESN significantly
+better in 6/9 cities, the QRC in none; within the 0.02 margin in 7/9, failing in
+Chennai and Lagos). It is ahead of the tuned LSTM (mean $+0.0099$; 4/9 vs 2/9) and of
+linear AR (mean $+0.0141$; 5/9 vs 0/9). The supported claim is \emph{non-inferiority}
+of a physical QRC to tuned classical models on most untouched real-world forecasting
+tasks, \emph{not} superiority to the tuned ESN.
 
 \begin{table}[t]
-\caption{\label{tab:pool6}Final design minus baseline over all six untouched cities
-(Confirmation 1 + 2; descriptive, F3).}
-% Source: QRC_Design_Evidence.md, "F3 (descriptive) -- all six confirmation cities".
+\caption{\label{tab:pool9}Final design minus baseline over all nine untouched cities
+(Confirmations 1--3; descriptive). Non-inf.: CI lower bound $>-0.02$.}
+% Source: qrc_diag_lagos.json "f3_pooled_9" (Conf 1/2 CIs from qrc_confirm{1,2}_*.json S3 tests,
+% Conf 3 from the saved predictions with the same bootstrap). The six-city version
+% (QRC_Design_Evidence.md F3) also had ESN<=653: -0.0041, 1/6 vs 4/6.
 \begin{ruledtabular}
-\begin{tabular}{lccc}
-baseline & mean $\Delta$ pooled $R^2$ & QRC sig.\ better & baseline sig.\ better \\ \colrule
-tuned ESN         & $-0.0059$ & 0/6 & 4/6 \\
-ESN $\le653$      & $-0.0041$ & 1/6 & 4/6 \\
-tuned LSTM        & $+0.0009$ & 1/6 & 2/6 \\
-tuned linear AR   & $+0.0154$ & 4/6 & 0/6 \\
+\begin{tabular}{lcccc}
+baseline & mean $\Delta$ & QRC sig.\ better & baseline sig.\ better & non-inf. \\ \colrule
+tuned ESN         & $-0.0109$ & 0/9 & 6/9 & 7/9 \\
+tuned LSTM        & $+0.0099$ & 4/9 & 2/9 & 8/9 \\
+tuned linear AR   & $+0.0141$ & 5/9 & 0/9 & 9/9 \\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
+
+% ======================================================================
+\section{Pre-registered drift test}\label{sec:drift}
+% Source: qrc_drift_{exchange,electricity}.json; QRC_Design_Concepts.md section 12 + "Drift test outcome".
+The QRC's failure under input shift (ETTh1, ETTh2) was the clearest weakness of the
+development benchmark, and step~5 suggested a remedy: re-centre each target on the
+last observed value and append raw input lags (``level handling''). These are
+classical features, not reservoir features; the same variant is given to the tuned
+ESN. The drift test (commit \texttt{a4111de}, before the data were downloaded) applied
+it to two untouched series (Sec.~\ref{sec:protocol}) with one primary criterion, D1:
+level handling must beat the plain readout (CI excluding 0) on both. Bootstrap blocks
+are 30 days (exchange) and 168 hours (electricity).
+
+D1 passed on both series (Table~\ref{tab:drift}): $+0.058$ $[+0.013,+0.104]$ on the
+exchange rate, whose test inputs lie $1.26$ training s.d.\ above the training mean, and
+$+0.010$ $[+0.002,+0.016]$ on electricity, which barely shifts ($+0.02$ s.d.). The fix
+works, but it brings no quantum edge. On the exchange rate the QRC with level handling
+ties persistence (difference $-0.00004$, CI $[-0.0007,+0.0005]$) and edges past the
+tuned ESN by $+0.001$: the series is close to a random walk, and level handling lets
+the readout fall back to the last value. On electricity the QRC stays clearly behind
+every tuned model (ESN $-0.074$, LSTM $-0.031$, linear AR $-0.034$).
+
+\begin{table}[t]
+\caption{\label{tab:drift}Drift test, pooled test $R^2$ on two untouched series. QRC:
+final design, 653-bin FID readout ($D=653$) plus level handling (last-value
+re-centring and raw input lags; classical features). ESN: tuned, mean of three
+replicates. Shift: mean test input in training s.d.}
+\begin{ruledtabular}
+\begin{tabular}{lcc}
+model & exchange ($+1.26$ s.d.) & electricity ($+0.02$ s.d.) \\ \colrule
+QRC, plain readout     & 0.924 & 0.747 \\
+QRC, level handling    & 0.983 & 0.757 \\
+tuned ESN              & 0.982 & 0.832 \\
+tuned ESN, level handling & 0.982 & \textbf{0.834} \\
+tuned LSTM             & 0.961 & 0.788 \\
+tuned linear AR        & 0.982 & 0.791 \\
+persistence            & 0.983 & 0.058 \\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
 % TODO figure: forest plot of Table tab:confirmDelta (no figure script yet; do not reference a missing file).
 
 % ======================================================================
-\section{Mechanism: what carries the computation (synthetic tasks)}\label{sec:mechanism}
-The real-world study says \emph{how well} the reservoir forecasts; it does not say
-\emph{what} in the reservoir does the work. Synthetic tasks allow clean ablations, so we
-use them here, with the caveat that they are not the paper's performance claim:
-on all three a fully tuned ESN is far better (Sec.~\ref{sec:classical}). All results in
-this section are regime B (learned encoding) vs regime A (fixed $\arcsin\sqrt{s}$,
-$g=1$), and all use the \emph{physics-informed reduced-FID readout} described next, not
-the 653-bin standard; $D$ is given with every result.
-
-\subsection{Physics-informed reduced-FID readout}\label{sec:mech-readout}
-Because $H$ in Eq.~\eqref{eq:H} is diagonal, the FID Eq.~\eqref{eq:fid} is a sum over
-\emph{single-quantum} transitions: flipping readout spin $k$ against a fixed
-configuration $z\in\{\pm1\}^{n-1}$ of the remaining spins oscillates, from
-Eq.~\eqref{eq:E}, at
+\section{Mechanism on synthetic tasks (brief)}\label{sec:mechanism}
+% Source: qrc_paired_tests.{json,md} (6-spin: 5 seeds learned vs arcsin incl. qrc_6spin_pub_shard{0,1}.json;
+% 3 seeds vs tuned LSTM / ESN and tau->0); dccb7 J=0 ratios from qrc_dccb7_tau100{,_j0}.json;
+% full mechanism tables and figures (figP1-figP4) are in QRC_Fair_Comparison.md, not in this paper.
+Synthetic tasks are not the paper's performance claim; we use them only for ablations
+that are too costly on multi-decade real series. They use the regime-B learned
+per-spin encoding (Sec.~\ref{sec:regimes}) and a reduced readout: because $H$ is
+diagonal, every FID peak is a single-quantum line at
 \begin{equation}
-  f_k(z) = \nu_k + \tfrac12\!\sum_{j\neq k} J_{kj}\,z_j .
+  f_k(z) = \nu_k + \tfrac12\!\sum_{j\neq k} J_{kj}\,z_j ,
   \label{eq:lines}
 \end{equation}
-Each resonance is split into a $2^{n-1}$ $J$-multiplet, and every peak of the 653-bin
-FFT readout is one of these lines (or an FFT skirt of one). The encoding sets only the
-line amplitudes; the frequencies are fixed by $H$. Merging lines closer than the
-decoherence linewidth $\Delta f=1/(\pi T_2)$ leaves $D_{\mathrm{eff}}$ resolvable
-centres (Table~\ref{tab:deff}), read by a fixed, differentiable direct-DFT projection
-\begin{equation}
-  X_k = \sum_{v=0}^{V-1} M^{+}(t_v)\, e^{\,i 2\pi f_k t_v}
-      = \big(M^{+}\Phi\big)_k,\qquad \Phi_{v,k}=e^{\,i2\pi f_k t_v},
-  \label{eq:proj}
-\end{equation}
-over $V$ FID samples $t_v=v\tau/V$ (Nyquist-safe for the line set), keeping real and
-imaginary parts: $D=2D_{\mathrm{eff}}$ real features (Fig.~\ref{fig:spectrum}). Unlike the
-653-bin FFT peak selection, Eq.~\eqref{eq:proj} is a single matrix product and can be
-backpropagated through, which regime B requires. On real-world data at $g=0.35$ the
-crotonic-9 line projection is within 0.004 of the 653-bin readout (Table~\ref{tab:c5c7}).
+and projecting the FID onto the $D_{\mathrm{eff}}$ lines resolvable at the decoherence
+linewidth gives a differentiable readout with $D=2D_{\mathrm{eff}}$ real features
+(crotonic-9: $D_{\mathrm{eff}}=100$; an abstract six-spin Ising reservoir: $D=322$). On
+real data at $g=0.35$ this \emph{line projection} is within 0.004 of the 653-bin
+readout (Table~\ref{tab:c5c7}).
+\label{sec:mech-readout}
+
+On NARMA-2, NARMA-10~\cite{Atiya2000} and Mackey--Glass~\cite{MackeyGlass1977}
+($h=10$), with a time-contiguous 50/25/25 split, the learned encoding beats the fixed
+$\arcsin\sqrt{s}$ on every seed (Table~\ref{tab:synth}). Re-initializing the reservoir
+before every step ($\tau\to0$) removes the gain, so it is carried by cross-step
+reservoir memory; switching off all couplings ($J=0$) in the seven-spin dccb7 molecule
+makes it ${\sim}38$--$126\times$ worse, so the spin--spin coupling carries most of the
+computation. A tuned LSTM is beaten on NARMA-10 and Mackey--Glass, but a fully tuned
+ESN (spectral radius, leak, input scale and penalty; also size-matched) is
+${\sim}11$--$830\times$ better on every task. An ESN tuned over size alone had made
+the QRC look competitive; tuning removed that impression, which is why the real-world
+study tunes every baseline.
 
 \begin{table}[t]
-\caption{\label{tab:deff}Physics-informed line count (SOP \S3.2). Doubling the coupling
-widens the multiplets and lifts near-degeneracies, raising $D_{\mathrm{eff}}$. The
-reduced-FID readout has $D=2D_{\mathrm{eff}}$ features.}
-\begin{ruledtabular}
-\begin{tabular}{lrrr}
-system (readout) & raw lines & $\Delta f$ (Hz) & $D_{\mathrm{eff}}$ \\ \colrule
-crotonic-9 (protons) & 1280 & 1.57 & 100 \\
-6-spin, $c{=}1$ & 192 & 1.59 & 137 \\
-6-spin, $c{=}2$ (this work) & 192 & 1.59 & 161 \\
-3-spin & 12 & 1.59 & 12 \\
-\end{tabular}
-\end{ruledtabular}
-\end{table}
-
-\begin{figure}[t]
-\includegraphics[width=\columnwidth]{figP1_spectrum.png}
-\caption{\label{fig:spectrum}Physics-informed reduced-FID readout: normalized
-reduced-FID spectrum with the $D_{\mathrm{eff}}=161$ analytic single-quantum lines
-(red) of the six-spin ($c{=}2$) abstract Ising reservoir, i.e.\ $D=322$ real features.}
-\end{figure}
-
-\subsection{Systems, encoder and protocol}
-Three systems are used. (i) \emph{Crotonic-9}, the real-world reservoir
-(Table~\ref{tab:crotonic}), proton readout, $D_{\mathrm{eff}}=100$, $D=200$. (ii)
-\emph{dccb7}, the seven $^{13}$C spins of a dichlorocyclobutanone derivative ($^1$H
-decoupled), all seven read, $D_{\mathrm{eff}}=172$, $D=344$, at $\tau=\SI{30}{ms}$ and
-at $\tau=\SI{100}{ms}$ (coupling-matched, $J_{\max}\tau\approx6$, allowed by its $T_2$
-of 0.5--1.9~s). % TODO add citation for dccb7 parameters (Lu/Li et al., arXiv:1601.04721) -- no bib key yet.
-(iii) An \emph{abstract six-spin Ising reservoir} (Table~\ref{tab:sixspin}): shifts
-$\pm\SI{120}{Hz}$ and a chain coupling scaled by $c=2$, which violates the weak-coupling
-condition $|J|\ll|\Delta\nu|$ of a real homonuclear molecule, so it is \emph{not} an NMR
-molecule but a model Ising reservoir; $D_{\mathrm{eff}}=161$, $D=322$. Six spins is the
-largest system for which the dense differentiable propagator fits in memory (at nine
-qubits the reverse-mode graph reaches ${\sim}\SI{201}{GB}$ per step); crotonic-9 and dccb7
-use the block propagator.
-
-The encoder is $\mathrm{Linear}(1,16)\to\tanh\to\mathrm{Linear}(16,n)\to\pi\,\mathrm{sigmoid}$,
-one angle per spin. Gradients of the loss flow through the exact evolution to the
-encoder (autograd verified against finite differences to ${\sim}\num{1e-9}$ in
-complex128); on hardware the same gradients are measurable by the parameter-shift
-rule~\cite{Mitarai2018,Schuld2019}. We use a time-contiguous $50/25/25$
-train/validation/test split of a $T=1500$ sequence (washout 30): the ridge readout
-($\alpha=\num{1e-3}$) is fit on train, the encoder is selected on validation
-(best-validation checkpoint of 100 Adam steps, learning rate $0.02$, cosine annealing,
-gradient clipping at 1.0), and test is never seen by the encoder. Tasks are
-NARMA-2 and NARMA-10~\cite{Atiya2000} ($u\sim\mathcal U[0,0.5]$; NARMA-2 is
-encoding-sensitive, NARMA-10 memory-bound) and Mackey--Glass~\cite{MackeyGlass1977}
-($\beta=0.2,\gamma=0.1,n=10,\tau_{\mathrm{MG}}=17$) $h$-step-ahead prediction with $h=1$
-(easy) and $h=10$ (discriminative). The metric is test
-$\mathrm{NMSE}=\langle(\hat y-y)^2\rangle/\mathrm{var}(y)$ (1.0 = mean predictor).
-Controls: (i) guardrails (reject if the arcsin NMSE $\gtrsim0.8$ or the learned angle map
-is near-constant, s.d.\ $<0.1$); (ii) a $\tau\!\to\!0$ ablation that re-initializes the
-reservoir before every step, removing cross-step memory---since the scalar input
-carries no classical memory, a reservoir-carried gain must collapse; (iii) a $J=0$
-ablation that switches off every coupling while keeping the readout line basis of the
-coupled molecule.
-
-\begin{table}[t]
-\caption{\label{tab:sixspin}Abstract six-spin Ising reservoir (mechanism study only).
-Chemical shifts $\nu_i=\SI{120}{Hz}\times(-1,-0.6,-0.2,0.2,0.6,1)$; couplings from a chain
-model scaled by $c=2$; homogeneous relaxation.}
-\begin{ruledtabular}
-\begin{tabular}{ll}
-parameter & value \\ \colrule
-spins $n$ & 6 (Hilbert dim $d=64$) \\
-chemical shifts $\nu_i$ & $\pm\SI{120}{Hz}$, evenly spaced \\
-couplings $J_{ij}$ & chain, $J_{\mathrm{nn}}\!\approx\!\SI{200}{Hz}$, $\times c$, $c=2$ \\
-$T_1,\,T_2$ & \SI{5}{s},\ \SI{0.2}{s} \\
-step time $\tau$ & \SI{30}{ms} \\
-virtual nodes $V$ & 137 \\
-readout / features $D$ & reduced FID / $2D_{\mathrm{eff}}=322$ \\
-\end{tabular}
-\end{ruledtabular}
-\end{table}
-
-\subsection{A learned encoding improves the reservoir, through its memory}
-On the six-spin reservoir the learned per-spin encoding beats the fixed encoding on
-every task and seed (Table~\ref{tab:learned}, Fig.~\ref{fig:qm}; the learned maps are
-distinct, frequency-selective curves per spin, Fig.~\ref{fig:enc}), by ${\sim}19\times$ on
-NARMA-2 and ${\sim}2.6\times$ on NARMA-10. Removing cross-step memory ($\tau\to0$)
-collapses the learned model to a mean predictor on both NARMA tasks (0.9994 and
-0.9974). The same holds on the two real molecules (Table~\ref{tab:systems}): learned
-beats arcsin on 3/3 seeds of every system and task, and every $\tau\to0$ ablation
-collapses---to $\approx1.00$ on NARMA, and to 0.88 on Mackey--Glass $h=10$, the level
-the arcsin encoding also reaches under the same ablation (the current input alone
-carries some information at that horizon). The gain is therefore carried by the
-reservoir's cross-step dynamics, not by preprocessing of the input; we call it
-\emph{quantum-mediated} in this limited sense. It does not imply that a classical
-system could not do as well, and the next subsections show one that does better.
-
-% Source: docs/QRC/data/qrc_6spin_campaign.json (NARMA-2, NARMA-10, MG h=1; per-seed jobs,
-% sample s.d. recomputed) and qrc_6spin_mackey_h10_seed1.json + qrc_6spin_mackey_h10_confirm.json
-% seeds 2-3 (MG h=10, exact seed-1 value 0.0012894; MANIFEST.md row "6-spin learned Mackey-Glass h=10").
-% TODO 5-seed update: plan 6spin_pub (running) adds NARMA-2 / NARMA-10 / MG h=10 seeds 4-5,
-% MG h=1 seeds 3-5 and tau->0 ablations seeds 2-3; update seed counts, means, s.d. and the
-% ablation column (currently seed 1 only) from the new campaign JSON when it lands.
-\begin{table}[t]
-\caption{\label{tab:learned}Abstract six-spin Ising reservoir, reduced-FID readout
-($D=322$): learned per-spin encoding (regime B) vs fixed $\arcsin\sqrt{s}$ (regime A),
-test NMSE (mean $\pm$ sample s.d.\ over data seeds), and the $\tau\!\to\!0$ ablation of
-the learned model (seed 1).}
-\begin{ruledtabular}
-\begin{tabular}{lccc}
-task (seeds) & arcsin (A) & learned (B) & $\tau\!\to\!0$ (B) \\ \colrule
-NARMA-2 (3)  & $0.101\pm0.007$ & $\mathbf{0.0052\pm0.0016}$ & 0.9994 \\
-NARMA-10 (3) & $0.312\pm0.017$ & $\mathbf{0.120\pm0.023}$   & 0.9974 \\
-MG $h{=}1$ (2) & $0.00063$     & $\mathbf{0.000076}$        & --- \\
-MG $h{=}10$ (3) & $0.028\pm0.007$ & $\mathbf{0.00154\pm0.00023}$ & --- \\
-\end{tabular}
-\end{ruledtabular}
-\end{table}
-
-\begin{figure}[t]
-\includegraphics[width=\columnwidth]{figP2_quantum_mediated.png}
-\caption{\label{fig:qm}Six-spin abstract Ising reservoir, reduced-FID readout ($D=322$):
-learned encoding beats arcsin across tasks (test NMSE, log scale; error bars are the
-multi-seed s.d.); the $\tau\!\to\!0$ ablation collapses the learned model to a mean
-predictor ($\approx1.0$), so the gain is carried by the reservoir's cross-step
-dynamics.}
-\end{figure}
-
-\begin{figure}[t]
-\includegraphics[width=\columnwidth]{figP4_encoding.png}
-\caption{\label{fig:enc}Six-spin abstract Ising reservoir: (left) the gradient-trained
-per-spin encoding map (each spin a distinct, frequency-selective curve) compared to
-$\arcsin\sqrt{s}$; (right) the encoder validation-loss curve over 100 Adam steps.}
-\end{figure}
-
-\subsection{The gain is coupling-mediated, and the physical design matters}
-With every coupling switched off ($J=0$) but the same readout line basis, dccb7 at
-$\tau=\SI{100}{ms}$ is ${\sim}38\times$ worse on Mackey--Glass $h=10$ (0.09506 vs 0.002515)
-and ${\sim}126\times$ worse on NARMA-2 (0.3465 vs 0.002756) (Table~\ref{tab:systems}); the
-learned encoding still beats arcsin at $J=0$, but from a far worse starting point. The
-spin--spin coupling therefore carries most of the computation. The coupling per step
-also matters: dccb7 at $\tau=\SI{100}{ms}$ ($J\tau\approx6$) beats $\tau=\SI{30}{ms}$
-($J\tau\approx1.7$) by ${\sim}3\times$ (Mackey--Glass) and ${\sim}30\times$ (NARMA-2).
-% Ratios computed from the table values: 0.09506/0.002515 = 37.8; 0.3465/0.002756 = 125.7
-% (QRC_Fair_Comparison.md rounds the latter to "~120x"); 0.008613/0.002515 = 3.4; 0.0861/0.002756 = 31.2.
-
-\begin{table*}[t]
-\caption{\label{tab:systems}Learned per-spin encoding across systems (regime B vs A),
-reduced-FID readout with $D$ as listed, test NMSE (mean $\pm$ sample s.d.\ over three
-data seeds; learned beats arcsin on 3/3 seeds in every cell). $\tau\to0$: learned
-model with the reservoir reset every step (seed 1). NARMA-10 was not run for dccb7.}
-% Source: qrc_crotonic9_campaign.json, qrc_dccb7_tau100.json, qrc_dccb7_tau30.json,
-% qrc_dccb7_tau100_j0.json (per-seed "jobs"; sample s.d. recomputed; means match
-% MANIFEST.md headline rows and QRC_Fair_Comparison.md).
-\begin{ruledtabular}
-\begin{tabular}{lcccccc}
- & \multicolumn{3}{c}{NARMA-2} & \multicolumn{3}{c}{Mackey--Glass $h=10$} \\
-system ($D$) & arcsin & learned & $\tau\to0$ & arcsin & learned & $\tau\to0$ \\ \colrule
-crotonic-9, \SI{30}{ms} ($D=200$) & $0.317\pm0.015$ & $0.0079\pm0.0043$ & 0.9985 & $0.089\pm0.023$ & $0.0102\pm0.0038$ & 0.881 \\
-dccb7, \SI{30}{ms} ($D=344$) & $0.619\pm0.053$ & $0.086\pm0.051$ & 0.9995 & $0.102\pm0.037$ & $0.0086\pm0.0067$ & 0.881 \\
-dccb7, \SI{100}{ms} ($D=344$) & $0.099\pm0.008$ & $\mathbf{0.0028\pm0.0006}$ & 0.9996 & $0.019\pm0.007$ & $\mathbf{0.0025\pm0.0007}$ & 0.881 \\
-dccb7, \SI{100}{ms}, $J=0$ ($D=344$) & $0.609\pm0.029$ & $0.347\pm0.035$ & --- & $0.282\pm0.062$ & $0.095\pm0.014$ & --- \\
-\end{tabular}
-\end{ruledtabular}
-\end{table*}
-% crotonic-9 NARMA-10 (not in table): arcsin 0.506 +- 0.016, learned 0.277 +- 0.084, tau->0 0.9974
-% (qrc_crotonic9_campaign.json).
-
-\subsection{Fair classical comparison on the synthetic tasks}\label{sec:classical}
-% Source: QRC_Fair_Comparison.md; qrc_classical_fair_esn.json, qrc_classical_fair_lstm.json
-% (MANIFEST.md headline rows); QRC column = Table tab:learned.
-% TODO 5-seed update: QRC-learned column (and the ~2x / ~1.8x / ~11x / ~500x ratios) follows Table tab:learned.
-We compare against a tuned LSTM (sweep over hidden size, layers and learning rate;
-cosine schedule, gradient clipping, three initializations, validation early stopping)
-and a fully tuned leaky ESN~\cite{Jaeger2001} (grid over size $\{200,350,1000\}$,
-spectral radius, leak, input scale and ridge penalty, three initializations; also
-restricted to size $\le350$, comparable to the six-spin QRC's 322 features), each
-selected on validation, on data seeds 1--3, with the identical split and metric
-(Table~\ref{tab:classical}, Fig.~\ref{fig:td}). The learned six-spin QRC beats the tuned
-LSTM on NARMA-10 (${\sim}2\times$) and Mackey--Glass $h=10$ (${\sim}1.8\times$) and is
-slightly behind it on NARMA-2 (0.0052 vs 0.0044); the best real molecule (dccb7, \SI{100}{ms}) beats it on NARMA-2
-and Mackey--Glass, while crotonic-9 loses to it on all three. The fully tuned ESN is
-better than every QRC configuration on every task, by ${\sim}11\times$ (NARMA-10) to
-${\sim}500\times$ (NARMA-2, Mackey--Glass $h=10$) for the six-spin system, even when
-restricted to size $\le350$. Tuning matters decisively: an ESN tuned over size alone
-gave 0.0046 / 0.029 / 0.0057 and appeared to lose to the QRC on Mackey--Glass $h=10$; an
-earlier version of this comparison that used it is superseded.
-
-\begin{table}[t]
-\caption{\label{tab:classical}Synthetic tasks: learned QRC (six-spin abstract Ising
-reservoir, reduced-FID readout, $D=322$) vs tuned LSTM vs tuned ESN, test NMSE (mean over
-data seeds 1--3).}
+\caption{\label{tab:synth}Synthetic tasks, abstract six-spin Ising reservoir,
+reduced-FID readout ($D=322$): geometric-mean test-NMSE ratio of the learned encoding to
+each comparator ($<1$ favours the learned QRC); in parentheses, seeds won by the
+learned QRC / paired data seeds.}
 \begin{ruledtabular}
 \begin{tabular}{lcccc}
-task & QRC-learned & LSTM (tuned) & ESN ($N{\le}350$) & ESN ($N{\le}1000$) \\ \colrule
-NARMA-2 & 0.0052 & 0.0044 & $2.5\times10^{-5}$ & $\mathbf{1.1\times10^{-5}}$ \\
-NARMA-10 & 0.120 & 0.245 & 0.020 & $\mathbf{0.011}$ \\
-MG $h{=}10$ & 0.00154 & 0.0027 & $1.1\times10^{-5}$ & $\mathbf{2.8\times10^{-6}}$ \\
+task & vs arcsin & vs $\tau\to0$ & vs tuned LSTM & vs tuned ESN \\ \colrule
+NARMA-2      & 0.053 (5/5) & 0.0049 (3/3) & 1.42 (1/3) & 446 (0/3) \\
+NARMA-10     & 0.41 (5/5)  & 0.12 (3/3)   & 0.49 (3/3) & 11.5 (0/3) \\
+MG $h{=}10$  & 0.053 (5/5) & ---          & 0.58 (3/3) & 832 (0/3) \\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
 
-\begin{figure}[t]
-\includegraphics[width=\columnwidth]{figP3_task_dependent.png}
-\caption{\label{fig:td}Synthetic tasks: learned QRC (six-spin, reduced FID, $D=322$) vs
-the fairly tuned LSTM and ESN (test NMSE, log scale; error bars are the sample s.d.\ over
-seeds). The learned QRC beats the tuned LSTM on NARMA-10 and Mackey--Glass $h{=}10$; the
-tuned ESN, also when size-matched, is one to three orders of magnitude better on every
-task.}
-\end{figure}
-
-\subsection{From mechanism to the real-world design}
-The mechanism results and the real-world results are consistent but must not be
-conflated. On synthetic tasks a learned encoding is a large, reservoir-carried
-improvement. On real data the same learned encoding improved on arcsin at $g=1$ on 8 of
-9 datasets (Table~\ref{tab:bench}), but a single fixed gain $g=0.35$ captured that
-improvement and more, and learning on top of the gain added nothing
-(Sec.~\ref{sec:step4}). The real-world design therefore keeps the physically simplest
-lever---how far each input pulse rotates the stored state---and leaves the learned
-encoding as a mechanism result. The $\tau\to0$ and $J=0$ ablations were run on the
-synthetic tasks only.
+On real data the learned encoding improved on arcsin at $g=1$ on 8 of 9 development
+datasets (Table~\ref{tab:bench}), but the fixed gain $g=0.35$ captured that improvement
+and learning on top of it added nothing (Sec.~\ref{sec:step4}). The real-world design
+therefore keeps the physically simplest lever---how far each input pulse rotates the
+stored state.
 
 % ======================================================================
 \section{Threats to validity}\label{sec:threats}
@@ -894,10 +801,11 @@ crotonic parameters). The simulation reads the FID from a copy of the state each
 on hardware the readout disturbs the ensemble, so an experiment must re-run the input
 history per readout point or use weak readout, at a real cost in experiment time.
 \item \emph{One reservoir, one task family in confirmation.} The real-world results use a
-single molecule (crotonic-9). All six confirmation cities are ERA5 daily temperature
-and humidity with one protocol; ERA5 is reanalysis, smoother than station data. The
-confirmations say nothing about other domains, where the development benchmark shows
-the QRC behind (hourly data, Santa Fe) or failing (ETTh1/ETTh2).
+single molecule (crotonic-9). All nine confirmation cities are ERA5 daily temperature
+and humidity with one protocol; ERA5 is reanalysis, smoother than station data. Outside
+daily weather the evidence is weaker: the development benchmark shows the QRC behind
+(hourly data, Santa Fe) or failing (ETTh1/ETTh2), and on the untouched electricity
+series it is behind every tuned model (Sec.~\ref{sec:drift}).
 \item \emph{Margin chosen after Confirmation 1.} The non-inferiority margin $\delta=0.02$
 was set knowing the Confirmation 1 CIs (Sec.~\ref{sec:confirm}); with a margin of $0.01$
 Sydney would fail against the ESN (lower bound $-0.0128$), although F2-ESN would still
@@ -905,22 +813,22 @@ pass in 2/3 cities. The margin is
 a judgement of practical equivalence, not a property of the data.
 \item \emph{Seen development test sets.} The development benchmark's test blocks were
 scored before the design work; although every design step used validation data only,
-the concepts were motivated by those results. This is why both confirmations use data
-downloaded only after pre-registration.
+the concepts were motivated by those results. This is why every confirmation and the
+drift test use data downloaded only after pre-registration. The Lagos explanation
+(Sec.~\ref{sec:conf3}) is post-hoc and rests on nine cities.
 \item \emph{Uncertainty model.} The bootstrap CIs resample test time for fixed fitted
 models; they do not include replicate (seed) variance of the ESN and LSTM, which is
 reported separately (Table~\ref{tab:bench}; replicate s.d.\ up to 0.0096 in the
 confirmation cities). The
-six per-city comparisons per baseline are not corrected for multiplicity; we report
+nine per-city comparisons per baseline are not corrected for multiplicity; we report
 counts, not a pooled test.
-\item \emph{Distribution shift.} Under input drift (ETTh1 and untouched ETTh2) the QRC's
-unbounded nonlinear features extrapolate badly; bounded transforms did not fix it. A
-linear skip connection is an obvious next candidate (not yet pre-registered or run).
+\item \emph{Distribution shift.} Under input drift the QRC's nonlinear features
+extrapolate badly; bounded transforms did not fix it, and a kernel readout made it
+worse. Level handling fixes most of it (Sec.~\ref{sec:drift}), but it is a classical
+addition to the readout, and only one of the two drift-test series is strongly shifted.
 \item \emph{Mechanism study.} The ablations use the reduced-FID readout ($D=200$--$344$),
-not the 653-bin standard, and an abstract six-spin Ising model in addition to two real
-molecules; three data seeds per condition and the $\tau\to0$ ablation on one seed
-(being extended to five seeds and three ablation seeds). The learned-encoding results
-were not ablated on real-world data.
+not the 653-bin standard, mostly on an abstract six-spin Ising model; comparisons with
+the tuned classical models use three data seeds. They were not run on real-world data.
 \item \emph{Six-qubit differentiability wall.} Regime B on the dense propagator is
 limited to six qubits; the nine-spin and seven-spin campaigns use the block
 propagator, and larger systems need checkpointing or parameter-shift gradients.
@@ -928,26 +836,25 @@ propagator, and larger systems need checkpointing or parameter-shift gradients.
 
 % ======================================================================
 \section{Conclusion}\label{sec:conclusion}
-On real-world forecasting with chronological splits, validation-only development, and
-two pre-registered confirmations on untouched cities, a simulated nine-spin NMR
-reservoir with the standard 653-bin FID readout is non-inferior to a tuned ESN, a tuned
-LSTM and a tuned linear AR model, but not better than the tuned ESN, which remains
-slightly ahead in four of six untouched cities. The step that made the QRC competitive
-was physical and simple: reducing the encoding gain to $g=0.35$ to limit input
-overwrite, an effect that replicated in all six cities. Three further pre-registered
-changes did not help, and the QRC fails under input distribution shift. On synthetic
-tasks, a gradient-trained encoding improves the reservoir through its cross-step memory
-and its spin--spin coupling, but a fully tuned ESN is one to three orders of magnitude
-better there. We therefore report no quantum advantage. Next steps are a pre-registered
-linear skip connection for drift robustness, confirmation beyond daily weather, more
-strongly coupled and longer-coherence molecules (dccb7 at $J\tau\approx6$ is the best
-real molecule in the mechanism study), and on-device tests via the parameter-shift rule.
+On real-world forecasting with chronological splits, validation-only development,
+three pre-registered confirmations on nine untouched cities and a pre-registered drift
+test, a simulated nine-spin NMR reservoir with the standard 653-bin FID readout is
+non-inferior to a tuned ESN in 7/9 cities, to a tuned LSTM in 8/9 and to a tuned linear
+AR model in 9/9, but never better than the tuned ESN, which is significantly ahead in
+6/9. The step that made the QRC competitive was physical and simple: reducing the
+encoding gain to $g=0.35$ to limit input overwrite. The remaining gap is long memory,
+largest where slow anomalies dominate (Lagos). Four further pre-registered changes did
+not help; the QRC's failure under input shift is fixed by classical level handling,
+which gives it no edge. We therefore report no quantum advantage. The next steps
+target memory in the reservoir itself: a population ($^{13}$C $z$) readout channel,
+separating write and store spins, and more strongly coupled, longer-coherence molecules,
+followed by on-device tests.
 
 \begin{acknowledgments}
 [Funding and computing acknowledgments to be added.] Reproduction code, data and
 conventions: internal repository (\texttt{backend/scripts/qrc\_realworld\_bench.py},
 \texttt{qrc\_design\_confirm.py}, \texttt{qrc\_design\_c1.py}, \texttt{qrc\_learnable\_campaign.py},
-\texttt{qrc\_classical\_fair.py}; \texttt{docs/QRC/QRC\_Design\_Concepts.md} for the
+\texttt{qrc\_classical\_fair.py}, \texttt{qrc\_design\_r.py}, \texttt{qrc\_lagos\_diag.py}; \texttt{docs/QRC/QRC\_Design\_Concepts.md} for the
 pre-registrations, \texttt{docs/QRC/data/MANIFEST.md} for every number,
 \texttt{QRC\_STANDARD\_PROCEDURES.md}). Raw FID traces are archived with SHA-256
 checksums (\texttt{docs/QRC/data/TRACES\_MANIFEST.md}).
