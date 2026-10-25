@@ -1,0 +1,137 @@
+{
+  "dataset": "era5_berlin",
+  "gain": 0.35,
+  "readout": "fid bins653 (D=653) + variant",
+  "esn_cfg": {
+    "size": 650.0,
+    "sr": 0.95,
+    "leak": 0.3,
+    "inscale": 0.1
+  },
+  "ar_lags": 120,
+  "scores": {
+    "qrc": {
+      "base": 0.5841324194375002,
+      "delta": 0.577365157601128,
+      "lags": 0.5853385133336245,
+      "ar_residual": 0.5924727010384799,
+      "rff": 0.586659902189167,
+      "delay": 0.5940149348393481,
+      "delta_lags": 0.5853631531581314
+    },
+    "esn": {
+      "base": 0.5998787818261947,
+      "delta": 0.5991712679242841,
+      "lags": 0.5989183326622524,
+      "ar_residual": 0.5968820581942283,
+      "rff": 0.5851888558099635,
+      "delay": 0.5945036893710491,
+      "delta_lags": 0.5998100452117568
+    }
+  },
+  "hp": {
+    "qrc": {
+      "base": [
+        null
+      ],
+      "delta": [
+        null
+      ],
+      "lags": [
+        [
+          1,
+          10.0
+        ]
+      ],
+      "ar_residual": [
+        null
+      ],
+      "rff": [
+        0.3
+      ],
+      "delay": [
+        null
+      ],
+      "delta_lags": [
+        [
+          1,
+          3.0
+        ]
+      ]
+    },
+    "esn": {
+      "base": [
+        null,
+        null,
+        null
+      ],
+      "delta": [
+        null,
+        null,
+        null
+      ],
+      "lags": [
+        [
+          1,
+          10.0
+        ],
+        [
+          7,
+          10.0
+        ],
+        [
+          7,
+          3.0
+        ]
+      ],
+      "ar_residual": [
+        null,
+        null,
+        null
+      ],
+      "rff": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "delay": [
+        null,
+        null,
+        null
+      ],
+      "delta_lags": [
+        [
+          1,
+          3.0
+        ],
+        [
+          7,
+          10.0
+        ],
+        [
+          1,
+          3.0
+        ]
+      ]
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-25T08:19:28+00:00",
+    "git_commit": "a7cb3e6b428f08eb3b20fede2a842d4d56d8fc9a",
+    "git_dirty": true,
+    "code_version_file": null,
+    "host": "DESKTOP-1A0J7FD",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "numpy": "2.2.6",
+    "scipy": "1.17.1",
+    "qutip": "5.3.0",
+    "torch": "2.10.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti",
+    "run": {
+      "dataset": "era5_berlin",
+      "step": "R1-R5 dev (validation only)"
+    }
+  }
+}

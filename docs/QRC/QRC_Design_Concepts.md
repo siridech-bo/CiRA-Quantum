@@ -362,3 +362,20 @@ test 2005–2025 read once; 30-day moving-block bootstrap, 2000 resamples). Need
 - **G2:** non-inferiority QRC_v − ESN_v, CI lower bound > −0.02 in ≥ 2/3 cities (same margin as §10).
 - **G3 (descriptive):** QRC_v − ESN_v, − LSTM (base), − AR_v; counts of significant wins either way.
 All outcomes are reported, including a P1 that adopts nothing.
+
+### Step 5 outcome (2026-10-25)
+**P1 adopts `rff` (kernel readout) — by the letter of the rule, but driven by one dataset.** Mean development
+VALIDATION R² (QRC): base 0.7061, rff **0.7115** (+0.0054 ≥ 0.005; worse than base by > 0.005 on 2/8 —
+Bangkok −0.012, ETTh1 −0.011 — within the ≤ 2 allowance). The gain is Santa Fe (+0.059); without Santa Fe the
+mean change is **−0.002** (ERA5 cities −0.012 … +0.004). Other variants: lags 0.7080, delta_lags 0.7080, delay
+0.7104 (classical memory), ar_residual 0.7056, delta 0.7027. P2 (descriptive): QRC − ESN, same variant, mean
+−0.018 (base) → −0.001 (rff), but mostly because rff *hurts* the ESN (0.7243 → 0.7125); against the ESN's
+base readout the QRC-rff gap is −0.013.
+**POST-HOC drift check (ETTh1/ETTh2 test sets already seen; labelled, not confirmatory):** validation cannot
+see drift, and the adopted rff **fails catastrophically under shift** (test R² ETTh1 −1.87, ETTh2 −17.0).
+The level-handling variant does what the literature predicts: **delta_lags** raises the QRC from −0.21 → **+0.23**
+(ETTh1) and +0.36 → **+0.74** (ETTh2; lags alone 0.72), against tuned ESN 0.66 / 0.79 — most of the ETTh2 gap
+closes, ETTh1 remains far behind. The ESN gains little from the same variants (it already extrapolates).
+Base scores reproduce Step 2 exactly (−0.2120 / +0.3632). Data `qrc_design_r_{dev_*,frozen,posthoc_*}.json`.
+Note: the Santa Fe base here (0.9076) differs from the remote Step 3 run (0.9060) by numerical/host effects;
+all variants were scored in one place.

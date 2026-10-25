@@ -1,0 +1,137 @@
+{
+  "dataset": "etth1",
+  "gain": 0.35,
+  "readout": "fid bins653 (D=653) + variant",
+  "esn_cfg": {
+    "size": 1000.0,
+    "sr": 0.8,
+    "leak": 0.1,
+    "inscale": 0.1
+  },
+  "ar_lags": 120,
+  "scores": {
+    "qrc": {
+      "base": 0.8153800261850186,
+      "delta": 0.8137076924744818,
+      "lags": 0.8165185722846383,
+      "ar_residual": 0.8133037197662898,
+      "rff": 0.804734431048842,
+      "delay": 0.8129007568236011,
+      "delta_lags": 0.8166421217829137
+    },
+    "esn": {
+      "base": 0.8120472084443263,
+      "delta": 0.81069423110964,
+      "lags": 0.8171544507886715,
+      "ar_residual": 0.814628870778278,
+      "rff": 0.776842250995939,
+      "delay": 0.798350585998815,
+      "delta_lags": 0.816312161147637
+    }
+  },
+  "hp": {
+    "qrc": {
+      "base": [
+        null
+      ],
+      "delta": [
+        null
+      ],
+      "lags": [
+        [
+          30,
+          1.0
+        ]
+      ],
+      "ar_residual": [
+        null
+      ],
+      "rff": [
+        0.3
+      ],
+      "delay": [
+        null
+      ],
+      "delta_lags": [
+        [
+          30,
+          10.0
+        ]
+      ]
+    },
+    "esn": {
+      "base": [
+        null,
+        null,
+        null
+      ],
+      "delta": [
+        null,
+        null,
+        null
+      ],
+      "lags": [
+        [
+          30,
+          3.0
+        ],
+        [
+          30,
+          1.0
+        ],
+        [
+          30,
+          1.0
+        ]
+      ],
+      "ar_residual": [
+        null,
+        null,
+        null
+      ],
+      "rff": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "delay": [
+        null,
+        null,
+        null
+      ],
+      "delta_lags": [
+        [
+          30,
+          10.0
+        ],
+        [
+          30,
+          10.0
+        ],
+        [
+          30,
+          10.0
+        ]
+      ]
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-25T08:20:19+00:00",
+    "git_commit": "a7cb3e6b428f08eb3b20fede2a842d4d56d8fc9a",
+    "git_dirty": true,
+    "code_version_file": null,
+    "host": "DESKTOP-1A0J7FD",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "numpy": "2.2.6",
+    "scipy": "1.17.1",
+    "qutip": "5.3.0",
+    "torch": "2.10.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti",
+    "run": {
+      "dataset": "etth1",
+      "step": "R1-R5 dev (validation only)"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "dataset": "etth2",
+  "label": "POST-HOC: test set already seen; not confirmatory",
+  "test": {
+    "qrc": {
+      "base": 0.36317248302908983,
+      "delta": 0.2209211496401046,
+      "lags": 0.7234363796593294,
+      "ar_residual": 0.6611809560919866,
+      "rff": -17.041863248395,
+      "delay": 0.39871384699050355,
+      "delta_lags": 0.7391978006024551
+    },
+    "esn": {
+      "base": 0.791060560563179,
+      "delta": 0.7913922815383282,
+      "lags": 0.7943551149533844,
+      "ar_residual": 0.7976236059744016,
+      "rff": 0.7501481971415241,
+      "delay": 0.7928612445507,
+      "delta_lags": 0.7943592474370957
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-25T08:26:55+00:00",
+    "git_commit": "a7cb3e6b428f08eb3b20fede2a842d4d56d8fc9a",
+    "git_dirty": true,
+    "code_version_file": null,
+    "host": "DESKTOP-1A0J7FD",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "numpy": "2.2.6",
+    "scipy": "1.17.1",
+    "qutip": "5.3.0",
+    "torch": "2.10.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti",
+    "run": {
+      "dataset": "etth2",
+      "step": "R1-R5 post-hoc drift check"
+    }
+  }
+}
