@@ -489,3 +489,29 @@ LSTM, tuned linear AR as in §11. Block bootstrap 30 days, 2000 resamples.
 - **K2:** adopted − tuned ESN, CI lower bound > −0.02 in ≥ 2/3 cities.
 - **K3 (descriptive):** vs LSTM / AR / persistence; long-horizon (h ≥ 30) R²; test-input shift.
 If nothing is adopted, Confirmation 4 is not run and the three cities stay untouched. All outcomes are reported.
+
+### Step 6 outcome (2026-10-25) — nothing adopted; Confirmation 4 not run
+Mean dev VALIDATION R² over the 8 datasets (`val_pooled`; D per condition), `qrc_design_p_frozen.json`:
+
+| condition | D | mean val R² | worse than base (> 0.005) | mean change w/o best dataset |
+|---|---|---|---|---|
+| **A** final (0.35·arcsin√s, base) | 653 | 0.7060 | — | — |
+| A paper (arcsin s, Hou et al.) | 653 | 0.6903 | 5/8 | −0.0200 |
+| A std (arcsin√s, g = 1) | 653 | 0.6798 | 6/8 | −0.0304 |
+| **B** H (proton FID, base) | 653 | 0.7060 | — | — |
+| B C (¹³C FID) | 653 | 0.7046 | 2/8 | −0.0022 |
+| B HC (H ⊕ C) | 1306 | 0.7083 | 1/8 | +0.0003 |
+| B HZ (H ⊕ ⟨σz⟩) | 662 | 0.7058 | 1/8 | −0.0008 |
+| B HP (H ⊕ populations, idealised) | 1165 | 0.7068 | 2/8 | −0.0004 |
+
+- **Rule A: not met** — the paper encoding is −0.016 below the frozen design (better than our standard g = 1,
+  as expected: arcsin s ≤ arcsin√s rotates less, i.e. partly reduces overwrite). Positioning: our final design
+  sits above the published regime on every ERA5 dev city.
+- **Rule B: not met** — best channel HC +0.0023 (< +0.005); its gain comes from Santa Fe (+0.017), without it
+  +0.0003. **M (memory) not supported:** memory at the longest lag is unchanged by every channel on 5/5 ERA5
+  cities (e.g. Delhi L90 0.79 → 0.79–0.80).
+- **Interpretation:** the long-memory gap is not a readout limit. The proton FID's J-multiplet amplitudes already
+  encode the carbon configurations, so reading the carbons or the full population vector adds no information
+  about the past. Because H is diagonal, populations change only through the input pulses and T1 relaxation —
+  memory is set by the write (overwrite per pulse) and T1, which a readout cannot change.
+- Confirmation 4 is not run (rule); Singapore / Nairobi / Madrid stay untouched.

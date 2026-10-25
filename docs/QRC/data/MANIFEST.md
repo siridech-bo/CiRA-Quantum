@@ -65,6 +65,23 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_design_learn_dev_etth1.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ce7b112c7a4d` |
 | `qrc_design_learn_dev_santafe.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `af021334bfbb` |
 | `qrc_design_learn_frozen.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec62e2a78811` |
+| `qrc_design_p_frozen.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `c0e5992a3d71` |
+| `qrc_design_pA_dev_beijing_pm25.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `8ed1563eb3da` |
+| `qrc_design_pA_dev_era5_bangkok.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `5335f7609b4e` |
+| `qrc_design_pA_dev_era5_beijing.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `541b60eedcec` |
+| `qrc_design_pA_dev_era5_berlin.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `e977e1eb018f` |
+| `qrc_design_pA_dev_era5_delhi.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `12f86f198506` |
+| `qrc_design_pA_dev_era5_mumbai.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `5e132083b037` |
+| `qrc_design_pA_dev_etth1.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `0d441f44b230` |
+| `qrc_design_pA_dev_santafe.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `83da1a8d32c7` |
+| `qrc_design_pB_dev_beijing_pm25.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `064c1ed97a55` |
+| `qrc_design_pB_dev_era5_bangkok.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `770ad99f610d` |
+| `qrc_design_pB_dev_era5_beijing.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `2b4ee5b35d67` |
+| `qrc_design_pB_dev_era5_berlin.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `14b6728ca527` |
+| `qrc_design_pB_dev_era5_delhi.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `d665c470e37e` |
+| `qrc_design_pB_dev_era5_mumbai.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `d3ca34e7e548` |
+| `qrc_design_pB_dev_etth1.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `b7b6fb17a280` |
+| `qrc_design_pB_dev_santafe.json` | current | uncommitted | `qrc_design_p.py dev|freeze` | Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted | `71dda17f4c4c` |
 | `qrc_design_r_dev_beijing_pm25.json` | current | f9ca4ac 2026-10-25 | `qrc_design_r.py dev|freeze|posthoc` | Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check | `7360933bdf31` |
 | `qrc_design_r_dev_era5_bangkok.json` | current | f9ca4ac 2026-10-25 | `qrc_design_r.py dev|freeze|posthoc` | Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check | `6b65603a7e62` |
 | `qrc_design_r_dev_era5_beijing.json` | current | f9ca4ac 2026-10-25 | `qrc_design_r.py dev|freeze|posthoc` | Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check | `c190c17072c5` |
@@ -76,7 +93,7 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_design_r_frozen.json` | current | f9ca4ac 2026-10-25 | `qrc_design_r.py dev|freeze|posthoc` | Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check | `111ebb1c30f4` |
 | `qrc_design_r_posthoc_etth1.json` | current | f9ca4ac 2026-10-25 | `qrc_design_r.py dev|freeze|posthoc` | Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check | `7596b472798a` |
 | `qrc_design_r_posthoc_etth2.json` | current | f9ca4ac 2026-10-25 | `qrc_design_r.py dev|freeze|posthoc` | Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check | `4da5597bb22d` |
-| `qrc_diag_lagos.json` | current | uncommitted | `qrc_lagos_diag.py` | POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities | `14640bcc16cf` |
+| `qrc_diag_lagos.json` | current | 23df2aa 2026-10-25 | `qrc_lagos_diag.py` | POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities | `14640bcc16cf` |
 | `qrc_drift_electricity.json` | current | 08fd10f 2026-10-25 | `qrc_design_r.py drift` | drift test (pre-registered a4111de): delta_lags level handling on untouched exchange / electricity — D1 met | `9832d28023d7` |
 | `qrc_drift_exchange.json` | current | 08fd10f 2026-10-25 | `qrc_design_r.py drift` | drift test (pre-registered a4111de): delta_lags level handling on untouched exchange / electricity — D1 met | `7b8eea385d64` |
 | `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
@@ -94,6 +111,7 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_realworld_era5_mumbai.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `6f02e8af1789` |
 | `qrc_realworld_etth1.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3254e4b2b7a7` |
 | `qrc_realworld_factors.json` | current | 8dbd109 2026-10-23 | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `76e96027b0b7` |
+| `qrc_realworld_figdata.json` | current | e85923f 2026-10-25 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `101ceb2143dd` |
 | `qrc_realworld_kaggle_delhi.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `738e3846ae64` |
 | `qrc_realworld_memory_function.json` | current | 8dbd109 2026-10-23 | `qrc_realworld_factors.py / memory-function analysis` | factor analysis of the real-world benchmark (why QRC wins/comparable/loses) | `9bf873c098e0` |
 | `qrc_realworld_santafe.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `795f26b15bcf` |
@@ -107,7 +125,7 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_weather_pool_delhi_kaggle.json` | current | 469c9d2 2026-10-22 | `qrc_weather_pool.py` | Kaggle Delhi pooled seeds: learned QRC vs ESN, ESN with trained input stage | `58946235718f` |
 | `TRACES_MANIFEST.json` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `d764b1ada130` |
 | `TRACES_MANIFEST.md` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `82fd8570b925` |
-| `ZENODO_METADATA.json` | unlisted | a0d11c9 2026-10-24 | `?` |  | `f41b8a76b22d` |
+| `ZENODO_METADATA.json` | unlisted | a0d11c9 2026-10-24 | `?` |  | `5263b766da62` |
 | `ZENODO_PLAN.json` | unlisted | a0d11c9 2026-10-24 | `?` |  | `6b61f959e772` |
 | `ZENODO_PLAN.md` | unlisted | a0d11c9 2026-10-24 | `?` |  | `be8c33da7a14` |
 

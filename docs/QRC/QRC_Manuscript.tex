@@ -57,9 +57,10 @@ significantly better than the tuned ESN and was significantly worse on five. A m
 input overwrite, and a single physical parameter---an encoding gain $g$ that scales the
 input pulse angle, frozen at $g=0.35$ on validation data---improved the pooled test
 $R^2$ over the standard encoding ($g=1$) in all six cities where it was tested, by
-$+0.015$ to $+0.079$. Four further pre-registered changes (bounded features, step time
-and compact readout, a learned encoding on top of the gain, a kernel readout) were not
-adopted or failed confirmation; all are reported. In the second confirmation the frozen
+$+0.015$ to $+0.079$. Five further pre-registered changes (bounded features, step time
+and compact readout, a learned encoding on top of the gain, a kernel readout, and
+$^{13}$C or population readouts) were not adopted or failed confirmation; all are
+reported. The encoding of the closest experimental work scores below the frozen gain. In the second confirmation the frozen
 design is non-inferior to the tuned ESN, LSTM and linear AR in 3/3 cities (margin
 $0.02$ in $R^2$, set after the first confirmation and disclosed). Over all nine
 untouched cities it is within the margin of the tuned ESN in 7/9, of the LSTM in 8/9
@@ -102,7 +103,7 @@ produced by selection on the test data.
 The study has three stages. (i) A \emph{development benchmark} on nine real-world
 datasets (daily weather, hourly air quality and transformer load, a chaotic laser),
 in which the standard QRC is compared with a tuned ESN, LSTM and linear AR model
-(Sec.~\ref{sec:bench}). (ii) Five \emph{design steps}, each pre-registered in a
+(Sec.~\ref{sec:bench}). (ii) Six \emph{design steps}, each pre-registered in a
 commit before it was run, developed on validation periods only and adopted only if it
 cleared a fixed threshold (Sec.~\ref{sec:design}). (iii) Three \emph{pre-registered
 confirmations} on nine cities, and a pre-registered \emph{drift test} on two shifted
@@ -370,6 +371,9 @@ Confirmation 3 (kernel readout) & \texttt{a7cb3e6} &
 Drift test (level handling) & \texttt{a4111de} &
   D1: $\Delta(\mathrm{level}-\mathrm{base})>0$, CI excl.\ 0, on both series &
   D1 pass 2/2 \\
+6: paper encoding; $^{13}$C / population readout & \texttt{d022533} &
+  as step 5, plus gain must survive dropping the best dataset &
+  not adopted; Conf.\ 4 not run \\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
@@ -560,7 +564,47 @@ test sets, labelled as such, showed the kernel readout collapsing under drift an
 level handling helping (ETTh2 $+0.36\to+0.74$, ETTh1 $-0.21\to+0.23$); that
 observation is what the drift test of Sec.~\ref{sec:drift} confirms on untouched data.
 
-\paragraph*{Final design.} Steps 1--5 leave the final design: crotonic-9, fixed gain
+\subsection{Step 6: published encoding and population readouts (not adopted)}\label{sec:step6}
+% Source: QRC_Design_Concepts.md section 13 + "Step 6 outcome"; qrc_design_p_frozen.json, qrc_design_p{A,B}_dev_*.json.
+Two physical changes remained after step 5. (A) The encoding of the closest experimental
+work, $\theta=\arcsin s$~\cite{Hou2026}, as a positioning control. (B) Reading the
+long-lived $^{13}$C spins ($T_1$ up to \SI{27.5}{s}) as well as the protons: a $^{13}$C
+FID (653 bins), the nine single-spin $\langle\sigma_z\rangle$, or all 512
+computational-basis populations (idealised; population tomography on hardware), each
+concatenated with the proton readout ($D=662$--$1306$). The adoption rule was that of
+step 5, plus a guard learned there: the gain must survive dropping the single
+most-improved dataset. Nothing was adopted (Table~\ref{tab:step6}). The published
+encoding scored 0.6903 against 0.7060 for $g=0.35$ (worse on 5/8; better than
+$\arcsin\sqrt{s}$ at $g=1$, 0.6798, since $\arcsin s\le\arcsin\sqrt{s}$ also rotates
+less). The best readout, proton $\oplus$ $^{13}$C FID, gained $+0.0023$, almost all of
+it on Santa Fe, and no channel changed the long-lag memory on any weather city
+(Delhi, lag 90: 0.79 for every channel). The memory gap is therefore not a readout
+limit: the proton $J$-multiplets already resolve the carbon configurations, and since
+$H$ is diagonal the populations change only through the input pulses and $T_1$.
+Memory is set by how each pulse overwrites the stored state, which no readout can
+undo.
+
+\begin{table}[t]
+\caption{\label{tab:step6}Step 6 (validation only): mean pooled validation $R^2$ over the
+eight development datasets. QRC: crotonic-9, $\tau=\SI{30}{ms}$; readouts with their
+feature count $D$. Base rows in bold.}
+% Source: qrc_design_p_frozen.json "mean".
+\begin{ruledtabular}
+\begin{tabular}{llcc}
+part & condition & $D$ & mean val.\ $R^2$ \\ \colrule
+A & $\mathbf{0.35\arcsin\sqrt{s}}$ (final) & 653 & \textbf{0.7060} \\
+  & $\arcsin s$ (Ref.~\cite{Hou2026}) & 653 & 0.6903 \\
+  & $\arcsin\sqrt{s}$ ($g=1$) & 653 & 0.6798 \\ \colrule
+B & \textbf{proton FID} (final) & 653 & \textbf{0.7060} \\
+  & $^{13}$C FID & 653 & 0.7046 \\
+  & proton $\oplus$ $^{13}$C FID & 1306 & 0.7083 \\
+  & proton $\oplus$ $\langle\sigma_z\rangle$ & 662 & 0.7058 \\
+  & proton $\oplus$ populations & 1165 & 0.7068 \\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
+
+\paragraph*{Final design.} Steps 1--6 leave the final design: crotonic-9, fixed gain
 $g=0.35$ (no learned correction), $\tau=\SI{30}{ms}$, 653-bin FID readout ($D=653$),
 ridge readout. It is regime A: no gradient enters the quantum dynamics. Where inputs
 can drift, level handling is added to the readout as classical features
@@ -868,12 +912,13 @@ non-inferior to a tuned ESN in 7/9 cities, to a tuned LSTM in 8/9 and to a tuned
 AR model in 9/9, but never better than the tuned ESN, which is significantly ahead in
 6/9. The step that made the QRC competitive was physical and simple: reducing the
 encoding gain to $g=0.35$ to limit input overwrite. The remaining gap is long memory,
-largest where slow anomalies dominate (Lagos). Four further pre-registered changes did
-not help; the QRC's failure under input shift is fixed by classical level handling,
-which gives it no edge. We therefore report no quantum advantage. The next steps
-target memory in the reservoir itself: a population ($^{13}$C $z$) readout channel,
-separating write and store spins, and more strongly coupled, longer-coherence molecules,
-followed by on-device tests.
+largest where slow anomalies dominate (Lagos). Five further pre-registered changes did
+not help---including reading the long-lived $^{13}$C spins, which shows that the memory
+gap is set by the write, not the readout. The QRC's failure under input shift is fixed
+by classical level handling, which gives it no edge. We therefore report no quantum
+advantage. The remaining lever is the write itself: storing inputs on spins that later
+pulses do not touch (which, with a diagonal Hamiltonian, needs a coherent transfer
+step), or longer-$T_1$, more strongly coupled molecules, followed by on-device tests.
 
 \begin{acknowledgments}
 [Funding and computing acknowledgments to be added.] Reproduction code, data and

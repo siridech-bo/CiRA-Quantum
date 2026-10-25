@@ -496,6 +496,159 @@
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
     },
     {
+      "file": "qrc_design_p_frozen.json",
+      "sha256": "c0e5992a3d717ff82d6fe2f0d02c9b9d620f5ce01bd97f4c5b4c3569d8bf15dc",
+      "bytes": 7986,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_beijing_pm25.json",
+      "sha256": "8ed1563eb3da082e18df0cf794bc5297bf7de00b99edeffe0f4b40f9a61f2cf0",
+      "bytes": 1673,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_era5_bangkok.json",
+      "sha256": "5335f7609b4e900048e7978463a8a40fc4c829246503cfb93fd44bf64a00a562",
+      "bytes": 1776,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_era5_beijing.json",
+      "sha256": "541b60eedcec50121de83164ca7efe37a14c0b188972a1c2756385e1ba3a3251",
+      "bytes": 1771,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_era5_berlin.json",
+      "sha256": "e977e1eb018f82776d567a43270d025237e4959c62a4ce11c2cfec7ca1b25bef",
+      "bytes": 1768,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_era5_delhi.json",
+      "sha256": "12f86f19850612582a2c1af1ff4b1d18c7bb545d1c2572d89e2c00920843f9bc",
+      "bytes": 1767,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_era5_mumbai.json",
+      "sha256": "5e132083b0374304b487ec5b98fc2e5661d1a6560f3b44fbee7e8b577a07eb92",
+      "bytes": 1771,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_etth1.json",
+      "sha256": "0d441f44b230949b71738960d5859e79d2b302cc85d165a7833f0bb9281fa1b2",
+      "bytes": 1663,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pA_dev_santafe.json",
+      "sha256": "83da1a8d32c7ec574e8de7f40ff0dd18448f26a481d32f2c0e748739bec1f6d4",
+      "bytes": 1568,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_beijing_pm25.json",
+      "sha256": "064c1ed97a55f1f5c727dce93a03d3be9d87d97be43be507a767535367b9e4ea",
+      "bytes": 2277,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_era5_bangkok.json",
+      "sha256": "770ad99f610d584e6e788a600b258e4e0ba4d7ca0c5bc4cc08372550f7423b58",
+      "bytes": 2445,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_era5_beijing.json",
+      "sha256": "2b4ee5b35d67bb6d0d82b63b24a16b1671df919907062c7b6af2f16092e57d35",
+      "bytes": 2439,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_era5_berlin.json",
+      "sha256": "14b6728ca527eb3af8c74e5013852a91ced65acb3dfc56c8da9fd98d08398d53",
+      "bytes": 2437,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_era5_delhi.json",
+      "sha256": "d665c470e37e584950f8dac25d08677a792888840c027927a9cb990d367bfc19",
+      "bytes": 2436,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_era5_mumbai.json",
+      "sha256": "d3ca34e7e5483a2c0421a88ddd95d19a838bd9ab53ccc7ffa671e32744fce97a",
+      "bytes": 2436,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_etth1.json",
+      "sha256": "b7b6fb17a280b64961e58bde6d739f86e222e0fb3e89f2c05da13a09e9a861ea",
+      "bytes": 2266,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
+      "file": "qrc_design_pB_dev_santafe.json",
+      "sha256": "71dda17f4c4cff58a9e1a64e97926d4b2c6a5ff7001caf6bf70433a7e441d2df",
+      "bytes": 2105,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_p.py dev|freeze",
+      "description": "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only \u2014 nothing adopted"
+    },
+    {
       "file": "qrc_design_r_dev_beijing_pm25.json",
       "sha256": "7360933bdf31a1ea3ffa61d76c5190503a64e26821b4d8b9a6fb0055e93d3aab",
       "bytes": 2516,
@@ -598,7 +751,7 @@
       "file": "qrc_diag_lagos.json",
       "sha256": "14640bcc16cfcae907426a57b860bd7ddbee36d9879fb8737b79642dcc2e1acb",
       "bytes": 19008,
-      "added": "uncommitted",
+      "added": "23df2aa 2026-10-25",
       "status": "current",
       "script": "qrc_lagos_diag.py",
       "description": "POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities"
@@ -757,6 +910,15 @@
       "description": "factor analysis of the real-world benchmark (why QRC wins/comparable/loses)"
     },
     {
+      "file": "qrc_realworld_figdata.json",
+      "sha256": "101ceb2143dd05e5b22d56b4867abb84feaff84b8202cd3e547d16038b9b9461",
+      "bytes": 28346,
+      "added": "e85923f 2026-10-25",
+      "status": "current",
+      "script": "qrc_realworld_bench.py eval",
+      "description": "real-world benchmark eval"
+    },
+    {
       "file": "qrc_realworld_kaggle_delhi.json",
       "sha256": "738e3846ae64858d908241e22a0b9db2c7b41ba007a497303154eacb52be5027",
       "bytes": 6822,
@@ -875,8 +1037,8 @@
     },
     {
       "file": "ZENODO_METADATA.json",
-      "sha256": "f41b8a76b22da0b5a26c67988e24a3c5a184acb0237c9cc8a10b7b3920423bab",
-      "bytes": 2390,
+      "sha256": "5263b766da62c904192dd51fc80c1d0f630611ab5ace97cee7a42b1f94e3102b",
+      "bytes": 2532,
       "added": "a0d11c9 2026-10-24",
       "status": "unlisted",
       "script": "?",
