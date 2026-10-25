@@ -451,3 +451,41 @@ input lags — **classical, non-reservoir features (SOP §6 label)**; the same v
 drift failure: exchange 0.924 → persistence level), but it is a classical feature and gives no quantum-side
 advantage; on the electricity series without shift the QRC is clearly inferior to all tuned baselines.
 Data: `qrc_drift_{exchange,electricity}.json`; traces + predictions `backend/artifacts/qrc_runs/step5/{exchange,electricity}`.
+
+## 13. Step 6 — paper-encoding control + population / ¹³C readout channels (PRE-REGISTERED 2026-10-25, before any run)
+
+Basis: §11–§12 outcomes. Readout-side changes are exhausted; the remaining gap is long memory (Lagos post-hoc:
+slow anomalies; memory R² 0.53 at lag 90 vs ESN 0.88). The literature review (`reports/QRC improvements for
+forecasting.md`, items 5–6) ranks (5) a control with the encoding of the closest prior work, Hou et al.
+PRL 136, 120602 (2026) — θ = arcsin(s), g = 1 — and (6) reading the long-lived ¹³C populations (T1 4.9–27.5 s)
+in addition to the proton FID. Development on the VALIDATION periods of the 8 counted dev datasets
+(`DEV` in `qrc_design_r.py`), scored with `val_pooled` (the Step 5 protocol: std flag and α per target on VAL).
+One GPU pass per condition per dataset on the lab A100s, raw traces saved before any metric.
+
+**Part A — encoding control (crotonic-9, τ = 30 ms, 653-bin proton FID, D = 653):**
+conditions `paper` θ = arcsin(s), `std` θ = arcsin√s (g = 1), `final` θ = 0.35·arcsin√s; var0 → protons,
+var1 → carbons (as Hou: temperature on ¹H, humidity on ¹³C). **Rule A:** `paper` replaces the frozen encoding
+only if its mean dev VAL R² ≥ `final` + 0.005 and it is worse than `final` by > 0.005 on ≤ 2/8. Otherwise it is
+reported as the positioning control (how our system relates to the published regime).
+
+**Part B — readout channels at the frozen encoding (g = 0.35), all from the same pass:**
+- `H`  proton FID, top-653 |FFT| bins (the standard, D = 653; must reproduce the saved g0.35 features);
+- `C`  ¹³C FID (π/2 on the carbons, 2048 points, dwell 50 µs), top-653 bins (D = 653);
+- `HC` H ⊕ C (D = 1306);
+- `HZ` H ⊕ the 9 single-spin ⟨σz⟩ after evolution (D = 662; few-experiment measurable);
+- `HP` H ⊕ the 512 computational-basis populations diag(ρ) after evolution (D = 1165; idealised —
+  needs population tomography on hardware, labelled as such).
+Concatenated blocks are each standardised on training data. **Rule B:** adopt the channel with the best mean dev
+VAL R² if (i) ≥ `H` + 0.005, (ii) worse than `H` by > 0.005 on ≤ 2/8, and (iii) — guard added after the Step 5
+lesson (a single-dataset gain) — the mean over the 7 datasets left after removing its single most-improved dataset
+is ≥ `H` + 0.0025. **Secondary (descriptive) M:** memory function (VAL R² of reconstructing the input L steps
+back) at the longest lag, per channel; hypothesis: C / HC / HP raise it on ≥ 4/5 ERA5 dev cities.
+
+**Confirmation 4 (runs only if Rule A or B adopts something; cities fixed now, data downloaded only after this
+commit):** ERA5 daily T + RH 1970–2025, the standard ERA5 protocol, for **Singapore (1.29 N, 103.85 E),
+Nairobi (1.29 S, 36.82 E), Madrid (40.42 N, 3.70 W)**. Comparator: frozen design (H, g = 0.35); tuned ESN, tuned
+LSTM, tuned linear AR as in §11. Block bootstrap 30 days, 2000 resamples.
+- **K1:** adopted − frozen design, pooled test R², CI > 0 in ≥ 2/3 cities.
+- **K2:** adopted − tuned ESN, CI lower bound > −0.02 in ≥ 2/3 cities.
+- **K3 (descriptive):** vs LSTM / AR / persistence; long-horizon (h ≥ 30) R²; test-input shift.
+If nothing is adopted, Confirmation 4 is not run and the three cities stay untouched. All outcomes are reported.
