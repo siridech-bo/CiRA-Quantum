@@ -31,7 +31,7 @@
       "file": "qrc_6spin_pub_shard0.json",
       "sha256": "7d8aeb3d3257ff80ee6725ee61137fb63c9d31537826f04371071dd279da6f8a",
       "bytes": 5491,
-      "added": "uncommitted",
+      "added": "5fc78c2 2026-10-25",
       "status": "current",
       "script": "qrc_learnable_campaign.py --plan 6spin_pub --shard K/2",
       "description": "6-spin learnable campaign, publication seeds 4-5 + MG h=1 seeds 3-5 + tau->0 ablations seeds 2-3 (reduced-FID readout)"
@@ -40,7 +40,7 @@
       "file": "qrc_6spin_pub_shard1.json",
       "sha256": "0ae8deae3a359f5c6900e8b9b4ce636508aea274dacabe3f1cc44dcccde61724",
       "bytes": 4963,
-      "added": "uncommitted",
+      "added": "5fc78c2 2026-10-25",
       "status": "current",
       "script": "qrc_learnable_campaign.py --plan 6spin_pub --shard K/2",
       "description": "6-spin learnable campaign, publication seeds 4-5 + MG h=1 seeds 3-5 + tau->0 ablations seeds 2-3 (reduced-FID readout)"
@@ -49,7 +49,7 @@
       "file": "qrc_6spin_retrace_shard0.json",
       "sha256": "f97ed5eb31c2da7a67c49881cddd3697e2ec12c8ee045bc3709766c96c4b03c2",
       "bytes": 1797,
-      "added": "uncommitted",
+      "added": "5fc78c2 2026-10-25",
       "status": "interim",
       "script": "qrc_learnable_campaign.py --plan 6spin_retrace --shard K/2",
       "description": "partial re-run of the original 6-spin jobs (stopped by user 2026-10-25: does not change conclusions); reproducibility check + traces"
@@ -58,7 +58,7 @@
       "file": "qrc_6spin_retrace_shard1.json",
       "sha256": "a14b95aab9cf7702f5e72f137405877fabe8203ccbf8657f9fca07e391469346",
       "bytes": 2148,
-      "added": "uncommitted",
+      "added": "5fc78c2 2026-10-25",
       "status": "interim",
       "script": "qrc_learnable_campaign.py --plan 6spin_retrace --shard K/2",
       "description": "partial re-run of the original 6-spin jobs (stopped by user 2026-10-25: does not change conclusions); reproducibility check + traces"
@@ -152,6 +152,33 @@
       "status": "current",
       "script": "qrc_design_confirm.py --grid 0.35,1 --prereg 7965cde",
       "description": "Confirmation 2 (pre-registered 7965cde): final design (g=0.35, tau 30 ms, 653 bins) on an untouched city vs tuned ESN/LSTM/linear AR, test 2005-2025"
+    },
+    {
+      "file": "qrc_confirm3_lagos.json",
+      "sha256": "dc660eb29b1e5891670101cafad2378f44b596dbe74f68b9dc83194a3682a05e",
+      "bytes": 2423,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_r.py confirm3",
+      "description": "Confirmation 3 (pre-registered a7cb3e6): adopted rff readout on an untouched city \u2014 G1/G2 NOT met"
+    },
+    {
+      "file": "qrc_confirm3_mexicocity.json",
+      "sha256": "e25818705ae5310c7fd6abc0a7c4d54a856eec6e4eaccb771988300a9c2181ac",
+      "bytes": 2435,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_r.py confirm3",
+      "description": "Confirmation 3 (pre-registered a7cb3e6): adopted rff readout on an untouched city \u2014 G1/G2 NOT met"
+    },
+    {
+      "file": "qrc_confirm3_stockholm.json",
+      "sha256": "f73018c92723ff405535540d6943263f8c824c68c4546b931c5cf6bc2de496ab",
+      "bytes": 2458,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_r.py confirm3",
+      "description": "Confirmation 3 (pre-registered a7cb3e6): adopted rff readout on an untouched city \u2014 G1/G2 NOT met"
     },
     {
       "file": "qrc_crotonic9_campaign.json",
@@ -467,6 +494,123 @@
       "status": "current",
       "script": "qrc_design_learn.py",
       "description": "Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only \u2014 not adopted"
+    },
+    {
+      "file": "qrc_design_r_dev_beijing_pm25.json",
+      "sha256": "7360933bdf31a1ea3ffa61d76c5190503a64e26821b4d8b9a6fb0055e93d3aab",
+      "bytes": 2516,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_dev_era5_bangkok.json",
+      "sha256": "6b65603a7e62d62d1a2952d2c016457caae78c456716b57de9358331ab22393a",
+      "bytes": 2515,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_dev_era5_beijing.json",
+      "sha256": "c190c17072c5592cbc244345033f9d00d10a0faff83ee2d0c83373a5aee60523",
+      "bytes": 2510,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_dev_era5_berlin.json",
+      "sha256": "2e6ab9592c91ff586684ca88cb1fc4cee07361cfb5b4e95808ac443676addddd",
+      "bytes": 2507,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_dev_era5_delhi.json",
+      "sha256": "76f7e60360494a27d3ac5e2e5906030726607daed48add04d7fd45f1dcaf71eb",
+      "bytes": 2513,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_dev_era5_mumbai.json",
+      "sha256": "aa21fe46952cd49dd1476fad0135dffb847cf5a26bdcdb3a1cfc295c5aedba85",
+      "bytes": 2510,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_dev_etth1.json",
+      "sha256": "5cd6155d5789e963155757a72384920705776bad53bb89c8b9fe224b1b917dea",
+      "bytes": 2498,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_dev_santafe.json",
+      "sha256": "82c0f6129e19b2fd4232f15ae29097f638d6509af70a32ceada2477d11dc1d30",
+      "bytes": 2505,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_frozen.json",
+      "sha256": "111ebb1c30f4b1793d9375f142270f24602323f4f33a258e195bcaa5a4474df1",
+      "bytes": 4097,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_posthoc_etth1.json",
+      "sha256": "7596b472798a22164c2a6791f56ee9ae1b50d7d547b619cba2574e49dc98d6f6",
+      "bytes": 1225,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_design_r_posthoc_etth2.json",
+      "sha256": "4da5597bb22d9b960ce25a833a1e695bf02265c2d4c58300ebf3e162470edd53",
+      "bytes": 1209,
+      "added": "f9ca4ac 2026-10-25",
+      "status": "current",
+      "script": "qrc_design_r.py dev|freeze|posthoc",
+      "description": "Step 5 readout-side variants (pre-registered a7cb3e6): dev validation, freeze (rff adopted), post-hoc ETT drift check"
+    },
+    {
+      "file": "qrc_drift_electricity.json",
+      "sha256": "9832d28023d7b9d707d8d7ba88d53b05043c24d06e933c347b4d60cacdbe8453",
+      "bytes": 2499,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_r.py drift",
+      "description": "drift test (pre-registered a4111de): delta_lags level handling on untouched exchange / electricity \u2014 D1 met"
+    },
+    {
+      "file": "qrc_drift_exchange.json",
+      "sha256": "7b8eea385d647f214ff47f00979919476e679d8d316361c535dd50e30f104483",
+      "bytes": 2510,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_design_r.py drift",
+      "description": "drift test (pre-registered a4111de): delta_lags level handling on untouched exchange / electricity \u2014 D1 met"
     },
     {
       "file": "qrc_era5_delhi_eval_final.json",

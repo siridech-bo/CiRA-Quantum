@@ -1,0 +1,110 @@
+{
+  "dataset": "electricity",
+  "preregistration_commit": "a4111de",
+  "variant": "delta_lags",
+  "readout": "fid bins653 (D=653) + variant",
+  "esn_cfg": {
+    "size": 1000.0,
+    "sr": 1.1,
+    "leak": 0.3,
+    "inscale": 0.1
+  },
+  "ar_lags": 120,
+  "block": 168,
+  "test_input_shift_sd": [
+    0.024226250615952457,
+    0.10040035773713823
+  ],
+  "groups": {
+    "qrc_base": {
+      "pooled": 0.7472315778571536
+    },
+    "qrc_delta_lags": {
+      "pooled": 0.7572129163452164
+    },
+    "esn_base": {
+      "pooled": 0.8315910469125809
+    },
+    "esn_delta_lags": {
+      "pooled": 0.833742222826677
+    },
+    "lstm_tuned": {
+      "pooled": 0.788058065485127
+    },
+    "linear_ar": {
+      "pooled": 0.790933461208465
+    },
+    "persistence": {
+      "pooled": 0.05790224084693838
+    }
+  },
+  "tests": {
+    "D1 qrc_delta_lags - qrc_base": {
+      "point": 0.009981338488062819,
+      "ci95": [
+        0.0024397904958792017,
+        0.015520929599342976
+      ],
+      "frac_positive": 0.9935
+    },
+    "D2 qrc_delta_lags - esn_base": {
+      "point": -0.07437813056736453,
+      "ci95": [
+        -0.10686186895787733,
+        -0.05460558105334419
+      ],
+      "frac_positive": 0.0
+    },
+    "D2 qrc_delta_lags - esn_delta_lags": {
+      "point": -0.07652930648146061,
+      "ci95": [
+        -0.10979549718427449,
+        -0.056016074649567114
+      ],
+      "frac_positive": 0.0
+    },
+    "D2 qrc_delta_lags - lstm_tuned": {
+      "point": -0.030845149139910655,
+      "ci95": [
+        -0.06471828298072473,
+        -0.005802156310451238
+      ],
+      "frac_positive": 0.0095
+    },
+    "D2 qrc_delta_lags - linear_ar": {
+      "point": -0.0337205448632486,
+      "ci95": [
+        -0.059153280529851776,
+        -0.015831213994692693
+      ],
+      "frac_positive": 0.0
+    },
+    "D2 qrc_delta_lags - persistence": {
+      "point": 0.699310675498278,
+      "ci95": [
+        0.6455723420286396,
+        0.7751131442616188
+      ],
+      "frac_positive": 1.0
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-25T08:47:32+00:00",
+    "git_commit": "476e48c",
+    "git_dirty": null,
+    "code_version_file": "476e48c",
+    "host": "e6f2f8f3e71d",
+    "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "qutip": "5.3.1",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA A100-SXM4-40GB MIG 7g.40gb",
+    "run": {
+      "dataset": "electricity",
+      "step": "drift"
+    }
+  }
+}

@@ -401,3 +401,49 @@ Bootstrap: moving-block, 2000 resamples, block 30 (exchange, days) / 168 (electr
 - **D2 (descriptive):** QRC delta_lags vs tuned ESN (base and delta_lags readout), tuned LSTM, tuned linear
   AR, persistence (ŷ(t+h) = y(t)); test-input shift reported (mean test input in training s.d.).
 All outcomes are reported.
+
+### Confirmation 3 outcome (2026-10-25) — adopted kernel readout NOT confirmed
+Untouched ERA5 cities, test 2005–2025, 653-bin FID readout (D = 653) + variant, block 30, 2000 resamples.
+Pooled test R²:
+
+| city | QRC base | QRC rff | ESN base | ESN rff | LSTM | linear AR | persistence |
+|---|---|---|---|---|---|---|---|
+| Lagos | 0.542 | 0.455 | 0.591 | 0.518 | 0.527 | 0.539 | 0.258 |
+| Mexico City | 0.510 | 0.331 | 0.514 | 0.442 | 0.458 | 0.478 | 0.232 |
+| Stockholm | 0.583 | 0.576 | 0.592 | 0.582 | 0.566 | 0.582 | 0.213 |
+
+- **G1 (rff − base, CI > 0 in ≥ 2/3): FAILED, 0/3** — rff is significantly *worse* in every city:
+  Lagos −0.086 [−0.172, −0.033], Mexico City −0.179 [−0.287, −0.102], Stockholm −0.007 [−0.013, −0.001].
+- **G2 (QRC-rff − ESN-rff, CI lower bound > −0.02 in ≥ 2/3): FAILED, 1/3** — Lagos −0.063 [−0.155, −0.001],
+  Mexico City −0.111 [−0.212, −0.040], Stockholm −0.006 [−0.013, +0.000] (non-inferior).
+- **G3 (descriptive):** QRC-rff vs ESN base −0.135 / −0.183 / −0.016; vs LSTM −0.072 / −0.127 / **+0.011**;
+  vs AR −0.084 / −0.147 / −0.006. Base readout (the frozen design, unchanged) vs ESN base:
+  Lagos **−0.049 [−0.065, −0.036]** (outside the 0.02 margin — the first untouched city where the base design
+  is inferior), Mexico City −0.004 [−0.020, +0.012] (non-inferior, barely), Stockholm −0.009 [−0.014, −0.004]
+  (non-inferior). Test-input shift: Lagos +0.51 / −0.36 s.d., Mexico City +0.50 / −0.24, Stockholm +0.14 / −0.03.
+
+**Conclusion:** the Santa-Fe-driven dev gain does not transfer; the kernel readout overfits under even modest
+input shift (largest losses where the shift is largest). **rff is withdrawn; the frozen design keeps the plain
+ridge readout.** The base-design result on 9 untouched cities is now 8 non-inferior, 1 inferior (Lagos).
+Data: `qrc_confirm3_{lagos,mexicocity,stockholm}.json`; traces + predictions `backend/artifacts/qrc_runs/step5/era5_*`.
+
+### Drift test outcome (2026-10-25) — D1 MET on both datasets
+Untouched series, 653-bin FID readout (D = 653) + variant. `delta_lags` adds last-value re-centring and raw
+input lags — **classical, non-reservoir features (SOP §6 label)**; the same variant is given to the tuned ESN.
+
+| dataset (test shift) | QRC base | QRC delta_lags | ESN base | ESN delta_lags | LSTM | linear AR | persistence |
+|---|---|---|---|---|---|---|---|
+| exchange (+1.26 s.d.) | 0.924 | **0.983** | 0.982 | 0.982 | 0.961 | 0.982 (L=1) | 0.983 |
+| electricity (+0.02 s.d.) | 0.747 | **0.757** | 0.832 | 0.834 | 0.788 | 0.791 | 0.058 |
+
+- **D1 (delta_lags − base, CI > 0 on both): MET** — exchange +0.058 [+0.013, +0.104], electricity
+  +0.010 [+0.002, +0.016] (block 168).
+- **D2 (descriptive):** exchange — QRC delta_lags beats ESN base by +0.001 [+0.0003, +0.0018] and LSTM by
+  +0.021, but **equals persistence** (−0.00004 [−0.0007, +0.0005]): the series is a random walk and the fix
+  works by letting the readout fall back to the last value. Electricity (no real shift) — QRC delta_lags
+  remains far behind the tuned ESN (−0.074 [−0.107, −0.055]), LSTM (−0.031) and AR (−0.034).
+
+**Conclusion:** level handling is a confirmed, necessary fix for the QRC under input shift (it removes the
+drift failure: exchange 0.924 → persistence level), but it is a classical feature and gives no quantum-side
+advantage; on the electricity series without shift the QRC is clearly inferior to all tuned baselines.
+Data: `qrc_drift_{exchange,electricity}.json`; traces + predictions `backend/artifacts/qrc_runs/step5/{exchange,electricity}`.

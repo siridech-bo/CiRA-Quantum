@@ -1,0 +1,110 @@
+{
+  "dataset": "era5_stockholm",
+  "preregistration_commit": "a7cb3e6",
+  "variant": "rff",
+  "readout": "fid bins653 (D=653) + variant",
+  "esn_cfg": {
+    "size": 650.0,
+    "sr": 0.95,
+    "leak": 0.1,
+    "inscale": 0.1
+  },
+  "ar_lags": 120,
+  "block": 30,
+  "test_input_shift_sd": [
+    0.13974090994428487,
+    -0.03334346556270848
+  ],
+  "groups": {
+    "qrc_base": {
+      "pooled": 0.5828913316111068
+    },
+    "qrc_rff": {
+      "pooled": 0.5763022738259244
+    },
+    "esn_base": {
+      "pooled": 0.5920923790810441
+    },
+    "esn_rff": {
+      "pooled": 0.5824434072296505
+    },
+    "lstm_tuned": {
+      "pooled": 0.5655696350943762
+    },
+    "linear_ar": {
+      "pooled": 0.5819236946696689
+    },
+    "persistence": {
+      "pooled": 0.2125646759151071
+    }
+  },
+  "tests": {
+    "G1 qrc_rff - qrc_base": {
+      "point": -0.006589057785182484,
+      "ci95": [
+        -0.013322669237507028,
+        -0.0005214007782885514
+      ],
+      "frac_positive": 0.016
+    },
+    "G2 qrc_rff - esn_rff": {
+      "point": -0.006141133403726129,
+      "ci95": [
+        -0.012923656785172927,
+        0.00013263732683749436
+      ],
+      "frac_positive": 0.0285
+    },
+    "G3 qrc_rff - esn_base": {
+      "point": -0.015790105255119702,
+      "ci95": [
+        -0.0243417933442824,
+        -0.007721134319587322
+      ],
+      "frac_positive": 0.0
+    },
+    "G3 qrc_rff - lstm_tuned": {
+      "point": 0.010732638731548172,
+      "ci95": [
+        0.0027250814349080387,
+        0.018369478321259795
+      ],
+      "frac_positive": 0.9945
+    },
+    "G3 qrc_rff - linear_ar": {
+      "point": -0.005621420843744507,
+      "ci95": [
+        -0.01382057513214587,
+        0.0017664731614466796
+      ],
+      "frac_positive": 0.071
+    },
+    "G3 qrc_base - esn_base": {
+      "point": -0.009201047469937218,
+      "ci95": [
+        -0.014447295614258782,
+        -0.004411863860714782
+      ],
+      "frac_positive": 0.0
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-25T08:58:12+00:00",
+    "git_commit": "476e48c",
+    "git_dirty": null,
+    "code_version_file": "476e48c",
+    "host": "b77be1fad027",
+    "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "qutip": "5.3.1",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA A100-SXM4-40GB MIG 7g.40gb",
+    "run": {
+      "dataset": "era5_stockholm",
+      "step": "confirm3"
+    }
+  }
+}

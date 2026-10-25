@@ -1,0 +1,110 @@
+{
+  "dataset": "exchange",
+  "preregistration_commit": "a4111de",
+  "variant": "delta_lags",
+  "readout": "fid bins653 (D=653) + variant",
+  "esn_cfg": {
+    "size": 300.0,
+    "sr": 0.5,
+    "leak": 1.0,
+    "inscale": 0.1
+  },
+  "ar_lags": 1,
+  "block": 30,
+  "test_input_shift_sd": [
+    1.2566310146969308,
+    -0.7496317103036624
+  ],
+  "groups": {
+    "qrc_base": {
+      "pooled": 0.9242002512525695
+    },
+    "qrc_delta_lags": {
+      "pooled": 0.9826890947141989
+    },
+    "esn_base": {
+      "pooled": 0.9817258218603803
+    },
+    "esn_delta_lags": {
+      "pooled": 0.9818197122907201
+    },
+    "lstm_tuned": {
+      "pooled": 0.9614135146575764
+    },
+    "linear_ar": {
+      "pooled": 0.9822374347015778
+    },
+    "persistence": {
+      "pooled": 0.9827328202974682
+    }
+  },
+  "tests": {
+    "D1 qrc_delta_lags - qrc_base": {
+      "point": 0.0584888434616293,
+      "ci95": [
+        0.013414812547758823,
+        0.10413144452922449
+      ],
+      "frac_positive": 1.0
+    },
+    "D2 qrc_delta_lags - esn_base": {
+      "point": 0.0009632728538185864,
+      "ci95": [
+        0.00025445473199959265,
+        0.0017818574188098314
+      ],
+      "frac_positive": 0.9975
+    },
+    "D2 qrc_delta_lags - esn_delta_lags": {
+      "point": 0.0008693824234787817,
+      "ci95": [
+        0.00023296506455008358,
+        0.0016308909443701358
+      ],
+      "frac_positive": 0.9975
+    },
+    "D2 qrc_delta_lags - lstm_tuned": {
+      "point": 0.021275580056622445,
+      "ci95": [
+        0.016346151663475892,
+        0.03098479715619054
+      ],
+      "frac_positive": 1.0
+    },
+    "D2 qrc_delta_lags - linear_ar": {
+      "point": 0.00045166001262109123,
+      "ci95": [
+        4.7490193721114184e-05,
+        0.0009200492333967468
+      ],
+      "frac_positive": 0.988
+    },
+    "D2 qrc_delta_lags - persistence": {
+      "point": -4.3725583269371704e-05,
+      "ci95": [
+        -0.0006946123561598821,
+        0.0005311647170462334
+      ],
+      "frac_positive": 0.427
+    }
+  },
+  "provenance": {
+    "utc": "2026-10-25T08:39:52+00:00",
+    "git_commit": "476e48c",
+    "git_dirty": null,
+    "code_version_file": "476e48c",
+    "host": "e6f2f8f3e71d",
+    "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "qutip": "5.3.1",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA A100-SXM4-40GB MIG 7g.40gb",
+    "run": {
+      "dataset": "exchange",
+      "step": "drift"
+    }
+  }
+}
