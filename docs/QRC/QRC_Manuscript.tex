@@ -56,8 +56,8 @@ development datasets the best QRC variant (a learned input encoding) was never
 significantly better than the tuned ESN and was significantly worse on five. A memory analysis traced the long-horizon gap to
 input overwrite, and a single physical parameter---an encoding gain $g$ that scales the
 input pulse angle, frozen at $g=0.35$ on validation data---improved the pooled test
-$R^2$ over the standard encoding ($g=1$) in all six cities where it was tested, by
-$+0.015$ to $+0.079$. Five further pre-registered changes (bounded features, step time
+$R^2$ over the standard encoding ($g=1$) in all six cities where it was tested, a
+pooled-$R^2$ gain of $+0.015$ to $+0.079$. Five further pre-registered changes (bounded features, step time
 and compact readout, a learned encoding on top of the gain, a kernel readout, and
 $^{13}$C or population readouts) were not adopted or failed confirmation; all are
 reported. The encoding of the closest experimental work scores below the frozen gain. In the second confirmation the frozen
