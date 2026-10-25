@@ -320,3 +320,45 @@ ESN −0.006 (ESN significantly better in 4/6, QRC in 0/6), vs tuned LSTM +0.001
 +0.015 (QRC better in 4/6). Claim supported: **the final physical QRC design is non-inferior to tuned
 classical reservoirs and LSTMs on untouched real-world forecasting, but not superior to the tuned ESN.**
 Details: `QRC_Design_Evidence.md` (Confirmation 2).
+
+## 11. Step 5 — readout-side concepts R1–R5 (PRE-REGISTERED 2026-10-25, before any R-result was computed)
+
+Basis: literature review `reports/QRC improvements for forecasting.md` (2026-10-25): the drift failure
+(ETTh1/ETTh2) looks like a *readout* limitation — the 653 |FFT| features are non-negative, bounded and
+carry no linear copy of the input, so the linear readout cannot follow a shifted level — and the
+long-horizon gap may be partly closable by readout-side memory. All variants are **offline** on the saved
+frozen-design features (`design_c1/g0.35/X.npz`; g = 0.35, τ = 30 ms, 653 bins, D = 653); no new
+reservoir evolution. **Fairness:** every variant is applied identically to the tuned ESN (its
+validation-selected configuration, states recomputed, 3 inits); the linear AR baseline is unchanged
+(it already is the lag model).
+
+Variants (F = the model's base features; hyper-parameters chosen on VALIDATION only, refit TRAIN+VAL):
+- **base** — current readout (ridge on F; α and standardisation on VAL, per target).
+- **R1 delta** — last-value re-centring (NLinear-style, Zeng et al. 2023): target y(t+h) − w_v(t),
+  prediction adds w_v(t) back; R² on the original scale.
+- **R2 lags** — [F, raw input lags w(t..t−L+1)], L ∈ {1, 7, 30}, lag block scaled by s ∈ {1, 3, 10}
+  after standardisation (smaller effective penalty), (L, s) on VAL.
+- **R3 ar_residual** — two-stage: the tuned linear AR (lags/α on VAL) first, ridge on F fitted to the AR
+  residual; prediction = AR + residual model.
+- **R4 rff** — kernel readout: random Fourier features (RBF, 2000 features, fixed seed 0) of the
+  standardised F, bandwidth γ ∈ {0.3, 1, 3} × 1/D, then ridge.
+- **R5 delay** — [F, PCA32(F)(t−7), PCA32(F)(t−30), PCA32(F)(t−90)] (PCA fitted on TRAIN). *Adds classical
+  memory (SOP §6) — reported with that label.*
+- **R1+R2** — delta target with the lag-augmented features.
+
+**Freeze rule (P1):** for the QRC, the variant with the highest mean pooled VALIDATION R² over the 8
+development datasets (era5 Delhi/Mumbai/Bangkok/Beijing/Berlin, Beijing PM2.5, ETTh1, Santa Fe) is
+adopted only if it beats base by ≥ 0.005 in the mean **and** is not worse than base by > 0.005 on more than
+2 of the 8 datasets (so ETTh1 alone cannot decide). The ESN gets the same variant (descriptive at dev).
+**P2 (descriptive, dev validation):** QRC_v − ESN_v vs QRC_base − ESN_base, per dataset.
+ETTh2 (seen in Step 2) is reported post-hoc only, labelled.
+
+**Confirmation 3 (pre-registered here; run only if P1 adopts a variant):** three new untouched ERA5 cities,
+fixed now, data not yet downloaded — **Lagos** (6.52 N, 3.38 E), **Mexico City** (19.43 N, 99.13 W),
+**Stockholm** (59.33 N, 18.07 E); protocol identical to Confirmations 1–2 (train 1971–1999, val 2000–2004,
+test 2005–2025 read once; 30-day moving-block bootstrap, 2000 resamples). Needs one reservoir pass per city
+(GPU; asked for separately).
+- **G1:** QRC_v − QRC_base CI > 0 in ≥ 2/3 cities.
+- **G2:** non-inferiority QRC_v − ESN_v, CI lower bound > −0.02 in ≥ 2/3 cities (same margin as §10).
+- **G3 (descriptive):** QRC_v − ESN_v, − LSTM (base), − AR_v; counts of significant wins either way.
+All outcomes are reported, including a P1 that adopts nothing.
