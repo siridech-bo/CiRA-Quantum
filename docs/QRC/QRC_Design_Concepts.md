@@ -379,3 +379,25 @@ closes, ETTh1 remains far behind. The ESN gains little from the same variants (i
 Base scores reproduce Step 2 exactly (−0.2120 / +0.3632). Data `qrc_design_r_{dev_*,frozen,posthoc_*}.json`.
 Note: the Santa Fe base here (0.9076) differs from the remote Step 3 run (0.9060) by numerical/host effects;
 all variants were scored in one place.
+
+## 12. Drift test — level handling on untouched shifted series (PRE-REGISTERED 2026-10-25, before the data were downloaded)
+
+Basis: Step 5 post-hoc (§11 outcome): `delta_lags` (last-value re-centring + raw input lags appended to the
+653 features) lifted the QRC from +0.36 → +0.74 test R² on ETTh2 and −0.21 → +0.23 on ETTh1 — but those test
+sets had been seen. This step tests it on series never touched by any model here.
+
+**Datasets (fixed now; standard LTSF sources, laiguokun/multivariate-time-series-data):**
+- **exchange** — daily exchange rates 1990–2016 (8 currencies). Target = column 0, second input = column 1.
+  Horizons 1, 5, 10, 20 days.
+- **electricity** — hourly consumption 2012–2014 (321 clients). Target = last client (the LTSF "OT"),
+  second input = mean over all clients. Horizons 1, 6, 12, 24, 48 h.
+Split: chronological 70 / 10 / 20 % (LTSF standard), washout = first 240 steps of train; min-max
+normalisation from pre-test data, clipped to [0, 1] (same protocol as every dataset here). QRC: frozen
+design (g = 0.35, τ = 30 ms, 653 bins, D = 653), var0 → protons, var1 → carbons; one reservoir pass per
+dataset, FID trace saved. Variants and their validation-only selection exactly as §11.
+Bootstrap: moving-block, 2000 resamples, block 30 (exchange, days) / 168 (electricity, hours).
+
+- **D1 (primary):** QRC delta_lags − QRC base, pooled test R², 95 % CI > 0 on **both** datasets.
+- **D2 (descriptive):** QRC delta_lags vs tuned ESN (base and delta_lags readout), tuned LSTM, tuned linear
+  AR, persistence (ŷ(t+h) = y(t)); test-input shift reported (mean test input in training s.d.).
+All outcomes are reported.
