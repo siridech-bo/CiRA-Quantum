@@ -1,7 +1,7 @@
 % A pre-registered real-world forecasting benchmark of a simulated nuclear-spin
 % quantum reservoir computer.
 % Target: Physical Review Research (RevTeX 4.2). Compile: pdflatex x2 (self-contained
-% bibliography). Figures expected in ./figures/ (figR1-figR4, from docs/QRC/figures/code/qrc_realworld_figures.py).
+% bibliography). Figures expected in ./figures/ (figR0 from qrc_pipeline_diagram.py; figR1-figR4 from qrc_realworld_figures.py, docs/QRC/figures/code/).
 %
 % NUMBER PROVENANCE. Every number below is copied from a version-controlled source;
 % the source is named in a LaTeX comment next to each table / paragraph:
@@ -124,6 +124,25 @@ the reservoir.
 
 % ======================================================================
 \section{The physical reservoir and its readout}\label{sec:model}
+Figure~\ref{fig:pipeline} summarizes the forecasting pipeline and marks what this work
+changed relative to the standard NMR QRC of Ref.~\cite{Hou2026}, on the input side and
+on the output side, together with the pre-registered changes that were tested and not
+adopted.
+
+\begin{figure*}[t]
+\includegraphics[width=\textwidth]{figR0_pipeline.png}
+\caption{\label{fig:pipeline}The QRC forecasting pipeline. Each input step encodes the
+normalized series as $R_x(\theta)$ pulses (temperature on the protons, humidity on the
+carbons). The crotonic-acid reservoir then evolves freely for \SI{30}{ms}, and its
+proton FID is read as 653 $|$FFT$|$ bins ($D=653$) into a linear ridge readout; the
+state carries over to the next step. Grey: the standard NMR QRC~\cite{Hou2026}.
+Blue: our adopted quantum-side change, the encoding gain $g=0.35$ (Sec.~\ref{sec:step1};
+confirmed out of sample, Sec.~\ref{sec:confirm}). Orange: our adopted classical
+addition for drifting inputs, level handling (Secs.~\ref{sec:step5},~\ref{sec:drift}),
+also given to the tuned ESN. Dashed: pre-registered changes tested and not adopted
+(Secs.~\ref{sec:design},~\ref{sec:step6}).}
+% Source: docs/QRC/figures/code/qrc_pipeline_diagram.py (schematic; no data plotted).
+\end{figure*}
 
 \subsection{Physical platform}
 We consider liquid-state NMR of an isotopically labeled molecule in a strong static

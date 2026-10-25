@@ -5,7 +5,9 @@ Which script writes each figure and where its numbers come from. "Data package" 
 
 | figure | script | numbers from | status |
 |---|---|---|---|
-| figP1–figP4 | `docs/QRC/figures/code/qrc_paper_figures.py` | data package + pinned run traces | **current** (manuscript) |
+| figR0_pipeline | `docs/QRC/figures/code/qrc_pipeline_diagram.py` | schematic (no data); labels restate the frozen design and Steps 1-6 | **current** (manuscript Fig. 1) |
+| figR1–figR4 | `docs/QRC/figures/code/qrc_realworld_figures.py` | `docs/QRC/data/qrc_realworld_figdata.json` (`--prep` rebuilds it from the data package + saved predictions) | **current** (manuscript, real-world) |
+| figP1–figP4 | `docs/QRC/figures/code/qrc_paper_figures.py` | data package + pinned run traces | current (synthetic mechanism; no longer in the manuscript) |
 | fig4_weather | `backend/scripts/qrc_make_weather_fig.py` | `qrc_paper4_weather_v2.json` | current (Paper-4 reproduction) |
 | fig5_narma_vs_experiment | `backend/scripts/qrc_make_narma_compare_fig.py` | `qrc_paper4_narma.json` (`qrc_narma.*.nmse_paper`, `paper_table_i.*.best`) | current; hardcoded values removed 2026-10-24 |
 | fig6_weather_sim_vs_expt | `backend/scripts/qrc_make_weather_compare_fig.py` | `qrc_paper4_weather_v2.json`; Hou et al. Fig 4b digitized (literature, typed in) | current |
