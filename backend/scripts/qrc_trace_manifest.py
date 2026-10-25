@@ -38,9 +38,9 @@ def sha256(p, chunk=1 << 22):
 
 def kind(p):
     n = p.name
-    if n.startswith(("trace", "learned_encoding_fid")) or "fid" in n and p.suffix == ".npz":
+    if n.startswith(("trace", "learned_encoding_fid")) or ("fid" in n or n.endswith("_trace.npz")) and p.suffix == ".npz":
         return "raw FID trace"
-    if n.startswith("X") and p.suffix == ".npz":
+    if (n.startswith("X") or n.endswith("_X.npz")) and p.suffix == ".npz":
         return "features (recomputable from trace)"
     if p.suffix == ".pt":
         return "learned encoder"

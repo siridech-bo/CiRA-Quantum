@@ -1,7 +1,7 @@
 % A pre-registered real-world forecasting benchmark of a simulated nuclear-spin
 % quantum reservoir computer.
 % Target: Physical Review Research (RevTeX 4.2). Compile: pdflatex x2 (self-contained
-% bibliography). No figures are included in this version (mechanism figures figP1-figP4 moved out).
+% bibliography). Figures expected in ./figures/ (figR1-figR4, from docs/QRC/figures/code/qrc_realworld_figures.py).
 %
 % NUMBER PROVENANCE. Every number below is copied from a version-controlled source;
 % the source is named in a LaTeX comment next to each table / paragraph:
@@ -454,6 +454,20 @@ the eight datasets (2.12 of 6 gains), the best mean long-horizon validation $R^2
 (0.618), ties the best mean pooled validation $R^2$ (0.700), and beats $g=1$ on all
 eight. At $g=0.1$ the readout becomes ill-conditioned on small data (Kaggle Delhi
 validation $R^2$ down to $-6.3$), so the best gain is data-regime dependent.
+Figure~\ref{fig:memory} shows the mechanism: lowering $g$ from 1 to 0.35 lifts the
+memory of the input 90 days back from 0.62 to 0.79, but no gain reaches the tuned ESN
+(0.88); below $g=0.35$ nothing more is gained.
+
+\begin{figure}[t]
+\includegraphics[width=\columnwidth]{figR2_memory_gain.png}
+\caption{\label{fig:memory}Memory function on ERA5 Delhi: validation $R^2$ of
+reconstructing the input $L$ days back from the current features, for the QRC
+(crotonic-9, $\tau=\SI{30}{ms}$, 653-bin FID readout, $D=653$) at three encoding gains
+and for the tuned ESN (same function, same split). Lowering the gain reduces input
+overwrite; the remaining gap to the ESN is long memory.}
+% Source: qrc_realworld_figdata.json "memory" (QRC from qrc_design_c1_era5_delhi.json;
+% ESN computed by docs/QRC/figures/code/qrc_realworld_figures.py --prep).
+\end{figure}
 
 \begin{table}[t]
 \caption{\label{tab:gain}Step 1 (validation only): pooled validation $R^2$ at the frozen
@@ -619,8 +633,20 @@ anomalies (deviations from the seasonal cycle) are unusually persistent: their 3
 autocorrelation is 0.32 (0.23 after removing the linear trend), against 0.02--0.12 in
 the other eight cities, and across the nine cities this statistic is the strongest
 correlate of the QRC$-$ESN gap ($r=-0.93$; driven by Lagos). Slow, small anomalies are
-exactly what the QRC's shorter memory (Sec.~\ref{sec:bench}) cannot hold, so the Lagos
-result locates the remaining gap rather than contradicting the others.
+exactly what the QRC's shorter memory (Fig.~\ref{fig:memory}) cannot hold, so the Lagos
+result locates the remaining gap rather than contradicting the others
+(Fig.~\ref{fig:horizon}b).
+
+\begin{figure*}[t]
+\includegraphics[width=\textwidth]{figR3_horizon.png}
+\caption{\label{fig:horizon}Test $R^2$ by forecast horizon on the nine untouched cities
+(653-bin FID readout, $D=653$). (a) Mean over cities and the two variables for the final
+QRC and the tuned baselines: the QRC matches the classical models at short horizons
+and stays above the LSTM and linear AR, but the tuned ESN pulls ahead beyond about 10
+days. (b) QRC minus tuned ESN per city; Lagos (blue) has the largest long-horizon gap.}
+% Source: qrc_realworld_figdata.json "horizon" (per_target from qrc_confirm{1,2}_*.json;
+% Confirmation 3 recomputed from the saved test predictions).
+\end{figure*}
 
 \begin{table*}[t]
 \caption{\label{tab:confirmR2}Pooled test $R^2$ on the nine untouched cities (test
@@ -675,7 +701,7 @@ Conf.\ 3 & Lagos & $-0.0862\ [-0.1723,-0.0331]$ & $-0.0491\ [-0.0649,-0.0360]$ &
 
 \subsection{All nine untouched cities}
 Pooling the descriptive comparisons over all nine confirmation cities
-(Table~\ref{tab:pool9}) gives the summary we stand behind. The final design is close to
+(Table~\ref{tab:pool9}, Fig.~\ref{fig:forest}) gives the summary we stand behind. The final design is close to
 the tuned ESN but consistently below it (mean $\Delta=-0.0109$; ESN significantly
 better in 6/9 cities, the QRC in none; within the 0.02 margin in 7/9, failing in
 Chennai and Lagos). It is ahead of the tuned LSTM (mean $+0.0099$; 4/9 vs 2/9) and of
@@ -699,6 +725,16 @@ tuned linear AR   & $+0.0141$ & 5/9 & 0/9 & 9/9 \\
 \end{ruledtabular}
 \end{table}
 
+\begin{figure*}[t]
+\includegraphics[width=\textwidth]{figR1_confirm_forest.png}
+\caption{\label{fig:forest}Paired differences in pooled test $R^2$ on the nine
+untouched cities (point and 95\% moving-block bootstrap CI; filled: CI excludes 0).
+Left: the gain effect (final $g=0.35$ minus standard $g=1$; not run in Confirmation 3).
+Others: final design minus each tuned baseline; dashed line, non-inferiority margin
+$-0.02$. QRC: 653-bin FID readout, $D=653$. Values in Table~\ref{tab:confirmDelta}.}
+% Source: qrc_realworld_figdata.json "forest" (= Table tab:confirmDelta).
+\end{figure*}
+
 % ======================================================================
 \section{Pre-registered drift test}\label{sec:drift}
 % Source: qrc_drift_{exchange,electricity}.json; QRC_Design_Concepts.md section 12 + "Drift test outcome".
@@ -711,7 +747,7 @@ it to two untouched series (Sec.~\ref{sec:protocol}) with one primary criterion,
 level handling must beat the plain readout (CI excluding 0) on both. Bootstrap blocks
 are 30 days (exchange) and 168 hours (electricity).
 
-D1 passed on both series (Table~\ref{tab:drift}): $+0.058$ $[+0.013,+0.104]$ on the
+D1 passed on both series (Fig.~\ref{fig:drift}): $+0.058$ $[+0.013,+0.104]$ on the
 exchange rate, whose test inputs lie $1.26$ training s.d.\ above the training mean, and
 $+0.010$ $[+0.002,+0.016]$ on electricity, which barely shifts ($+0.02$ s.d.). The fix
 works, but it brings no quantum edge. On the exchange rate the QRC with level handling
@@ -720,25 +756,14 @@ tuned ESN by $+0.001$: the series is close to a random walk, and level handling 
 the readout fall back to the last value. On electricity the QRC stays clearly behind
 every tuned model (ESN $-0.074$, LSTM $-0.031$, linear AR $-0.034$).
 
-\begin{table}[t]
-\caption{\label{tab:drift}Drift test, pooled test $R^2$ on two untouched series. QRC:
-final design, 653-bin FID readout ($D=653$) plus level handling (last-value
-re-centring and raw input lags; classical features). ESN: tuned, mean of three
-replicates. Shift: mean test input in training s.d.}
-\begin{ruledtabular}
-\begin{tabular}{lcc}
-model & exchange ($+1.26$ s.d.) & electricity ($+0.02$ s.d.) \\ \colrule
-QRC, plain readout     & 0.924 & 0.747 \\
-QRC, level handling    & 0.983 & 0.757 \\
-tuned ESN              & 0.982 & 0.832 \\
-tuned ESN, level handling & 0.982 & \textbf{0.834} \\
-tuned LSTM             & 0.961 & 0.788 \\
-tuned linear AR        & 0.982 & 0.791 \\
-persistence            & 0.983 & 0.058 \\
-\end{tabular}
-\end{ruledtabular}
-\end{table}
-% TODO figure: forest plot of Table tab:confirmDelta (no figure script yet; do not reference a missing file).
+\begin{figure*}[t]
+\includegraphics[width=\textwidth]{figR4_drift.png}
+\caption{\label{fig:drift}Drift test, pooled test $R^2$ on two untouched series (each
+panel on its own scale). QRC (blue): final design, 653-bin FID readout ($D=653$),
+plain or with level handling (last-value re-centring and raw input lags; classical
+features). Tuned ESN: mean of three replicates. Shift: mean test input in training s.d.}
+% Source: qrc_realworld_figdata.json "drift" (= qrc_drift_{exchange,electricity}.json groups.*.pooled).
+\end{figure*}
 
 % ======================================================================
 \section{Mechanism on synthetic tasks (brief)}\label{sec:mechanism}

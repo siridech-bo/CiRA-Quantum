@@ -61,6 +61,14 @@ RECORDS = (
               "development cities (Delhi, Mumbai, Bangkok, Beijing, Berlin; design grids C1 gain, C5 "
               "tau, learned encodings) and the pre-registered confirmation runs on untouched cities "
               "(qrc_runs/confirm*)."},
+    {"id": "C", "short": "pre-registered steps 5-6: Confirmations 3-4, drift test, encoding/readout-channel controls",
+     "units": ("qrc_runs/step5", "qrc_runs/step6", "qrc_runs/confirm4"),
+     "about": "Step 5 / Confirmation 3 (untouched ERA5 Lagos, Mexico City, Stockholm) and the drift test "
+              "(untouched exchange-rate and electricity series), qrc_runs/step5; Step 6, the paper-encoding "
+              "control (theta = arcsin s) and the readout-channel passes (proton + 13C FID, single-spin <sz>, "
+              "diagonal populations) on the development datasets, qrc_runs/step6; Confirmation 4 if run, "
+              "qrc_runs/confirm4. Each directory has the tuned ESN grid, tuned LSTM predictions, test "
+              "predictions and logs next to the raw traces."},
     {"id": "B", "short": "other real-world benchmarks + synthetic / development runs",
      "units": ("*",),
      "about": "Non-weather real-world benchmarks (UCI Beijing PM2.5, ETTh1, Santa Fe laser A, Kaggle "
