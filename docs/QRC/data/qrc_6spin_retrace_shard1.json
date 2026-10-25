@@ -1,0 +1,108 @@
+{
+  "experiment": "learnable_campaign",
+  "regime": "B (trained encoding)",
+  "readout": "fid_reduced",
+  "plan": "6spin_retrace",
+  "shard": "1/2",
+  "plan_jobs": [
+    [
+      "narma2",
+      2,
+      false,
+      1
+    ],
+    [
+      "narma2",
+      1,
+      true,
+      1
+    ],
+    [
+      "narma10",
+      2,
+      false,
+      1
+    ],
+    [
+      "narma10",
+      1,
+      true,
+      1
+    ],
+    [
+      "mackey_glass",
+      2,
+      false,
+      1
+    ]
+  ],
+  "system": "6",
+  "readout_qubits": null,
+  "n_virtual": 137,
+  "coupling_scale": 2.0,
+  "propagator": "auto",
+  "tau": 0.03,
+  "lines_coupling_scale": null,
+  "T": 1500,
+  "steps": 100,
+  "lr": 0.02,
+  "washout": 30,
+  "jobs": [
+    {
+      "task": "narma2",
+      "seed": 2,
+      "ablation": false,
+      "horizon": 1,
+      "arcsin": 0.10789534944304101,
+      "perspin": 0.004963372362703334,
+      "enc_std": 0.4444449737941788,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "HEADROOM: learned 'perspin' beats arcsin (0.0050 vs 0.1079, std 0.44)",
+      "job_hours": 2.444,
+      "lstm": 0.11828713119029999
+    },
+    {
+      "task": "narma2",
+      "seed": 1,
+      "ablation": true,
+      "horizon": 1,
+      "arcsin": 1.0013286882103576,
+      "perspin": 0.999604399856427,
+      "enc_std": 0.8402139539713055,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "UNDER-POWERED (arcsin base 1.001 ~ mean-predictor) \u2014 invalid",
+      "job_hours": 2.437
+    },
+    {
+      "task": "narma10",
+      "seed": 2,
+      "ablation": false,
+      "horizon": 1,
+      "arcsin": 0.3238500712830722,
+      "perspin": 0.1498518438505071,
+      "enc_std": 0.5677626218128022,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "HEADROOM: learned 'perspin' beats arcsin (0.1499 vs 0.3239, std 0.57)",
+      "job_hours": 2.441,
+      "lstm": 0.42257681488990784
+    }
+  ],
+  "classical_baseline": "LSTM(64)",
+  "classical_reference_tuned": {
+    "narma2": {
+      "tuned_lstm": 0.0114,
+      "esn": 0.0046
+    },
+    "narma10": {
+      "esn": 0.029
+    },
+    "mackey_glass_h10": {
+      "tuned_lstm": 0.0024,
+      "esn": 0.0057
+    }
+  },
+  "elapsed_hours": 7.323
+}

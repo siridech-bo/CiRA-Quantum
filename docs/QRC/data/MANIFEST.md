@@ -13,6 +13,10 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_6spin_campaign.json` | current | 81fd9ad 2026-10-22 | `qrc_learnable_campaign.py (plan 6spin)` | 6-spin x2 learned vs arcsin, NARMA-2/10 + Mackey-Glass h=1, 3 seeds + tau->0 ablations (run learnable-campaign-01ce463b, 41 h) | `e2b9bd48ac1e` |
 | `qrc_6spin_mackey_h10_confirm.json` | current | 81fd9ad 2026-10-22 | `qrc_mackey_h10_confirm.py` | 6-spin Mackey-Glass h=10, seeds 2-3 (run mackey-h10-confirm-2d21b56f); its seed-1 entry is a rounded copy (0.0013) — use qrc_6spin_mackey_h10_seed1.json | `0efc0ff1a54f` |
 | `qrc_6spin_mackey_h10_seed1.json` | current | 81fd9ad 2026-10-22 | `qrc_learnable_9spin.py --task mackey_glass --horizon 10` | 6-spin Mackey-Glass h=10, seed 1 (run learnable-0a45c7b0) | `27f1ddb63119` |
+| `qrc_6spin_pub_shard0.json` | current | uncommitted | `qrc_learnable_campaign.py --plan 6spin_pub --shard K/2` | 6-spin learnable campaign, publication seeds 4-5 + MG h=1 seeds 3-5 + tau->0 ablations seeds 2-3 (reduced-FID readout) | `7d8aeb3d3257` |
+| `qrc_6spin_pub_shard1.json` | current | uncommitted | `qrc_learnable_campaign.py --plan 6spin_pub --shard K/2` | 6-spin learnable campaign, publication seeds 4-5 + MG h=1 seeds 3-5 + tau->0 ablations seeds 2-3 (reduced-FID readout) | `0ae8deae3a35` |
+| `qrc_6spin_retrace_shard0.json` | interim | uncommitted | `qrc_learnable_campaign.py --plan 6spin_retrace --shard K/2` | partial re-run of the original 6-spin jobs (stopped by user 2026-10-25: does not change conclusions); reproducibility check + traces | `f97ed5eb31c2` |
+| `qrc_6spin_retrace_shard1.json` | interim | uncommitted | `qrc_learnable_campaign.py --plan 6spin_retrace --shard K/2` | partial re-run of the original 6-spin jobs (stopped by user 2026-10-25: does not change conclusions); reproducibility check + traces | `a14b95aab9cf` |
 | `qrc_block_bench_cira3.jsonl` | current | 200c70c 2026-10-20 | `qrc_block_bench.py` | block-propagator scaling benchmark 9-12 spins (A100) | `67f3478155ff` |
 | `qrc_classical_baseline_v1_superseded.json` | superseded | 81fd9ad 2026-10-22 | `qrc_classical_baseline.py` | first classical baseline: size-only ESN, data seed 1 only — superseded by qrc_classical_fair_* | `c4d5408abbf6` |
 | `qrc_classical_fair_esn.json` | current | 052e4cf 2026-10-21 | `qrc_classical_fair.py --models esn` | fully tuned ESN + size-matched ESN, NARMA-2/10, MG h=10, data seeds 1-3 | `8b5555f0ab84` |
@@ -60,8 +64,8 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_design_learn_frozen.json` | current | 3ae7323 2026-10-24 | `qrc_design_learn.py` | Step 4 learned encoding on top of g=0.35 (pre-registered 5b92610), validation only — not adopted | `ec62e2a78811` |
 | `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
 | `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
-| `qrc_paired_tests.json` | current | uncommitted | `qrc_paired_tests.py` | paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout | `ae3b6854b61f` |
-| `qrc_paired_tests.md` | current | uncommitted | `qrc_paired_tests.py` | paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout | `1d56edd6a59b` |
+| `qrc_paired_tests.json` | current | f5ed20e 2026-10-24 | `qrc_paired_tests.py` | paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout | `eb3e585d6468` |
+| `qrc_paired_tests.md` | current | f5ed20e 2026-10-24 | `qrc_paired_tests.py` | paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout | `f811ef15be62` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
 | `qrc_paper4_weather.json` | superseded | 2c6137b 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, fid_points 1024 | `219ec5c814fe` |
 | `qrc_paper4_weather_v2.json` | current | 0dfa62d 2026-07-28 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, full 653-FID readout | `f68c612e7b53` |
@@ -86,6 +90,9 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_weather_pool_delhi_kaggle.json` | current | 469c9d2 2026-10-22 | `qrc_weather_pool.py` | Kaggle Delhi pooled seeds: learned QRC vs ESN, ESN with trained input stage | `58946235718f` |
 | `TRACES_MANIFEST.json` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `d764b1ada130` |
 | `TRACES_MANIFEST.md` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `82fd8570b925` |
+| `ZENODO_METADATA.json` | unlisted | a0d11c9 2026-10-24 | `?` |  | `f41b8a76b22d` |
+| `ZENODO_PLAN.json` | unlisted | a0d11c9 2026-10-24 | `?` |  | `6b61f959e772` |
+| `ZENODO_PLAN.md` | unlisted | a0d11c9 2026-10-24 | `?` |  | `be8c33da7a14` |
 
 ## Headline numbers (extracted)
 

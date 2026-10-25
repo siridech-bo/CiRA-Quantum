@@ -28,6 +28,42 @@
       "description": "6-spin Mackey-Glass h=10, seed 1 (run learnable-0a45c7b0)"
     },
     {
+      "file": "qrc_6spin_pub_shard0.json",
+      "sha256": "7d8aeb3d3257ff80ee6725ee61137fb63c9d31537826f04371071dd279da6f8a",
+      "bytes": 5491,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_learnable_campaign.py --plan 6spin_pub --shard K/2",
+      "description": "6-spin learnable campaign, publication seeds 4-5 + MG h=1 seeds 3-5 + tau->0 ablations seeds 2-3 (reduced-FID readout)"
+    },
+    {
+      "file": "qrc_6spin_pub_shard1.json",
+      "sha256": "0ae8deae3a359f5c6900e8b9b4ce636508aea274dacabe3f1cc44dcccde61724",
+      "bytes": 4963,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_learnable_campaign.py --plan 6spin_pub --shard K/2",
+      "description": "6-spin learnable campaign, publication seeds 4-5 + MG h=1 seeds 3-5 + tau->0 ablations seeds 2-3 (reduced-FID readout)"
+    },
+    {
+      "file": "qrc_6spin_retrace_shard0.json",
+      "sha256": "f97ed5eb31c2da7a67c49881cddd3697e2ec12c8ee045bc3709766c96c4b03c2",
+      "bytes": 1797,
+      "added": "uncommitted",
+      "status": "interim",
+      "script": "qrc_learnable_campaign.py --plan 6spin_retrace --shard K/2",
+      "description": "partial re-run of the original 6-spin jobs (stopped by user 2026-10-25: does not change conclusions); reproducibility check + traces"
+    },
+    {
+      "file": "qrc_6spin_retrace_shard1.json",
+      "sha256": "a14b95aab9cf7702f5e72f137405877fabe8203ccbf8657f9fca07e391469346",
+      "bytes": 2148,
+      "added": "uncommitted",
+      "status": "interim",
+      "script": "qrc_learnable_campaign.py --plan 6spin_retrace --shard K/2",
+      "description": "partial re-run of the original 6-spin jobs (stopped by user 2026-10-25: does not change conclusions); reproducibility check + traces"
+    },
+    {
       "file": "qrc_block_bench_cira3.jsonl",
       "sha256": "67f3478155fffa7d9d8a222e93cb18d7a3f810d4ae70dfe63e6864c66059017e",
       "bytes": 2932,
@@ -452,18 +488,18 @@
     },
     {
       "file": "qrc_paired_tests.json",
-      "sha256": "ae3b6854b61f305b55126fe82ab56bd2893bb28a0b25a20cbddfffb4b136c344",
-      "bytes": 84619,
-      "added": "uncommitted",
+      "sha256": "eb3e585d64683a2a1494379b5f1ce131625c3b6b0a1ea723d72707ff40084d44",
+      "bytes": 92880,
+      "added": "f5ed20e 2026-10-24",
       "status": "current",
       "script": "qrc_paired_tests.py",
       "description": "paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout"
     },
     {
       "file": "qrc_paired_tests.md",
-      "sha256": "1d56edd6a59bed2520bfcddd2abb4ae933fe36f1e04ec97ead5c72555bbad485",
-      "bytes": 10544,
-      "added": "uncommitted",
+      "sha256": "f811ef15be625371f799d0248bbdeca4cdefd36f08ef40d40be1351ec881cde2",
+      "bytes": 11613,
+      "added": "f5ed20e 2026-10-24",
       "status": "current",
       "script": "qrc_paired_tests.py",
       "description": "paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout"
@@ -683,6 +719,33 @@
       "status": "current",
       "script": "qrc_trace_manifest.py",
       "description": "SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification)"
+    },
+    {
+      "file": "ZENODO_METADATA.json",
+      "sha256": "f41b8a76b22da0b5a26c67988e24a3c5a184acb0237c9cc8a10b7b3920423bab",
+      "bytes": 2390,
+      "added": "a0d11c9 2026-10-24",
+      "status": "unlisted",
+      "script": "?",
+      "description": ""
+    },
+    {
+      "file": "ZENODO_PLAN.json",
+      "sha256": "6b61f959e772b4b985b2c7052f99d3c8cab30424730e58700b48e5e08442f8d3",
+      "bytes": 242503,
+      "added": "a0d11c9 2026-10-24",
+      "status": "unlisted",
+      "script": "?",
+      "description": ""
+    },
+    {
+      "file": "ZENODO_PLAN.md",
+      "sha256": "be8c33da7a1461c5604c9769e0bb1b46d7876480d30367d1bf72693edb7cc0ce",
+      "bytes": 9806,
+      "added": "a0d11c9 2026-10-24",
+      "status": "unlisted",
+      "script": "?",
+      "description": ""
     }
   ],
   "headline": [

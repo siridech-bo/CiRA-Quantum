@@ -34,6 +34,18 @@
         "system": "6spin",
         "T": 1500,
         "washout": 30
+      },
+      "../docs/QRC/data/qrc_6spin_pub_shard0.json": {
+        "system": "6spin",
+        "T": 1500,
+        "washout": 30,
+        "extra": true
+      },
+      "../docs/QRC/data/qrc_6spin_pub_shard1.json": {
+        "system": "6spin",
+        "T": 1500,
+        "washout": 30,
+        "extra": true
       }
     },
     "classical": {
@@ -62,93 +74,126 @@
     "conclusion": "same make_task(task, T=1500, seed, horizon) + washout 30 + _three_way split in both code paths -> classical data seed s == QRC seed s; paired"
   },
   "small_n_note": "n = 3 seeds: the exact sign / permutation tests cannot go below p = 0.125 (one-sided) or 0.25 (two-sided); the paired t (df = 2) assumes normal log-ratios",
-  "extras": [],
+  "extras": [
+    "../docs/QRC/data/qrc_6spin_pub_shard0.json",
+    "../docs/QRC/data/qrc_6spin_pub_shard1.json"
+  ],
   "comparisons": [
     {
       "system": "6spin",
       "task": "mackey_glass",
       "all_seeds": [
         1,
-        2
+        2,
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs arcsin",
       "pairing": "same run, same seed",
-      "n": 2,
+      "n": 5,
       "seeds": [
         1,
-        2
+        2,
+        3,
+        4,
+        5
       ],
       "learned": [
         9.933688688451647e-05,
-        5.261937183118342e-05
+        5.261937183118342e-05,
+        6.920956012516432e-05,
+        7.088129681591614e-05,
+        4.431882876415985e-05
       ],
       "other": [
         0.000724925788951747,
-        0.0005390055967720418
+        0.0005390055967720418,
+        0.008234479218908448,
+        0.0027655315751973562,
+        0.0005105260423972746
       ],
       "log_ratio": [
         -1.9875523183463502,
-        -2.326641616769634
+        -2.326641616769634,
+        -4.778946395470213,
+        -3.663981544841044,
+        -2.4440320345260096
       ],
-      "wins": 2,
-      "mean_log_ratio": -2.157096967557992,
-      "geo_mean_ratio": 0.11566040003324825,
-      "sd_log_ratio": 0.23977234234289288,
-      "sign_p_one_sided": 0.25,
-      "sign_p_two_sided": 0.5,
-      "perm_p_one_sided": 0.25,
-      "perm_p_two_sided": 0.5,
+      "wins": 5,
+      "mean_log_ratio": -3.04023078199065,
+      "geo_mean_ratio": 0.04782385133693131,
+      "sd_log_ratio": 1.160279210980467,
+      "sign_p_one_sided": 0.03125,
+      "sign_p_two_sided": 0.0625,
+      "perm_p_one_sided": 0.03125,
+      "perm_p_two_sided": 0.0625,
       "min_attainable_p": {
-        "one_sided": 0.25,
-        "two_sided": 0.5
+        "one_sided": 0.03125,
+        "two_sided": 0.0625
       },
-      "t": -12.722884370507597,
-      "df": 1,
-      "t_p_one_sided": 0.024967359483561515,
-      "t_p_two_sided": 0.04993471896712303
+      "t": -5.859074808445295,
+      "df": 4,
+      "t_p_one_sided": 0.0021175967887286135,
+      "t_p_two_sided": 0.004235193577457227
     },
     {
       "system": "6spin",
       "task": "mackey_glass",
       "all_seeds": [
         1,
-        2
+        2,
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs in-run LSTM(64) (untuned)",
       "pairing": "same run, same seed",
-      "n": 2,
+      "n": 5,
       "seeds": [
         1,
-        2
+        2,
+        3,
+        4,
+        5
       ],
       "learned": [
         9.933688688451647e-05,
-        5.261937183118342e-05
+        5.261937183118342e-05,
+        6.920956012516432e-05,
+        7.088129681591614e-05,
+        4.431882876415985e-05
       ],
       "other": [
         0.001950315898284316,
-        0.001262414618395269
+        0.001262414618395269,
+        0.00210953108035028,
+        0.005789650604128838,
+        0.0009835520759224892
       ],
       "log_ratio": [
         -2.977229666354895,
-        -3.1776971921616726
+        -3.1776971921616726,
+        -3.417081959791788,
+        -4.402820621971112,
+        -3.0997609707296823
       ],
-      "wins": 2,
-      "mean_log_ratio": -3.077463429258284,
-      "geo_mean_ratio": 0.04607598353518636,
-      "sd_log_ratio": 0.1417519469056615,
-      "sign_p_one_sided": 0.25,
-      "sign_p_two_sided": 0.5,
-      "perm_p_one_sided": 0.25,
-      "perm_p_two_sided": 0.5,
+      "wins": 5,
+      "mean_log_ratio": -3.4149180822018304,
+      "geo_mean_ratio": 0.03287909997467416,
+      "sd_log_ratio": 0.5751358568630401,
+      "sign_p_one_sided": 0.03125,
+      "sign_p_two_sided": 0.0625,
+      "perm_p_one_sided": 0.03125,
+      "perm_p_two_sided": 0.0625,
       "min_attainable_p": {
-        "one_sided": 0.25,
-        "two_sided": 0.5
+        "one_sided": 0.03125,
+        "two_sided": 0.0625
       },
-      "t": -30.702862390036458,
-      "df": 1,
-      "t_p_one_sided": 0.010363769901437067,
-      "t_p_two_sided": 0.020727539802874135
+      "t": -13.276843859197779,
+      "df": 4,
+      "t_p_one_sided": 9.300213621974618e-05,
+      "t_p_two_sided": 0.00018600427243949236
     },
     {
       "system": "6spin",
@@ -156,47 +201,57 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs arcsin",
       "pairing": "same run, same seed",
-      "n": 3,
+      "n": 5,
       "seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "learned": [
         0.0012893681891757464,
         0.0017203309244543767,
-        0.0016225441791411935
+        0.0016225441791411935,
+        0.0009952585949201376,
+        0.0011419661321047509
       ],
       "other": [
         0.023451353986812817,
         0.02436459782625397,
-        0.03638288205119325
+        0.03638288205119325,
+        0.023499222512969938,
+        0.020942080814408227
       ],
       "log_ratio": [
         -2.9007759099736874,
         -2.6506144996938854,
-        -3.1101029924305816
+        -3.1101029924305816,
+        -3.1617200172464797,
+        -2.909009116677847
       ],
-      "wins": 3,
-      "mean_log_ratio": -2.8871644673660515,
-      "geo_mean_ratio": 0.055734024410530186,
-      "sd_log_ratio": 0.2300464567576644,
-      "sign_p_one_sided": 0.125,
-      "sign_p_two_sided": 0.25,
-      "perm_p_one_sided": 0.125,
-      "perm_p_two_sided": 0.25,
+      "wins": 5,
+      "mean_log_ratio": -2.946444507204496,
+      "geo_mean_ratio": 0.0525261306152397,
+      "sd_log_ratio": 0.2025648461548632,
+      "sign_p_one_sided": 0.03125,
+      "sign_p_two_sided": 0.0625,
+      "perm_p_one_sided": 0.03125,
+      "perm_p_two_sided": 0.0625,
       "min_attainable_p": {
-        "one_sided": 0.125,
-        "two_sided": 0.25
+        "one_sided": 0.03125,
+        "two_sided": 0.0625
       },
-      "t": -21.73785077052237,
-      "df": 2,
-      "t_p_one_sided": 0.0010547774889389805,
-      "t_p_two_sided": 0.002109554977877961
+      "t": -32.52514113432681,
+      "df": 4,
+      "t_p_one_sided": 2.663867191022729e-06,
+      "t_p_two_sided": 5.327734382045458e-06
     },
     {
       "system": "6spin",
@@ -204,7 +259,9 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs tuned LSTM",
       "pairing": "same data seed (make_task + _three_way)",
@@ -244,7 +301,18 @@
       "t": -2.6279963160838578,
       "df": 2,
       "t_p_one_sided": 0.05970422245095176,
-      "t_p_two_sided": 0.11940844490190353
+      "t_p_two_sided": 0.11940844490190353,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -6.626022646173245,
+        "mean_log_other": -5.927148276471029,
+        "geo_mean_ratio": 0.497144589970472,
+        "t": -3.531388651890928,
+        "p_two_sided": 0.029623002794927727,
+        "p_one_sided": 0.014811501397463863
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -252,7 +320,9 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs tuned ESN",
       "pairing": "same data seed (make_task + _three_way)",
@@ -292,7 +362,18 @@
       "t": 11.716027029169584,
       "df": 2,
       "t_p_one_sided": 0.9963967464951625,
-      "t_p_two_sided": 0.00720650700967496
+      "t_p_two_sided": 0.00720650700967496,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -6.626022646173245,
+        "mean_log_other": -13.204179736604734,
+        "geo_mean_ratio": 719.2126632629997,
+        "t": 10.261148803937745,
+        "p_two_sided": 0.007821373654011237,
+        "p_one_sided": 0.9960893131729944
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -300,7 +381,9 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs size-matched ESN",
       "pairing": "same data seed (make_task + _three_way)",
@@ -340,7 +423,64 @@
       "t": 23.576593188409515,
       "df": 2,
       "t_p_one_sided": 0.9991029061671924,
-      "t_p_two_sided": 0.0017941876656151856
+      "t_p_two_sided": 0.0017941876656151856,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -6.626022646173245,
+        "mean_log_other": -11.549363192668835,
+        "geo_mean_ratio": 137.4610420610107,
+        "t": 15.976252791707017,
+        "p_two_sided": 0.0013434055810837469,
+        "p_one_sided": 0.9993282972094581
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
+    },
+    {
+      "system": "6spin",
+      "task": "mackey_glass_h10",
+      "all_seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "comparison": "learned vs in-run LSTM(64) (untuned)",
+      "pairing": "same run, same seed",
+      "n": 2,
+      "seeds": [
+        4,
+        5
+      ],
+      "learned": [
+        0.0009952585949201376,
+        0.0011419661321047509
+      ],
+      "other": [
+        0.04019537568092346,
+        0.04044375568628311
+      ],
+      "log_ratio": [
+        -3.6985046373934876,
+        -3.5671608062775353
+      ],
+      "wins": 2,
+      "mean_log_ratio": -3.6328327218355114,
+      "geo_mean_ratio": 0.02644117772102235,
+      "sd_log_ratio": 0.09287411364911051,
+      "sign_p_one_sided": 0.25,
+      "sign_p_two_sided": 0.5,
+      "perm_p_one_sided": 0.25,
+      "perm_p_two_sided": 0.5,
+      "min_attainable_p": {
+        "one_sided": 0.25,
+        "two_sided": 0.5
+      },
+      "t": -55.31790402289079,
+      "df": 1,
+      "t_p_one_sided": 0.005753566139607112,
+      "t_p_two_sided": 0.011507132279214224
     },
     {
       "system": "6spin",
@@ -348,10 +488,70 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs arcsin",
       "pairing": "same run, same seed",
+      "n": 5,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "learned": [
+        0.10455465490074718,
+        0.14697794868965672,
+        0.10909833705991785,
+        0.20052986144875867,
+        0.14126679934293143
+      ],
+      "other": [
+        0.2928315990248699,
+        0.32392644795671444,
+        0.3180130060319948,
+        0.41038284045495144,
+        0.3428168875122863
+      ],
+      "log_ratio": [
+        -1.0298877483457947,
+        -0.7902339109294456,
+        -1.0698426310398628,
+        -0.7161273106620342,
+        -0.886546152609146
+      ],
+      "wins": 5,
+      "mean_log_ratio": -0.8985275507172567,
+      "geo_mean_ratio": 0.4071687539041134,
+      "sd_log_ratio": 0.15144741014480037,
+      "sign_p_one_sided": 0.03125,
+      "sign_p_two_sided": 0.0625,
+      "perm_p_one_sided": 0.03125,
+      "perm_p_two_sided": 0.0625,
+      "min_attainable_p": {
+        "one_sided": 0.03125,
+        "two_sided": 0.0625
+      },
+      "t": -13.266444643320014,
+      "df": 4,
+      "t_p_one_sided": 9.328867117390183e-05,
+      "t_p_two_sided": 0.00018657734234780367
+    },
+    {
+      "system": "6spin",
+      "task": "narma10",
+      "all_seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "comparison": "learned vs tau->0 ablation",
+      "pairing": "same seed",
       "n": 3,
       "seeds": [
         1,
@@ -364,19 +564,19 @@
         0.10909833705991785
       ],
       "other": [
-        0.2928315990248699,
-        0.32392644795671444,
-        0.3180130060319948
+        0.9974388245743379,
+        1.016727412061561,
+        1.04983241970512
       ],
       "log_ratio": [
-        -1.0298877483457947,
-        -0.7902339109294456,
-        -1.0698426310398628
+        -2.2554808700504982,
+        -1.9340617621047878,
+        -2.2641361797576156
       ],
       "wins": 3,
-      "mean_log_ratio": -0.9633214301050343,
-      "geo_mean_ratio": 0.38162324369788536,
-      "sd_log_ratio": 0.15122356011397178,
+      "mean_log_ratio": -2.151226270637634,
+      "geo_mean_ratio": 0.11634140421620634,
+      "sd_log_ratio": 0.1881197661631174,
       "sign_p_one_sided": 0.125,
       "sign_p_two_sided": 0.25,
       "perm_p_one_sided": 0.125,
@@ -385,10 +585,10 @@
         "one_sided": 0.125,
         "two_sided": 0.25
       },
-      "t": -11.0334769245237,
+      "t": -19.806707584839753,
       "df": 2,
-      "t_p_one_sided": 0.004057269951110736,
-      "t_p_two_sided": 0.008114539902221472
+      "t_p_one_sided": 0.0012696638241648911,
+      "t_p_two_sided": 0.0025393276483297823
     },
     {
       "system": "6spin",
@@ -396,43 +596,9 @@
       "all_seeds": [
         1,
         2,
-        3
-      ],
-      "comparison": "learned vs tau->0 ablation",
-      "pairing": "same seed",
-      "n": 1,
-      "seeds": [
-        1
-      ],
-      "learned": [
-        0.10455465490074718
-      ],
-      "other": [
-        0.9974388245743379
-      ],
-      "log_ratio": [
-        -2.2554808700504982
-      ],
-      "wins": 1,
-      "mean_log_ratio": -2.2554808700504982,
-      "geo_mean_ratio": 0.10482312531334083,
-      "sd_log_ratio": null,
-      "sign_p_one_sided": 0.5,
-      "sign_p_two_sided": 1.0,
-      "perm_p_one_sided": 0.5,
-      "perm_p_two_sided": 1.0,
-      "min_attainable_p": {
-        "one_sided": 0.5,
-        "two_sided": 1.0
-      }
-    },
-    {
-      "system": "6spin",
-      "task": "narma10",
-      "all_seeds": [
-        1,
-        2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs tuned LSTM",
       "pairing": "same data seed (make_task + _three_way)",
@@ -472,7 +638,18 @@
       "t": -4.463011246027279,
       "df": 2,
       "t_p_one_sided": 0.023357379023749278,
-      "t_p_two_sided": 0.046714758047498556
+      "t_p_two_sided": 0.046714758047498556,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -1.9909841525836207,
+        "mean_log_other": -1.4093512046262322,
+        "geo_mean_ratio": 0.5589848277550384,
+        "t": -4.353408640892616,
+        "p_two_sided": 0.005393576242199998,
+        "p_one_sided": 0.002696788121099999
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -480,7 +657,9 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs tuned ESN",
       "pairing": "same data seed (make_task + _three_way)",
@@ -520,7 +699,18 @@
       "t": 32.58870958185259,
       "df": 2,
       "t_p_one_sided": 0.9995298647569516,
-      "t_p_two_sided": 0.0009402704860966977
+      "t_p_two_sided": 0.0009402704860966977,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -1.9909841525836207,
+        "mean_log_other": -4.575530462470983,
+        "geo_mean_ratio": 13.257273031663148,
+        "t": 11.938743323231458,
+        "p_two_sided": 0.0004379814800097809,
+        "p_one_sided": 0.9997810092599951
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -528,7 +718,9 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs size-matched ESN",
       "pairing": "same data seed (make_task + _three_way)",
@@ -568,7 +760,18 @@
       "t": 62.33005373716042,
       "df": 2,
       "t_p_one_sided": 0.9998713507195404,
-      "t_p_two_sided": 0.0002572985609193017
+      "t_p_two_sided": 0.0002572985609193017,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -1.9909841525836207,
+        "mean_log_other": -3.9124096135920023,
+        "geo_mean_ratio": 6.8306884128085095,
+        "t": 11.308182567638223,
+        "p_two_sided": 7.661470887037033e-05,
+        "p_one_sided": 0.9999616926455648
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -576,47 +779,57 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs in-run LSTM(64) (untuned)",
       "pairing": "same run, same seed",
-      "n": 3,
+      "n": 5,
       "seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "learned": [
         0.10455465490074718,
         0.14697794868965672,
-        0.10909833705991785
+        0.10909833705991785,
+        0.20052986144875867,
+        0.14126679934293143
       ],
       "other": [
         0.5099629163742065,
         0.42104876041412354,
-        0.4999028444290161
+        0.4999028444290161,
+        0.6694363951683044,
+        0.4530628025531769
       ],
       "log_ratio": [
         -1.584628061997597,
         -1.0524660808244368,
-        -1.5221641180237329
+        -1.5221641180237329,
+        -1.20547298657192,
+        -1.1653804565007275
       ],
-      "wins": 3,
-      "mean_log_ratio": -1.3864194202819222,
-      "geo_mean_ratio": 0.24996873716438486,
-      "sd_log_ratio": 0.2908935557472825,
-      "sign_p_one_sided": 0.125,
-      "sign_p_two_sided": 0.25,
-      "perm_p_one_sided": 0.125,
-      "perm_p_two_sided": 0.25,
+      "wins": 5,
+      "mean_log_ratio": -1.306022340783683,
+      "geo_mean_ratio": 0.27089544596747467,
+      "sd_log_ratio": 0.2337303494270674,
+      "sign_p_one_sided": 0.03125,
+      "sign_p_two_sided": 0.0625,
+      "perm_p_one_sided": 0.03125,
+      "perm_p_two_sided": 0.0625,
       "min_attainable_p": {
-        "one_sided": 0.125,
-        "two_sided": 0.25
+        "one_sided": 0.03125,
+        "two_sided": 0.0625
       },
-      "t": -8.255077601700743,
-      "df": 2,
-      "t_p_one_sided": 0.0071795043588651,
-      "t_p_two_sided": 0.0143590087177302
+      "t": -12.49454656309822,
+      "df": 4,
+      "t_p_one_sided": 0.00011800954358107993,
+      "t_p_two_sided": 0.00023601908716215986
     },
     {
       "system": "6spin",
@@ -624,10 +837,70 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs arcsin",
       "pairing": "same run, same seed",
+      "n": 5,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "learned": [
+        0.0038255773115304747,
+        0.004805400496753825,
+        0.007009704296651149,
+        0.007435741447675293,
+        0.006095782250728509
+      ],
+      "other": [
+        0.09319430393046972,
+        0.10791897066035067,
+        0.10077169445325342,
+        0.13762755286634282,
+        0.10022219420682192
+      ],
+      "log_ratio": [
+        -3.1929772161893646,
+        -3.1116402849165246,
+        -2.6655619901247856,
+        -2.9182528454039436,
+        -2.7997925654720266
+      ],
+      "wins": 5,
+      "mean_log_ratio": -2.937644980421329,
+      "geo_mean_ratio": 0.05299037527948358,
+      "sd_log_ratio": 0.21730014578071252,
+      "sign_p_one_sided": 0.03125,
+      "sign_p_two_sided": 0.0625,
+      "perm_p_one_sided": 0.03125,
+      "perm_p_two_sided": 0.0625,
+      "min_attainable_p": {
+        "one_sided": 0.03125,
+        "two_sided": 0.0625
+      },
+      "t": -30.229035725599466,
+      "df": 4,
+      "t_p_one_sided": 3.5666646178612063e-06,
+      "t_p_two_sided": 7.133329235722413e-06
+    },
+    {
+      "system": "6spin",
+      "task": "narma2",
+      "all_seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "comparison": "learned vs tau->0 ablation",
+      "pairing": "same seed",
       "n": 3,
       "seeds": [
         1,
@@ -640,19 +913,19 @@
         0.007009704296651149
       ],
       "other": [
-        0.09319430393046972,
-        0.10791897066035067,
-        0.10077169445325342
+        0.9994067496031444,
+        1.0318339986209701,
+        1.0540123647089095
       ],
       "log_ratio": [
-        -3.1929772161893646,
-        -3.1116402849165246,
-        -2.6655619901247856
+        -5.565452465534014,
+        -5.3693526901040265,
+        -5.013063943172619
       ],
       "wins": 3,
-      "mean_log_ratio": -2.990059830410225,
-      "geo_mean_ratio": 0.05028442809562816,
-      "sd_log_ratio": 0.28395080623174246,
+      "mean_log_ratio": -5.31595636627022,
+      "geo_mean_ratio": 0.0049125782838487335,
+      "sd_log_ratio": 0.28003864993670935,
       "sign_p_one_sided": 0.125,
       "sign_p_two_sided": 0.25,
       "perm_p_one_sided": 0.125,
@@ -661,10 +934,10 @@
         "one_sided": 0.125,
         "two_sided": 0.25
       },
-      "t": -18.238847822515336,
+      "t": -32.87941332126908,
       "df": 2,
-      "t_p_one_sided": 0.0014963123951915074,
-      "t_p_two_sided": 0.002992624790383015
+      "t_p_one_sided": 0.00046187004615541306,
+      "t_p_two_sided": 0.0009237400923108261
     },
     {
       "system": "6spin",
@@ -672,43 +945,9 @@
       "all_seeds": [
         1,
         2,
-        3
-      ],
-      "comparison": "learned vs tau->0 ablation",
-      "pairing": "same seed",
-      "n": 1,
-      "seeds": [
-        1
-      ],
-      "learned": [
-        0.0038255773115304747
-      ],
-      "other": [
-        0.9994067496031444
-      ],
-      "log_ratio": [
-        -5.565452465534014
-      ],
-      "wins": 1,
-      "mean_log_ratio": -5.565452465534014,
-      "geo_mean_ratio": 0.0038278481839847294,
-      "sd_log_ratio": null,
-      "sign_p_one_sided": 0.5,
-      "sign_p_two_sided": 1.0,
-      "perm_p_one_sided": 0.5,
-      "perm_p_two_sided": 1.0,
-      "min_attainable_p": {
-        "one_sided": 0.5,
-        "two_sided": 1.0
-      }
-    },
-    {
-      "system": "6spin",
-      "task": "narma2",
-      "all_seeds": [
-        1,
-        2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs tuned LSTM",
       "pairing": "same data seed (make_task + _three_way)",
@@ -748,7 +987,18 @@
       "t": 0.8109951412401152,
       "df": 2,
       "t_p_one_sided": 0.7487334573684453,
-      "t_p_two_sided": 0.5025330852631094
+      "t_p_two_sided": 0.5025330852631094,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -5.1732271410487485,
+        "mean_log_other": -5.6405006153918835,
+        "geo_mean_ratio": 1.59563770972954,
+        "t": 0.9888860736029306,
+        "p_two_sided": 0.4151244213375702,
+        "p_one_sided": 0.7924377893312149
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -756,7 +1006,9 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs tuned ESN",
       "pairing": "same data seed (make_task + _three_way)",
@@ -796,7 +1048,18 @@
       "t": 56.53589311430196,
       "df": 2,
       "t_p_one_sided": 0.9998436428529444,
-      "t_p_two_sided": 0.00031271429411121413
+      "t_p_two_sided": 0.00031271429411121413,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -5.1732271410487485,
+        "mean_log_other": -11.388006789531374,
+        "geo_mean_ratio": 500.0857823879936,
+        "t": 36.232734602658276,
+        "p_two_sided": 9.978386658683522e-08,
+        "p_one_sided": 0.9999999501080667
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -804,7 +1067,9 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs size-matched ESN",
       "pairing": "same data seed (make_task + _three_way)",
@@ -844,7 +1109,18 @@
       "t": 29.817932681256313,
       "df": 2,
       "t_p_one_sided": 0.9994385862973858,
-      "t_p_two_sided": 0.001122827405228463
+      "t_p_two_sided": 0.001122827405228463,
+      "welch_all_seeds": {
+        "n_learned": 5,
+        "n_other": 3,
+        "mean_log_learned": -5.1732271410487485,
+        "mean_log_other": -10.592589128175888,
+        "geo_mean_ratio": 225.73505467761686,
+        "t": 41.32021526036193,
+        "p_two_sided": 1.9822945405145836e-07,
+        "p_one_sided": 0.999999900885273
+      },
+      "note": "QRC seeds [4, 5] have no classical counterpart"
     },
     {
       "system": "6spin",
@@ -852,47 +1128,57 @@
       "all_seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "comparison": "learned vs in-run LSTM(64) (untuned)",
       "pairing": "same run, same seed",
-      "n": 3,
+      "n": 5,
       "seeds": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "learned": [
         0.0038255773115304747,
         0.004805400496753825,
-        0.007009704296651149
+        0.007009704296651149,
+        0.007435741447675293,
+        0.006095782250728509
       ],
       "other": [
         0.1291772872209549,
         0.11828714609146118,
-        0.1552034318447113
+        0.1552034318447113,
+        0.19298721849918365,
+        0.15010561048984528
       ],
       "log_ratio": [
         -3.519476393382593,
         -3.2033747209450087,
-        -3.097441202823381
+        -3.097441202823381,
+        -3.256325662414645,
+        -3.203742018566081
       ],
-      "wins": 3,
-      "mean_log_ratio": -3.273430772383661,
-      "geo_mean_ratio": 0.03787625909080143,
-      "sd_log_ratio": 0.21956619337905584,
-      "sign_p_one_sided": 0.125,
-      "sign_p_two_sided": 0.25,
-      "perm_p_one_sided": 0.125,
-      "perm_p_two_sided": 0.25,
+      "wins": 5,
+      "mean_log_ratio": -3.2560719996263416,
+      "geo_mean_ratio": 0.03853948419833508,
+      "sd_log_ratio": 0.1581621784652039,
+      "sign_p_one_sided": 0.03125,
+      "sign_p_two_sided": 0.0625,
+      "perm_p_one_sided": 0.03125,
+      "perm_p_two_sided": 0.0625,
       "min_attainable_p": {
-        "one_sided": 0.125,
-        "two_sided": 0.25
+        "one_sided": 0.03125,
+        "two_sided": 0.0625
       },
-      "t": -25.822501750256986,
-      "df": 2,
-      "t_p_one_sided": 0.0007481656225239786,
-      "t_p_two_sided": 0.0014963312450479572
+      "t": -46.033750934961766,
+      "df": 4,
+      "t_p_one_sided": 6.659639989355359e-07,
+      "t_p_two_sided": 1.3319279978710719e-06
     },
     {
       "system": "crotonic9",
@@ -3405,9 +3691,9 @@
   ],
   "pooled_learned_vs_arcsin": {
     "comparison": "learned vs arcsin, all systems x tasks x seeds",
-    "wins": 38,
-    "n": 38,
-    "sign_p_one_sided": 3.637978807091713e-12,
+    "wins": 47,
+    "n": 47,
+    "sign_p_one_sided": 7.105427357601002e-15,
     "caveat": "pairs share data seeds across systems, so they are not fully independent; treat as descriptive"
   },
   "duplicates": []

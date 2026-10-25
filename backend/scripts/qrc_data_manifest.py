@@ -121,6 +121,12 @@ def main():
     files = sorted(p for p in DATA.iterdir() if p.is_file() and p.name not in ("MANIFEST.md", "manifest.json"))
     entries = []
     for p in files:
+        if p.name.startswith("qrc_6spin_pub_shard"):
+            FILES.setdefault(p.name, ("current", "qrc_learnable_campaign.py --plan 6spin_pub --shard K/2",
+                                      "6-spin learnable campaign, publication seeds 4-5 + MG h=1 seeds 3-5 + tau->0 ablations seeds 2-3 (reduced-FID readout)"))
+        if p.name.startswith("qrc_6spin_retrace_shard"):
+            FILES.setdefault(p.name, ("interim", "qrc_learnable_campaign.py --plan 6spin_retrace --shard K/2",
+                                      "partial re-run of the original 6-spin jobs (stopped by user 2026-10-25: does not change conclusions); reproducibility check + traces"))
         if p.name.startswith("qrc_paired_tests"):
             FILES.setdefault(p.name, ("current", "qrc_paired_tests.py",
                                       "paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout"))

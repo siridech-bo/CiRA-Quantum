@@ -1,0 +1,205 @@
+{
+  "experiment": "learnable_campaign",
+  "regime": "B (trained encoding)",
+  "readout": "fid_reduced",
+  "plan": "6spin_pub",
+  "shard": "1/2",
+  "plan_jobs": [
+    [
+      "narma2",
+      5,
+      false,
+      1
+    ],
+    [
+      "narma10",
+      5,
+      false,
+      1
+    ],
+    [
+      "mackey_glass",
+      5,
+      false,
+      10
+    ],
+    [
+      "mackey_glass",
+      4,
+      false,
+      1
+    ],
+    [
+      "narma2",
+      2,
+      true,
+      1
+    ],
+    [
+      "narma10",
+      2,
+      true,
+      1
+    ]
+  ],
+  "system": "6",
+  "readout_qubits": null,
+  "n_virtual": 137,
+  "coupling_scale": 2.0,
+  "propagator": "auto",
+  "tau": 0.03,
+  "lines_coupling_scale": null,
+  "T": 1500,
+  "steps": 100,
+  "lr": 0.02,
+  "washout": 30,
+  "jobs": [
+    {
+      "task": "narma2",
+      "seed": 5,
+      "ablation": false,
+      "horizon": 1,
+      "arcsin": 0.10022219420682192,
+      "perspin": 0.006095782250728509,
+      "enc_std": 0.4154181276510301,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "HEADROOM: learned 'perspin' beats arcsin (0.0061 vs 0.1002, std 0.42)",
+      "job_hours": 2.442,
+      "lstm": 0.15010561048984528
+    },
+    {
+      "task": "narma10",
+      "seed": 5,
+      "ablation": false,
+      "horizon": 1,
+      "arcsin": 0.3428168875122863,
+      "perspin": 0.14126679934293143,
+      "enc_std": 0.5528040166882221,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "HEADROOM: learned 'perspin' beats arcsin (0.1413 vs 0.3428, std 0.55)",
+      "job_hours": 2.439,
+      "lstm": 0.4530628025531769
+    },
+    {
+      "task": "mackey_glass_h10",
+      "seed": 5,
+      "ablation": false,
+      "horizon": 10,
+      "arcsin": 0.020942080814408227,
+      "perspin": 0.0011419661321047509,
+      "enc_std": 0.2571432390006329,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "TIE/LOSE: best learned 0.0011 vs arcsin 0.0209 \u2014 no beat (arcsin optimal even on an encoding-favorable task)",
+      "job_hours": 2.441,
+      "lstm": 0.04044375568628311
+    },
+    {
+      "task": "mackey_glass",
+      "seed": 4,
+      "ablation": false,
+      "horizon": 1,
+      "arcsin": 0.0027655315751973562,
+      "perspin": 7.088129681591614e-05,
+      "enc_std": 0.8423743663593114,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "TIE/LOSE: best learned 0.0001 vs arcsin 0.0028 \u2014 no beat (arcsin optimal even on an encoding-favorable task)",
+      "job_hours": 2.44,
+      "lstm": 0.005789650604128838
+    },
+    {
+      "task": "narma2",
+      "seed": 2,
+      "ablation": true,
+      "horizon": 1,
+      "arcsin": 1.0349119932551059,
+      "perspin": 1.0318339986209701,
+      "enc_std": 1.1581388129794332,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "UNDER-POWERED (arcsin base 1.035 ~ mean-predictor) \u2014 invalid",
+      "job_hours": 2.435
+    },
+    {
+      "task": "narma10",
+      "seed": 2,
+      "ablation": true,
+      "horizon": 1,
+      "arcsin": 1.0217485564577748,
+      "perspin": 1.016727412061561,
+      "enc_std": 0.7545300742351755,
+      "D_eff": 161,
+      "D": 322,
+      "verdict": "UNDER-POWERED (arcsin base 1.022 ~ mean-predictor) \u2014 invalid",
+      "job_hours": 2.437
+    }
+  ],
+  "classical_baseline": "LSTM(64)",
+  "classical_reference_tuned": {
+    "narma2": {
+      "tuned_lstm": 0.0114,
+      "esn": 0.0046
+    },
+    "narma10": {
+      "esn": 0.029
+    },
+    "mackey_glass_h10": {
+      "tuned_lstm": 0.0024,
+      "esn": 0.0057
+    }
+  },
+  "elapsed_hours": 14.636,
+  "aggregate": {
+    "mackey_glass": {
+      "n_seeds": 1,
+      "arcsin_mean": 0.0027655315751973562,
+      "arcsin_std": 0.0,
+      "perspin_mean": 7.088129681591614e-05,
+      "perspin_std": 0.0,
+      "perspin_beats_arcsin": "1/1",
+      "lstm_mean": 0.005789650604128838,
+      "lstm_std": 0.0,
+      "qrc_vs_lstm": "QRC-learned wins"
+    },
+    "mackey_glass_h10": {
+      "n_seeds": 1,
+      "arcsin_mean": 0.020942080814408227,
+      "arcsin_std": 0.0,
+      "perspin_mean": 0.0011419661321047509,
+      "perspin_std": 0.0,
+      "perspin_beats_arcsin": "1/1",
+      "lstm_mean": 0.04044375568628311,
+      "lstm_std": 0.0,
+      "qrc_vs_lstm": "QRC-learned wins"
+    },
+    "narma10": {
+      "n_seeds": 1,
+      "arcsin_mean": 0.3428168875122863,
+      "arcsin_std": 0.0,
+      "perspin_mean": 0.14126679934293143,
+      "perspin_std": 0.0,
+      "perspin_beats_arcsin": "1/1",
+      "lstm_mean": 0.4530628025531769,
+      "lstm_std": 0.0,
+      "ablation_perspin_mean": 1.016727412061561,
+      "ablation_collapses": true,
+      "qrc_vs_lstm": "QRC-learned wins"
+    },
+    "narma2": {
+      "n_seeds": 1,
+      "arcsin_mean": 0.10022219420682192,
+      "arcsin_std": 0.0,
+      "perspin_mean": 0.006095782250728509,
+      "perspin_std": 0.0,
+      "perspin_beats_arcsin": "1/1",
+      "lstm_mean": 0.15010561048984528,
+      "lstm_std": 0.0,
+      "ablation_perspin_mean": 1.0318339986209701,
+      "ablation_collapses": true,
+      "qrc_vs_lstm": "QRC-learned wins"
+    }
+  }
+}
