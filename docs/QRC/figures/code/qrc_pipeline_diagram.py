@@ -119,7 +119,8 @@ def main():
         ax.plot([anchor_x, anchor_x], [45, yb + hb], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=1)
 
     dashed(20, 23, "learned per-spin encoding\n$\\theta = \\arcsin s$ (Hou et al.)\n$g = 1$ (standard)", 31.5)
-    dashed(75, 18, "¹³C FID · ⟨σ$_z$⟩ · populations\nbounded tanh features\nother τ, compact readouts", 84)
+    dashed(73.5, 21, "physics-informed line readout\n($D$ = 200, ≈ 653 bins)\n¹³C FID · ⟨σ$_z$⟩ · populations\n"
+                     "bounded tanh · other τ / PCA", 84)
     dashed(96, 14, "kernel (RFF)\nreadout", 103)
 
     # legend

@@ -118,9 +118,12 @@ that the long-horizon gap of an NMR reservoir is largely input overwrite, remova
 one physical parameter (the encoding gain), confirmed out of sample in six untouched
 cities; (3) pre-registered evidence on nine untouched cities that the final design is
 mostly non-inferior to---but never better than---tuned classical models, with the
-remaining gap located in long memory; and (4) a pre-registered drift test showing
+remaining gap located in long memory; (4) a pre-registered drift test showing
 that the QRC's failure under input shift is fixed by classical level handling, not by
-the reservoir.
+the reservoir; and (5) a physics-informed readout derived from the Hamiltonian, which
+projects the FID onto its analytic $J$-multiplet lines. It matches the 653-bin readout
+with about $3\times$ fewer features and is differentiable
+(Sec.~\ref{sec:mech-readout}).
 
 % ======================================================================
 \section{The physical reservoir and its readout}\label{sec:model}
@@ -241,6 +244,56 @@ readout of Ref.~\cite{Hou2026}; we call it the \emph{653-bin FID readout}, $D=65
 readout $W=(X^\top X+\alpha I)^{-1}X^\top y$ maps the features to every forecast
 target; whether the features are standardized and the penalty $\alpha$ are chosen on
 validation data (Sec.~\ref{sec:protocol}).
+
+\subsection{Physics-informed line readout}\label{sec:mech-readout}
+% Source: SOP section 3.2 (QRC_STANDARD_PROCEDURES.md); line counts from
+% backend/app/qrc/spectral_lines.py physics_informed_lines (crotonic-9 protons 1280 / 1.57 Hz / 100;
+% dccb7 all seven 448 / 0.60 Hz / 172, recomputed 2026-10-25); 6-spin rows as the earlier manuscript.
+The 653-bin readout selects FFT bins by magnitude. We also derive the readout from the
+Hamiltonian. Because $H$ in Eq.~\eqref{eq:H} is diagonal, the FID
+Eq.~\eqref{eq:fid} is a sum over \emph{single-quantum} transitions: flipping readout
+spin $k$ against a fixed configuration $z\in\{\pm1\}^{n-1}$ of the other spins
+oscillates, from Eq.~\eqref{eq:E}, at
+\begin{equation}
+  f_k(z) = \nu_k + \tfrac12\!\sum_{j\neq k} J_{kj}\,z_j .
+  \label{eq:lines}
+\end{equation}
+Each resonance is split into a $2^{n-1}$-line $J$-multiplet, and every peak of the
+653-bin readout is one of these lines or an FFT skirt of one. The encoding sets only
+the line amplitudes; the frequencies are fixed by $H$. Merging lines closer than the
+decoherence linewidth $\Delta f=1/(\pi T_2)$ leaves $D_{\mathrm{eff}}$ resolvable
+centres (Table~\ref{tab:deff}), which are read by a fixed direct-DFT projection
+\begin{equation}
+  X_k = \sum_{v=0}^{V-1} M^{+}(t_v)\, e^{\,i 2\pi f_k t_v}
+      = \big(M^{+}\Phi\big)_k,\qquad \Phi_{v,k}=e^{\,i2\pi f_k t_v},
+  \label{eq:proj}
+\end{equation}
+over $V$ FID samples, keeping real and imaginary parts: $D=2D_{\mathrm{eff}}$ real
+features. This \emph{line readout} has three properties. It counts the reservoir's
+actual output dimension instead of choosing it. It is a single matrix product, so it
+can be back-propagated through, which the learned encoding of regime B requires
+(Sec.~\ref{sec:regimes}). And it keeps the phase that $|$FFT$|$ discards. On real data
+at $g=0.35$, crotonic-9's 100 proton lines ($D=200$) reach a mean development
+validation $R^2$ of 0.7021 against 0.7059 for the 653 bins, with about $3\times$ fewer
+features (Table~\ref{tab:c5c7}). It was not adopted because the rule required a gain,
+but it is the readout of every mechanism result (Sec.~\ref{sec:mechanism}).
+
+\begin{table}[t]
+\caption{\label{tab:deff}Physics-informed line count (SOP \S3.2): single-quantum lines
+of the readout spins, the decoherence linewidth $\Delta f$, and the resolvable centres
+$D_{\mathrm{eff}}$ after merging lines closer than $\Delta f$. The line readout has
+$D=2D_{\mathrm{eff}}$ real features. Doubling the coupling ($c=2$) widens the multiplets
+and lifts near-degeneracies.}
+\begin{ruledtabular}
+\begin{tabular}{lrrr}
+system (readout spins) & raw lines & $\Delta f$ (Hz) & $D_{\mathrm{eff}}$ \\ \colrule
+crotonic-9 (protons) & 1280 & 1.57 & 100 \\
+dccb7 (seven $^{13}$C) & 448 & 0.60 & 172 \\
+abstract 6-spin, $c{=}1$ & 192 & 1.59 & 137 \\
+abstract 6-spin, $c{=}2$ & 192 & 1.59 & 161 \\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
 
 \subsection{Numerical methods}
 We vectorize the density matrix, $\rho\!\to\!\vec\rho\in\mathbb{C}^{d^2}$ ($d=2^n$), and
@@ -835,18 +888,9 @@ features). Tuned ESN: mean of three replicates. Shift: mean test input in traini
 % full mechanism tables and figures (figP1-figP4) are in QRC_Fair_Comparison.md, not in this paper.
 Synthetic tasks are not the paper's performance claim; we use them only for ablations
 that are too costly on multi-decade real series. They use the regime-B learned
-per-spin encoding (Sec.~\ref{sec:regimes}) and a reduced readout: because $H$ is
-diagonal, every FID peak is a single-quantum line at
-\begin{equation}
-  f_k(z) = \nu_k + \tfrac12\!\sum_{j\neq k} J_{kj}\,z_j ,
-  \label{eq:lines}
-\end{equation}
-and projecting the FID onto the $D_{\mathrm{eff}}$ lines resolvable at the decoherence
-linewidth gives a differentiable readout with $D=2D_{\mathrm{eff}}$ real features
-(crotonic-9: $D_{\mathrm{eff}}=100$; an abstract six-spin Ising reservoir: $D=322$). On
-real data at $g=0.35$ this \emph{line projection} is within 0.004 of the 653-bin
-readout (Table~\ref{tab:c5c7}).
-\label{sec:mech-readout}
+per-spin encoding (Sec.~\ref{sec:regimes}), which needs gradients through the readout,
+so they use the differentiable physics-informed line readout of
+Sec.~\ref{sec:mech-readout} ($D=2D_{\mathrm{eff}}$, Table~\ref{tab:deff}).
 
 On NARMA-2, NARMA-10~\cite{Atiya2000} and Mackey--Glass~\cite{MackeyGlass1977}
 ($h=10$), with a time-contiguous 50/25/25 split, the learned encoding beats the fixed
