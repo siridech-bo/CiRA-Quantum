@@ -133,6 +133,9 @@ def main():
         if p.name.startswith("qrc_diag_lagos"):
             FILES.setdefault(p.name, ("current", "qrc_lagos_diag.py",
                                       "POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities"))
+        if p.name.startswith("qrc_noisespec_m0"):
+            FILES.setdefault(p.name, ("current", "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
+                                      "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"))
         if p.name.startswith("qrc_psr_train"):
             FILES.setdefault(p.name, ("current", "qrc_psr_train.py --system 4 --steps 40 --device cuda",
                                       "PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) — identical curves"))

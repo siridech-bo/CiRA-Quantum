@@ -1,7 +1,7 @@
 {
  "root": "backend/artifacts",
- "n_files": 1052,
- "total_bytes": 90157130714,
+ "n_files": 1056,
+ "total_bytes": 92084177610,
  "files": [
   {
    "path": "qrc_runs/6spin-pub/6spin_pub_shard0/campaign.json",
@@ -6160,6 +6160,30 @@
    "kind": "other array"
   },
   {
+   "path": "traces/qrc_noisespec_m0a_confirm.npz",
+   "bytes": 481732932,
+   "sha256": "764ed465cc62dd39c8a2e600be0fe189ccbc1298858a6dd0333ef97b31e9d161",
+   "kind": "other array"
+  },
+  {
+   "path": "traces/qrc_noisespec_m0a_dev.npz",
+   "bytes": 481732916,
+   "sha256": "0c000ec3b0d99ddbc0f8b98661adacd1413b1969f47b1cd2a6ff596e52b38229",
+   "kind": "other array"
+  },
+  {
+   "path": "traces/qrc_noisespec_m0b_confirm.npz",
+   "bytes": 481790532,
+   "sha256": "0817c83ee8624dbea2b665353f7f254eb16ab850ed62ed87820f68d6c36b51d4",
+   "kind": "other array"
+  },
+  {
+   "path": "traces/qrc_noisespec_m0b_dev.npz",
+   "bytes": 481790516,
+   "sha256": "4ad6c05fc0ad0f9858037d328a4be4cf37af158ed3abe5d6af7dde4309d96b3c",
+   "kind": "other array"
+  },
+  {
    "path": "traces/qrc_psr_train_4spin.npz",
    "bytes": 1801106,
    "sha256": "8b2bd559191d9b6353e6e8e69d2249baf0ab36433c0bab25b709422a59399c25",
@@ -6317,8 +6341,8 @@
   }
  ],
  "provenance": {
-  "utc": "2026-10-26T01:26:28+00:00",
-  "git_commit": "5f73f51641c5a317fa7345b73c832ed89d8e2b64",
+  "utc": "2026-10-26T10:30:07+00:00",
+  "git_commit": "1c55562d4d92d5ae94797f101639dfea40e4b38d",
   "git_dirty": true,
   "code_version_file": null,
   "host": "DESKTOP-1A0J7FD",

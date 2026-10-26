@@ -793,6 +793,51 @@
       "description": "ERA5 Delhi, encoder seed 0 only (interim)"
     },
     {
+      "file": "qrc_noisespec_m0_check.json",
+      "sha256": "3c4d8548a068d55c5df960be21a983d525ab8b5a0067f7b9b6a487ea29cacaa4",
+      "bytes": 629,
+      "added": "09e3bfd 2026-10-26",
+      "status": "current",
+      "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
+      "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
+    },
+    {
+      "file": "qrc_noisespec_m0a_preds.npz",
+      "sha256": "8c94c80a17c90d48b341d9936d542e3d8831d25028019f95abb2ea118e69dce4",
+      "bytes": 155510,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
+      "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
+    },
+    {
+      "file": "qrc_noisespec_m0a_results.json",
+      "sha256": "7d2ae3362c5e9f74fc1ec274eb8b06599d3ef276be026783a5c7b6de5d6b17ec",
+      "bytes": 12253,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
+      "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
+    },
+    {
+      "file": "qrc_noisespec_m0b_preds.npz",
+      "sha256": "6065188c96bbe4e4096ba8f76991153981b4742ace9d06bb1f7b4b991aa9a114",
+      "bytes": 443510,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
+      "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
+    },
+    {
+      "file": "qrc_noisespec_m0b_results.json",
+      "sha256": "e78f7fb92721ae9c0dfd156e86c6c7638123c7a8ebcb6ae10fade4673e3ef6c2",
+      "bytes": 16649,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
+      "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
+    },
+    {
       "file": "qrc_paired_tests.json",
       "sha256": "eb3e585d64683a2a1494379b5f1ce131625c3b6b0a1ea723d72707ff40084d44",
       "bytes": 92880,
@@ -841,7 +886,7 @@
       "file": "qrc_psr_train_4spin.json",
       "sha256": "ecb695cd6e365a2658830e6e19bceb8fe5c500c6d54e2b528c24962f2ea53aa1",
       "bytes": 7033,
-      "added": "uncommitted",
+      "added": "cf9fc96 2026-10-26",
       "status": "current",
       "script": "qrc_psr_train.py --system 4 --steps 40 --device cuda",
       "description": "PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) \u2014 identical curves"
@@ -1037,8 +1082,8 @@
     },
     {
       "file": "TRACES_MANIFEST.json",
-      "sha256": "e526f88f149a3fa186965f29d417ada9de82d50c3f6bb6d6b7b31244358a7212",
-      "bytes": 225276,
+      "sha256": "eeff08963dbfe89d863504ce34710ebf253c3796c506e0f7790633c0b9a5422f",
+      "bytes": 225463,
       "added": "aa06a51 2026-10-24",
       "status": "current",
       "script": "qrc_trace_manifest.py",
@@ -1046,8 +1091,8 @@
     },
     {
       "file": "TRACES_MANIFEST.md",
-      "sha256": "f80777323e42165fd5ab0afc57438938289205996c5cabc704d8a7853155266e",
-      "bytes": 3052,
+      "sha256": "06bb637010dbe05dd408ae4ec4d3d8334868e5af475fb6b64c1cff080e612023",
+      "bytes": 3101,
       "added": "aa06a51 2026-10-24",
       "status": "current",
       "script": "qrc_trace_manifest.py",

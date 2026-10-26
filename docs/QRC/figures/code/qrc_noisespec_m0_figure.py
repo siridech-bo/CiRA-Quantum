@@ -41,7 +41,7 @@ def main():
     y, P = pz["y"], pz["P"]
 
     fig = plt.figure(figsize=(11.5, 7.0), facecolor=SURF)
-    gs = fig.add_gridspec(2, 3, hspace=0.45, wspace=0.3)
+    gs = fig.add_gridspec(2, 3, hspace=0.45, wspace=0.42)
 
     # row 1: true vs recovered spectra, three confirmation samples (low / median / high total power)
     tot = y.mean(1)
@@ -101,8 +101,8 @@ def main():
             transform=ax.get_yaxis_transform())
     ax.set_xticks(xs, labels)
     ax.set_xlabel("measurement noise η", color=INK, fontsize=9.5)
-    ax.set_ylabel("R²(R3 multi-spin) − R²(S1 single spin)", color=INK, fontsize=9.5)
-    ax.set_title("(f) multi-spin vs single spin, same ridge (95% CI)", loc="left", color=INK, fontsize=10)
+    ax.set_ylabel("ΔR² = R3 − S1 (same ridge)", color=INK, fontsize=9.5)
+    ax.set_title("(f) multi-spin minus single spin (95% CI)", loc="left", color=INK, fontsize=10)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK)
 
     fig.savefig(FIG / "figNS0_noisespec_m0.png", dpi=200, facecolor=SURF, bbox_inches="tight")

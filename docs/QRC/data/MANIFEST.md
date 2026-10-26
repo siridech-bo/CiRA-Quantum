@@ -98,12 +98,17 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_drift_exchange.json` | current | 08fd10f 2026-10-25 | `qrc_design_r.py drift` | drift test (pre-registered a4111de): delta_lags level handling on untouched exchange / electricity — D1 met | `7b8eea385d64` |
 | `qrc_era5_delhi_eval_final.json` | current | ed745d4 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi 1970-2025, test 2005-2025: arcsin / learned QRC (3 seeds) / tuned + matched ESN | `b4c27db7d981` |
 | `qrc_era5_delhi_eval_interim_seed0.json` | superseded | 4f0128c 2026-10-22 | `qrc_era5_weather.py eval` | ERA5 Delhi, encoder seed 0 only (interim) | `660c64d82bb1` |
+| `qrc_noisespec_m0_check.json` | current | 09e3bfd 2026-10-26 | `qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py` | Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage) | `3c4d8548a068` |
+| `qrc_noisespec_m0a_preds.npz` | current | uncommitted | `qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py` | Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage) | `8c94c80a17c9` |
+| `qrc_noisespec_m0a_results.json` | current | uncommitted | `qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py` | Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage) | `7d2ae3362c5e` |
+| `qrc_noisespec_m0b_preds.npz` | current | uncommitted | `qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py` | Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage) | `6065188c96bb` |
+| `qrc_noisespec_m0b_results.json` | current | uncommitted | `qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py` | Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage) | `e78f7fb92721` |
 | `qrc_paired_tests.json` | current | f5ed20e 2026-10-24 | `qrc_paired_tests.py` | paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout | `eb3e585d6468` |
 | `qrc_paired_tests.md` | current | f5ed20e 2026-10-24 | `qrc_paired_tests.py` | paired tests (per seed, log-NMSE ratio; sign / sign-flip permutation / paired t) of the synthetic claims: learned vs arcsin, tau->0 ablation, tuned LSTM/ESN; reduced-FID readout | `f811ef15be62` |
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
 | `qrc_paper4_weather.json` | superseded | 2c6137b 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, fid_points 1024 | `219ec5c814fe` |
 | `qrc_paper4_weather_v2.json` | current | 0dfa62d 2026-07-28 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, full 653-FID readout | `f68c612e7b53` |
-| `qrc_psr_train_4spin.json` | current | uncommitted | `qrc_psr_train.py --system 4 --steps 40 --device cuda` | PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) — identical curves | `ecb695cd6e36` |
+| `qrc_psr_train_4spin.json` | current | cf9fc96 2026-10-26 | `qrc_psr_train.py --system 4 --steps 40 --device cuda` | PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) — identical curves | `ecb695cd6e36` |
 | `qrc_psr_train_4spin.log` | current | uncommitted | `qrc_psr_train.py --system 4 --steps 40 --device cuda` | PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) — identical curves | `b323141324ad` |
 | `qrc_realworld_beijing_pm25.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `e1374e320e43` |
 | `qrc_realworld_era5_bangkok.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `bfe932148808` |
@@ -125,8 +130,8 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_weather_learned_leakfree_seed1.json` | current | dc32403 2026-10-22 | `qrc_weather_learn.py + qrc_weather_bench.py` | weather learned encoding, seed 1 | `fe561b64332d` |
 | `qrc_weather_learned_leakfree_seed2.json` | current | dc32403 2026-10-22 | `qrc_weather_learn.py + qrc_weather_bench.py` | weather learned encoding, seed 2 | `ae08c8e97c19` |
 | `qrc_weather_pool_delhi_kaggle.json` | current | 469c9d2 2026-10-22 | `qrc_weather_pool.py` | Kaggle Delhi pooled seeds: learned QRC vs ESN, ESN with trained input stage | `58946235718f` |
-| `TRACES_MANIFEST.json` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `e526f88f149a` |
-| `TRACES_MANIFEST.md` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `f80777323e42` |
+| `TRACES_MANIFEST.json` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `eeff08963dbf` |
+| `TRACES_MANIFEST.md` | current | aa06a51 2026-10-24 | `qrc_trace_manifest.py` | SHA-256 + size of every raw trace / encoder / feature file under backend/artifacts (archive verification) | `06bb637010db` |
 | `ZENODO_METADATA.json` | unlisted | a0d11c9 2026-10-24 | `?` |  | `5263b766da62` |
 | `ZENODO_PLAN.json` | unlisted | a0d11c9 2026-10-24 | `?` |  | `3b6288beff58` |
 | `ZENODO_PLAN.md` | unlisted | a0d11c9 2026-10-24 | `?` |  | `16223fc1f12b` |

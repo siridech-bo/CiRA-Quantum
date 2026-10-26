@@ -3,8 +3,9 @@
 Feasibility test for a hybrid QRC noise-spectroscopy direction (NMR reservoir plus
 on-hardware parameter-shift training). Simulation only. A null result is a valid outcome.
 
-**Status:** pre-registered (this section is committed before any data is generated).
-Results and verdict are appended below the pre-registration and do not edit it.
+**Status:** complete. **M0a PASS, M0b FAIL (as predicted): no multi-spin advantage.**
+The pre-registration (§1–3, commit `09e3bfd`) was committed before any data and is unchanged;
+the results (§4) and the verdict (§5) are appended.
 
 ---
 
@@ -172,4 +173,161 @@ added at analysis time from fixed seeds.
 
 ## 4. Results
 
-(appended after the confirmation run; the pre-registration above is not edited)
+Confirmation run: commit `1c55562` (analysis), on traces generated after the
+pre-registration `09e3bfd`. A dev-only dry run came first (the dev split cut in two), then
+one confirmation pass. Nothing in the pre-registration was changed.
+
+### 4.1 Simulator validation
+
+- [L0, L_z] = 0 exactly in the engine, for R3 and S1 (`data/qrc_noisespec_m0_check.json`).
+- The factorized exact propagation matches a brute-force `expm_multiply` on the full SLE
+  generator to 2e-14 (relative), for FID, CPMG-2 and CPMG-8 probes.
+- SLE with N = 20 levels vs a Monte-Carlo average over 20,000 OU trajectories (single spin,
+  σ = 150 rad/s, τ_c = 1 ms): coherence 0.8165 vs 0.8179 (FID, 10 ms) and
+  0.7736 vs 0.7777 (CPMG-4, 20 ms). The MC sampling error is ±0.007.
+- The standard filter-function forward model reproduces the SLE decay of S1 to a median
+  relative error of 0.17% (M0a) and 0.26% (M0b), on χ > 0.05. The residual is
+  the non-Gaussianity of the finite telegraph sum.
+- Initial FID amplitudes: A(R3) = 0.150, A(S1) = 0.050 (3 spins vs 1, as expected).
+  R3 has D_eff = 12 resolvable J-multiplet lines.
+
+### 4.2 M0a: recover (σ, τ_c). Confirmation R², mean of log10 σ and log10 τ_c
+
+| η | M1 R3 ridge | M2 S1 ridge | M3 S1 FF inversion | M4 S1 MLP | M5 R3 MLP | M1eq R3 ridge, equal per-spin noise |
+|---|---|---|---|---|---|---|
+| 0 | 0.991 | 0.990 | 1.000 | 0.995 | 0.995 | 0.991 |
+| 0.001 | 0.981 | 0.982 | 0.998 | 0.993 | 0.995 | 0.984 |
+| 0.003 | 0.977 | 0.980 | 0.985 | 0.994 | 0.994 | 0.980 |
+| 0.01 | 0.970 | 0.979 | 0.925 | 0.993 | 0.990 | 0.976 |
+| 0.03 | 0.960 | 0.976 | 0.766 | 0.989 | 0.985 | 0.970 |
+| 0.1 | 0.938 | 0.965 | 0.201 | 0.987 | 0.970 | 0.958 |
+
+Selected at η = 10⁻²: M1 lines-lin (D = 1176); M2 lines-lin (D = 98); M4 lines-log (D = 49); M5 lines-lin (D = 1176); M3 NLLS (log sigma, log tau), grid start, prior-range clip (245 echo/acquisition points).
+
+M1 at η = 10⁻²: R²(log σ) = 0.967, R²(log τ_c) = 0.973.
+
+Paired-bootstrap differences in mean R² at η = 10⁻²:
+
+- M1 − M2: -0.0091 [-0.0108, -0.0076]
+- M1 − M3: +0.0451 [+0.0334, +0.0573]
+- M1 − M4: -0.0233 [-0.0262, -0.0208]
+
+### 4.3 M0b: binned S(ω), 6 log bins over [10, 3·10⁴] rad/s. Confirmation R², mean over bins
+
+| η | M1 R3 ridge | M2 S1 ridge | M3 S1 FF inversion | M4 S1 MLP | M5 R3 MLP | M1eq R3 ridge, equal per-spin noise |
+|---|---|---|---|---|---|---|
+| 0 | 0.964 | 0.954 | 0.824 | 0.987 | 0.977 | 0.964 |
+| 0.001 | 0.942 | 0.929 | 0.787 | 0.969 | 0.947 | 0.946 |
+| 0.003 | 0.933 | 0.927 | 0.563 | 0.953 | 0.941 | 0.941 |
+| 0.01 | 0.916 | 0.922 | 0.154 | 0.948 | 0.940 | 0.932 |
+| 0.03 | 0.894 | 0.912 | -0.283 | 0.947 | 0.911 | 0.917 |
+| 0.1 | 0.848 | 0.892 | -0.760 | 0.940 | 0.860 | 0.887 |
+
+Selected at η = 10⁻²: M1 lines-lin (D = 1176); M2 lines-lin (D = 98); M4 lines-log (D = 49); M5 lines-lin (D = 1176); M3 weighted NNLS over 6 bins + 2 edges (245 echo/acquisition points).
+
+Paired-bootstrap differences in mean-bin R² at η = 10⁻²:
+
+- M1 − M2: -0.0063 [-0.0118, -0.0008]
+- M1 − M3: +0.7612 [+0.6883, +0.8412]
+- M1 − M4: -0.0325 [-0.0384, -0.0270]
+
+The highest-frequency bins are the hard ones for every method. At η = 10⁻² the per-bin R²
+(low to high ω) is 0.99, 0.99, 0.99, 0.96, 0.84, 0.71 for M1 and 0.99, 0.99, 0.99, 0.99, 0.92, 0.80 for M4.
+
+### 4.4 Probe budget at η = 10⁻² (descriptive). Confirmation R², nested random probe subsets
+
+M0a:
+
+| probes | M1 | M2 | M3 | M4 |
+|---|---|---|---|---|
+| 7 | 0.918 | 0.911 | 0.880 | 0.994 |
+| 14 | 0.951 | 0.959 | 0.879 | 0.991 |
+| 28 | 0.969 | 0.977 | 0.908 | 0.993 |
+| 49 | 0.970 | 0.979 | 0.925 | 0.993 |
+
+M0b:
+
+| probes | M1 | M2 | M3 | M4 |
+|---|---|---|---|---|
+| 7 | 0.848 | 0.856 | -0.960 | 0.930 |
+| 14 | 0.864 | 0.877 | -1.024 | 0.962 |
+| 28 | 0.914 | 0.917 | -0.484 | 0.962 |
+| 49 | 0.916 | 0.922 | 0.154 | 0.948 |
+
+M4 reuses its full-budget configuration here; M1 and M2 re-select their family and α by
+dev CV at each budget.
+
+### 4.5 Figure
+
+`figures/figNS0_noisespec_m0.png` (`figures/code/qrc_noisespec_m0_figure.py`):
+
+- (a–c) true vs recovered binned spectrum for three confirmation samples;
+- (d, e) recovery vs measurement noise, M0a and M0b;
+- (f) multi-spin minus single-spin with the readout held fixed (M1 − M2), with 95% CIs.
+
+### 4.6 Raw traces
+
+- `backend/artifacts/traces/qrc_noisespec_m0{a,b}_{dev,confirm}.npz`: 4 × 0.48 GB,
+  complex64, saved before any metric. A copy is also kept on cira2. To be listed in the
+  trace manifest for the Zenodo archive.
+- Confirmation predictions at η = 10⁻²: `data/qrc_noisespec_m0{a,b}_preds.npz`.
+
+## 5. Verdict against the pre-registered thresholds
+
+**M0a: PASS.** The multi-spin reservoir recovers both Lorentzian parameters with
+R² ≥ 0.90 at η = 10⁻² (0.967, 0.973). So the reservoir can do noise spectroscopy.
+
+**M0b: FAIL, as predicted.** At η = 10⁻² the reservoir is *worse* than the single spin
+read out the same way (M1 − M2 = -0.0063 [-0.0118, -0.0008]) and worse than the single-spin classical net
+(M1 − M4 = -0.0325 [-0.0384, -0.0270]). The same holds for M0a (M1 − M2 = -0.0091 [-0.0108, -0.0076]). It beats only the
+filter-function inversion, and that baseline is weak in our implementation (see caveats).
+With fewer probes it does not do better either: at 7 probes the single-spin net is ahead
+by 0.08 (M0b) and 0.08 (M0a).
+
+**There is no contribution in this direction as tested.** The coupled multi-spin reservoir
+does not recover S(ω) better, or with fewer measurements, than a single spin.
+
+### Why: the predicted mechanism, confirmed
+
+[H0, Σσz] = 0 in this engine, so every detected line carries the same noise factor
+⟨e^{iφ_f}⟩. The R3 FIDs contain no information about S(ω) that the S1 FIDs lack.
+
+- **Low-noise wrinkle (M0b):** at η ≤ 3·10⁻³ the R3 ridge is slightly *ahead* of the S1
+  ridge (+0.006 to +0.013, CI above 0). We read this as a linear-readout effect, not extra
+  information. R3 offers 12 lines, each carrying the same envelope, and that changes what
+  a linear ridge can fit. The single-spin net, given the S1 data only, is better than both
+  at every η, so the information is already in the single-spin signal. The edge reverses
+  by η = 10⁻² because at equal SNR R3's signal is spread over 12 lines.
+- **Equal per-spin noise (M1eq):** here R3 keeps its 3× signal advantage. M1eq stays below
+  the single-spin net at every η, by 0.004–0.029 (M0a) and 0.012–0.054 (M0b). Against the
+  S1 ridge it is mixed:
+  - M0a: within +0.003 up to η = 3·10⁻³, then below;
+  - M0b: +0.005 to +0.017 up to η = 3·10⁻², below at 10⁻¹.
+
+  A molecule with more spins simply gives more signal; that is not a reservoir effect, and
+  it never beats the single-spin net.
+
+### Caveats (honest)
+
+- **M3 is a weak baseline in M0b.** Our binned NNLS filter-function inversion is poorly
+  conditioned (λ = 0 and log floor −1 selected on dev; R² 0.15 at η = 10⁻²). A
+  better-regularized inversion (smoothness priors, Bayesian spectral estimation) would do
+  much better. This does not affect the verdict: M0b fails on M2 and M4 regardless.
+- **M3 in M0a:** the parametric inversion is the best method at low noise (R² 1.000 at
+  η = 0) but degrades with noise. Our floor and weighting of weak echoes is a simple choice,
+  not an optimized one.
+- **Simulation only:** 3 spins, one molecule subset, ideal instantaneous pulses, Gaussian
+  measurement noise.
+- **Readout:** lines and time-domain FID features, labelled D per method. This is not the
+  653-bin standard of the forecasting work, which does not apply to this task.
+- **Not tested:** the routes in §2 that could break the null.
+  1. Spin-dependent noise coupling (heteronuclear γ, spatially varying fields).
+  2. Multiple-quantum probe sequences (p·φ phase, p² sensitivity).
+  3. Non-Gaussian noise.
+  4. Strong coupling.
+
+  Any follow-up should start from one of these, because the commuting-noise case is closed
+  by a symmetry argument, not just by this simulation.
+
+**Per the pre-registration:** no scale-up to 4–5 spins and no regime B (PSR-trained probes),
+because M0b failed.
