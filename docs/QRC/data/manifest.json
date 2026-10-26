@@ -838,6 +838,24 @@
       "description": "Paper-4 weather reproduction, full 653-FID readout"
     },
     {
+      "file": "qrc_psr_train_4spin.json",
+      "sha256": "ecb695cd6e365a2658830e6e19bceb8fe5c500c6d54e2b528c24962f2ea53aa1",
+      "bytes": 7033,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_psr_train.py --system 4 --steps 40 --device cuda",
+      "description": "PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) \u2014 identical curves"
+    },
+    {
+      "file": "qrc_psr_train_4spin.log",
+      "sha256": "b323141324ade5069e8c8be9fed3a16e7d483a79a12790e2a7c9257bf486311a",
+      "bytes": 5360,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_psr_train.py --system 4 --steps 40 --device cuda",
+      "description": "PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) \u2014 identical curves"
+    },
+    {
       "file": "qrc_realworld_beijing_pm25.json",
       "sha256": "e1374e320e4325f5cc3f8940c2109570229c64b4183914e25beae17eeafa4688",
       "bytes": 6357,

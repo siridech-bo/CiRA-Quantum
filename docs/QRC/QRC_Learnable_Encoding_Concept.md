@@ -360,6 +360,7 @@ measure by shifting pulses equals the one the simulator computes by backprop.
 | Multi-seed confirmation of the 6-spin win | ✅ **confirmed** — per-spin 0.246±0.107 vs arcsin 0.423±0.058, 4/5 seeds, ~42% mean, paired t=−3.12 (p≈0.036) | Fig. 15 |
 | Is learned *global* encoding reliable? | ❌ **no** — training diverges across seeds (0.28–1.75); only *per-spin* is a robust win | Fig. 15 |
 | **PSR reproduces the sim gradient** (hardware recipe) | ✅ machine precision; global-pulse caveat confirmed | `qrc_psr_sim.py` |
+| **PSR-driven training loop** (train with shifted forward runs only) | ✅ 4-spin, Delhi weather next-day T+RH, 40 Adam steps: PSR and autograd training curves identical (val NMSE 0.0993 → 0.0840), gradient rel. diff ≤ 1.1e-10, 12,144 experiments/step. Observable readout D = 48 (non-standard). Fig. R5 | `qrc_psr_train.py`, `data/qrc_psr_train_4spin.json` |
 | Converged / 9-spin / multi-seed verdict | ⬜ open | go-gated GPU campaign |
 
 **Recommendation.** The direction is fully de-risked as a *capability* and a
@@ -473,6 +474,7 @@ tasks, hardware/energy efficiency), not from beating a classical RNN on NARMA.
 | `backend/scripts/qrc_grad_prod_check.py` | autograd through the **production** op family (sparse-CSR complex, FD match 3.5e-9 in complex128) |
 | `backend/app/qrc/system.py` → `ensure_diff` / `step_diff` | the differentiable reservoir step (detach lifted, device-agnostic) |
 | `backend/scripts/qrc_psr_sim.py` | **simulates the PSR** and checks it against autograd: 2-term exact for single-spin (8e-16), wrong for global (56%), generalized 2n-term exact (3e-15) |
+| `backend/scripts/qrc_psr_train.py` | **trains** a per-spin encoding with PSR gradients only (forward runs at shifted angles), next to an identical autograd arm; batched lock-step simulation of all 2nT shifted runs |
 | `backend/scripts/qrc_learnable_proto.py` | end-to-end learnable encoder trained by Adam (Fig. 12) |
 | `docs/QRC/figures/fig12_learnable_proto.png` | training curve + the encoding the gradient discovered |
 | `docs/QRC/QRC_Encoding_Study.md` | the Phase-2 fixed-function result this builds on |

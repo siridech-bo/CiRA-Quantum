@@ -133,6 +133,9 @@ def main():
         if p.name.startswith("qrc_diag_lagos"):
             FILES.setdefault(p.name, ("current", "qrc_lagos_diag.py",
                                       "POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities"))
+        if p.name.startswith("qrc_psr_train"):
+            FILES.setdefault(p.name, ("current", "qrc_psr_train.py --system 4 --steps 40 --device cuda",
+                                      "PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) — identical curves"))
         if p.name.startswith("qrc_design_p"):
             FILES.setdefault(p.name, ("current", "qrc_design_p.py dev|freeze",
                                       "Step 6 (pre-registered d022533): A paper-encoding control, B readout channels (13C FID, <sz>, populations), validation only — nothing adopted"))

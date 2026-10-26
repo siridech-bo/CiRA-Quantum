@@ -14,11 +14,11 @@ Run pdflatex twice so the references resolve. The bibliography is inline (`thebi
 ## Requirements
 
 - **Packages:** RevTeX 4.2 (`revtex4-2`), `graphicx`, `bm`, `physics`, `booktabs`, `hyperref`, plus the `cm-super` fonts. These are in TeX Live or MiKTeX full.
-- **Overleaf:** upload `QRC_Manuscript.tex` and the five figures below into a `figures/` folder.
+- **Overleaf:** upload `QRC_Manuscript.tex` and the six figures below into a `figures/` folder.
 
 ## Figures
 
-The manuscript uses `\graphicspath{{figures/}}`. All five figures are committed in `docs/QRC/figures/`.
+The manuscript uses `\graphicspath{{figures/}}`. All six figures are committed in `docs/QRC/figures/`.
 
 | file | Fig. | regenerate with |
 |---|---|---|
@@ -27,6 +27,7 @@ The manuscript uses `\graphicspath{{figures/}}`. All five figures are committed 
 | `figR3_horizon.png` | R² by horizon, Lagos | same script |
 | `figR1_confirm_forest.png` | 9-city paired CIs | same script |
 | `figR4_drift.png` | drift test | same script |
+| `figR5_psr_train.png` | parameter-shift training loop | `python docs/QRC/figures/code/qrc_psr_train_figure.py` |
 
 ## Real RevTeX compile (2026-10-25)
 

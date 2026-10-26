@@ -1,7 +1,7 @@
 {
  "root": "backend/artifacts",
- "n_files": 1051,
- "total_bytes": 90155329608,
+ "n_files": 1052,
+ "total_bytes": 90157130714,
  "files": [
   {
    "path": "qrc_runs/6spin-pub/6spin_pub_shard0/campaign.json",
@@ -6160,6 +6160,12 @@
    "kind": "other array"
   },
   {
+   "path": "traces/qrc_psr_train_4spin.npz",
+   "bytes": 1801106,
+   "sha256": "8b2bd559191d9b6353e6e8e69d2249baf0ab36433c0bab25b709422a59399c25",
+   "kind": "other array"
+  },
+  {
    "path": "traces/weather_block/crot_tau100_HC.npz",
    "bytes": 48327650,
    "sha256": "fe585a275b42550c6ca7884bbec0cbc5ce0bc55594de431f33e2df0ed06398aa",
@@ -6311,8 +6317,8 @@
   }
  ],
  "provenance": {
-  "utc": "2026-10-25T11:58:55+00:00",
-  "git_commit": "8ca6aef9e17bc1ae2ff5c08a2c0bb3ce8bc40092",
+  "utc": "2026-10-26T01:26:28+00:00",
+  "git_commit": "5f73f51641c5a317fa7345b73c832ed89d8e2b64",
   "git_dirty": true,
   "code_version_file": null,
   "host": "DESKTOP-1A0J7FD",

@@ -103,6 +103,8 @@ archived (Zenodo) with checksums; result files below are version-controlled.
 | `qrc_paper4_narma.json` | current | 511bc2e 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 reproduction, NARMA | `bc3ff8dd3588` |
 | `qrc_paper4_weather.json` | superseded | 2c6137b 2026-07-27 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, fid_points 1024 | `219ec5c814fe` |
 | `qrc_paper4_weather_v2.json` | current | 0dfa62d 2026-07-28 | `qrc_reproduce_paper4.py` | Paper-4 weather reproduction, full 653-FID readout | `f68c612e7b53` |
+| `qrc_psr_train_4spin.json` | current | uncommitted | `qrc_psr_train.py --system 4 --steps 40 --device cuda` | PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) — identical curves | `ecb695cd6e36` |
+| `qrc_psr_train_4spin.log` | current | uncommitted | `qrc_psr_train.py --system 4 --steps 40 --device cuda` | PSR-driven training loop vs autograd (methods demo, 4-spin, observable readout D=48, Delhi weather) — identical curves | `b323141324ad` |
 | `qrc_realworld_beijing_pm25.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `e1374e320e43` |
 | `qrc_realworld_era5_bangkok.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `bfe932148808` |
 | `qrc_realworld_era5_beijing.json` | current | 4e07ca5 2026-10-22 | `qrc_realworld_bench.py eval` | real-world benchmark eval | `3cc088d275f7` |

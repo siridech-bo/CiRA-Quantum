@@ -1,7 +1,7 @@
 % A pre-registered real-world forecasting benchmark of a simulated nuclear-spin
 % quantum reservoir computer.
 % Target: Physical Review Research (RevTeX 4.2). Compile: pdflatex x2 (self-contained
-% bibliography). Figures expected in ./figures/ (figR0 from qrc_pipeline_diagram.py; figR1-figR4 from qrc_realworld_figures.py, docs/QRC/figures/code/).
+% bibliography). Figures expected in ./figures/ (figR0 from qrc_pipeline_diagram.py; figR1-figR4 from qrc_realworld_figures.py, figR5 from qrc_psr_train_figure.py, docs/QRC/figures/code/).
 %
 % NUMBER PROVENANCE. Every number below is copied from a version-controlled source;
 % the source is named in a LaTeX comment next to each table / paragraph:
@@ -315,6 +315,32 @@ same ridge readout is used, but the input encoding is additionally trained by
 gradient descent through the differentiable reservoir. The final real-world design is
 regime A: the encoding gain $g$ is a fixed hyperparameter, frozen on validation data,
 not a trained weight.
+
+On hardware, regime B cannot back-propagate through the spins. Each encoding pulse
+$R_x(\theta_{t,i})$ acts on one spin, so its generator has two eigenvalues and the
+two-term parameter-shift rule~\cite{Mitarai2018,Schuld2019} gives the exact gradient
+from forward experiments alone:
+$\partial L/\partial\theta_{t,i}=\tfrac12[G\cdot F(\theta+\tfrac{\pi}{2}e_{t,i})
+-G\cdot F(\theta-\tfrac{\pi}{2}e_{t,i})]$, where $F$ are the measured features and
+$G=\partial L/\partial F$ comes from the classical ridge readout. We trained a per-spin
+encoding this way, using only shifted forward runs, next to an identical autograd
+run (Fig.~\ref{fig:psr}). The task is Delhi weather, next-day temperature and
+humidity, on a four-spin test reservoir with an observable readout ($D=48$, not the
+653-bin standard). The two training curves agree for all 40 steps; the gradients
+differ by at most $1.1\times10^{-10}$ (relative). The cost is
+$2\,n\,T=12{,}144$ experiments per gradient step ($n=4$ spins, $T=1518$ days). This
+validates the hardware training path. It is not a performance result: learned encoding
+was not adopted for the real-world design (Sec.~\ref{sec:step4}).
+% source: docs/QRC/data/qrc_psr_train_4spin.json (backend/scripts/qrc_psr_train.py)
+
+\begin{figure}[t]
+\includegraphics[width=\columnwidth]{figR5_psr_train.png}
+\caption{\label{fig:psr}Training the encoding with parameter-shift gradients (forward
+runs only, as on hardware) versus autograd, from the same start ($g=0.35$, 12
+parameters, four-spin test reservoir, observable readout $D=48$, Delhi weather).
+(a) Validation NMSE per step: the curves coincide. (b) Largest relative difference
+between the two gradients at each step.}
+\end{figure}
 
 \begin{table}[t]
 \caption{\label{tab:crotonic}Nine-spin $^{13}$C crotonic-acid reservoir~\cite{Hou2026}
@@ -951,7 +977,9 @@ not the 653-bin standard, mostly on an abstract six-spin Ising model; comparison
 the tuned classical models use three data seeds. They were not run on real-world data.
 \item \emph{Six-qubit differentiability wall.} Regime B on the dense propagator is
 limited to six qubits; the nine-spin and seven-spin campaigns use the block
-propagator, and larger systems need checkpointing or parameter-shift gradients.
+propagator, and larger systems need checkpointing or parameter-shift gradients. The
+parameter-shift training loop is shown only on a four-spin test reservoir
+(Fig.~\ref{fig:psr}); at nine spins it costs $2nT$ full reservoir runs per step.
 \end{enumerate}
 
 % ======================================================================
@@ -977,7 +1005,7 @@ step), or longer-$T_1$, more strongly coupled molecules, followed by on-device t
 conventions: repository \url{https://github.com/siridech-bo/CiRA-Quantum}, branch
 \texttt{qrc-simulation}. Scripts are in \url{backend/scripts/} (\url{qrc_realworld_bench.py},
 \url{qrc_design_c1.py}, \url{qrc_design_confirm.py}, \url{qrc_design_r.py},
-\url{qrc_design_p.py}, \url{qrc_lagos_diag.py}, \url{qrc_learnable_campaign.py},
+\url{qrc_design_p.py}, \url{qrc_lagos_diag.py}, \url{qrc_learnable_campaign.py}, \url{qrc_psr_train.py},
 \url{qrc_classical_fair.py}). The pre-registrations are in
 \url{docs/QRC/QRC_Design_Concepts.md}, the conventions in
 \url{docs/QRC/QRC_STANDARD_PROCEDURES.md}, and the source of every number in
