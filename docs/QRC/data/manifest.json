@@ -805,7 +805,7 @@
       "file": "qrc_noisespec_m0a_preds.npz",
       "sha256": "8c94c80a17c90d48b341d9936d542e3d8831d25028019f95abb2ea118e69dce4",
       "bytes": 155510,
-      "added": "uncommitted",
+      "added": "e562a9f 2026-10-26",
       "status": "current",
       "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
       "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
@@ -814,7 +814,7 @@
       "file": "qrc_noisespec_m0a_results.json",
       "sha256": "7d2ae3362c5e9f74fc1ec274eb8b06599d3ef276be026783a5c7b6de5d6b17ec",
       "bytes": 12253,
-      "added": "uncommitted",
+      "added": "e562a9f 2026-10-26",
       "status": "current",
       "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
       "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
@@ -823,7 +823,7 @@
       "file": "qrc_noisespec_m0b_preds.npz",
       "sha256": "6065188c96bbe4e4096ba8f76991153981b4742ace9d06bb1f7b4b991aa9a114",
       "bytes": 443510,
-      "added": "uncommitted",
+      "added": "e562a9f 2026-10-26",
       "status": "current",
       "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
       "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
@@ -832,10 +832,37 @@
       "file": "qrc_noisespec_m0b_results.json",
       "sha256": "e78f7fb92721ae9c0dfd156e86c6c7638123c7a8ebcb6ae10fade4673e3ef6c2",
       "bytes": 16649,
-      "added": "uncommitted",
+      "added": "e562a9f 2026-10-26",
       "status": "current",
       "script": "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
       "description": "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"
+    },
+    {
+      "file": "qrc_noisespec_m1_check.json",
+      "sha256": "a32a31a4eb2994a84ad59a705552a60efaf6ef374ec793674b51b4a54f4f5242",
+      "bytes": 689,
+      "added": "62005a8 2026-10-26",
+      "status": "current",
+      "script": "qrc_noisespec_m1.py check|mech [--j-scale 0 post-hoc]",
+      "description": "Milestone 1 transverse-noise comb (pre-registered 62005a8): mechanism gate G2 FAILED -> VOID; j0 file is a post-hoc diagnostic"
+    },
+    {
+      "file": "qrc_noisespec_m1_mech.json",
+      "sha256": "2edf590f6f019920ce425903b64fde716d7cbcc9f757cc9a028e609955f286ae",
+      "bytes": 22242,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_noisespec_m1.py check|mech [--j-scale 0 post-hoc]",
+      "description": "Milestone 1 transverse-noise comb (pre-registered 62005a8): mechanism gate G2 FAILED -> VOID; j0 file is a post-hoc diagnostic"
+    },
+    {
+      "file": "qrc_noisespec_m1_mech_posthoc_j0.json",
+      "sha256": "764f51f42cbe7d8b2b68890431052e598d7fafea42bb7a7ecea35f43f64fca78",
+      "bytes": 22452,
+      "added": "uncommitted",
+      "status": "current",
+      "script": "qrc_noisespec_m1.py check|mech [--j-scale 0 post-hoc]",
+      "description": "Milestone 1 transverse-noise comb (pre-registered 62005a8): mechanism gate G2 FAILED -> VOID; j0 file is a post-hoc diagnostic"
     },
     {
       "file": "qrc_paired_tests.json",
@@ -1082,8 +1109,8 @@
     },
     {
       "file": "TRACES_MANIFEST.json",
-      "sha256": "eeff08963dbfe89d863504ce34710ebf253c3796c506e0f7790633c0b9a5422f",
-      "bytes": 225463,
+      "sha256": "eb3e7fd77c61ed07214320568e85576ad45bee3769cc8bfbcf66327f9bc41a5c",
+      "bytes": 226235,
       "added": "aa06a51 2026-10-24",
       "status": "current",
       "script": "qrc_trace_manifest.py",
@@ -1091,8 +1118,8 @@
     },
     {
       "file": "TRACES_MANIFEST.md",
-      "sha256": "06bb637010dbe05dd408ae4ec4d3d8334868e5af475fb6b64c1cff080e612023",
-      "bytes": 3101,
+      "sha256": "df66ac731351d94aa70e9fd9bc5073b2970a0f22c09951604cd0133ea57ed642",
+      "bytes": 3313,
       "added": "aa06a51 2026-10-24",
       "status": "current",
       "script": "qrc_trace_manifest.py",

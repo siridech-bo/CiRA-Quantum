@@ -133,6 +133,9 @@ def main():
         if p.name.startswith("qrc_diag_lagos"):
             FILES.setdefault(p.name, ("current", "qrc_lagos_diag.py",
                                       "POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities"))
+        if p.name.startswith("qrc_noisespec_m1"):
+            FILES.setdefault(p.name, ("current", "qrc_noisespec_m1.py check|mech [--j-scale 0 post-hoc]",
+                                      "Milestone 1 transverse-noise comb (pre-registered 62005a8): mechanism gate G2 FAILED -> VOID; j0 file is a post-hoc diagnostic"))
         if p.name.startswith("qrc_noisespec_m0"):
             FILES.setdefault(p.name, ("current", "qrc_noisespec_m0.py check|gen; qrc_noisespec_m0_analysis.py",
                                       "Milestone 0 noise spectroscopy (pre-registered 09e3bfd): R3 crotonic C1-C3 vs single spin; M0a PASS, M0b FAIL (no multi-spin advantage)"))

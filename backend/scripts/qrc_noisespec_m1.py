@@ -58,12 +58,13 @@ MECH_SEED, MECH_N = 399, 40
 
 
 # --- systems -----------------------------------------------------------------
-def make_r3():
-    """R3 = crotonic C1, C3, H2 (paper offsets, each relative to its own carrier)."""
+def make_r3(j_scale=1.0):
+    """R3 = crotonic C1, C3, H2 (paper offsets, each relative to its own carrier).
+    ``j_scale`` != 1 is a POST-HOC diagnostic only (not the pre-registered system)."""
     c = crotonic_acid_paper4()
     idx = [0, 2, 5]
     return SystemConfig(n_qubits=3, chemical_shifts=[c.chemical_shifts[i] for i in idx],
-                        j_coupling=np.asarray(c.j_coupling)[np.ix_(idx, idx)].tolist(),
+                        j_coupling=(j_scale * np.asarray(c.j_coupling)[np.ix_(idx, idx)]).tolist(),
                         t1=[c.t1[i] for i in idx], t2=[c.t2[i] for i in idx],
                         labels=["C1", "C3", "H2"])
 
@@ -390,7 +391,7 @@ def cluster_rates(fids, freqs, sign):
 
 
 def cmd_mech(a):
-    r3 = Spins(make_r3())
+    r3 = Spins(make_r3(a.j_scale))
     freqs = r3_clusters()
     P = sample_params("a", MECH_N, MECH_SEED)
     f0 = sle_fids(r3, [(1e-9, 1e-4)], 2, a.device, MECH_PROBES)
@@ -428,7 +429,9 @@ def cmd_mech(a):
            "G2_pass": bool(g2a >= 1.5 and g2b >= 0.9)}
     out["gate_pass"] = out["G1_pass"] and out["G2_pass"]
     DATA.mkdir(parents=True, exist_ok=True)
-    (DATA / "qrc_noisespec_m1_mech.json").write_text(json.dumps(out, indent=1))
+    out["j_scale"] = a.j_scale
+    name = "qrc_noisespec_m1_mech.json" if a.j_scale == 1.0 else f"qrc_noisespec_m1_mech_posthoc_j{a.j_scale:g}.json"
+    (DATA / name).write_text(json.dumps(out, indent=1))
     print(json.dumps({k: v for k, v in out.items() if k != "draws"}, indent=1))
 
 
@@ -438,6 +441,7 @@ def main():
     for nm in ("check", "mech"):
         s = sub.add_parser(nm)
         s.add_argument("--device", default="cpu")
+        s.add_argument("--j-scale", type=float, default=1.0)
     g = sub.add_parser("gen")
     g.add_argument("--task", choices=["a", "b"], required=True)
     g.add_argument("--split", choices=["dev", "confirm"], required=True)

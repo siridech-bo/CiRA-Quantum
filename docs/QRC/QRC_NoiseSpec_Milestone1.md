@@ -3,8 +3,9 @@
 Follow-on to the M0 negative (`QRC_NoiseSpec_Milestone0.md`). Simulation only. A null
 result is a valid outcome.
 
-**Status:** pre-registered (§1–4, committed before any noise data is generated). Results
-and the verdict are appended below and do not edit the pre-registration.
+**Status:** **VOID.** The pre-registered mechanism gate (G2) failed, so no M1a/M1b data was generated
+or scored. The pre-registration (§1–4, commit `62005a8`) is unchanged; the gate result, a post-hoc
+diagnosis and options are appended in §5.
 
 ---
 
@@ -227,4 +228,82 @@ M1b primary passes.
 
 ## 5. Results
 
-(appended after the runs; §1–4 are not edited)
+### 5.1 Mechanism gate (pre-registered): FAILED, so M1 is VOID
+
+Output: `data/qrc_noisespec_m1_mech.json` (40 draws, seed 399; 38 in the Redfield regime,
+στ_c ≤ 0.3).
+
+| Gate | Statistic | Threshold | Value | Result |
+|---|---|---|---|---|
+| G1: SLE vs Redfield | median rel. error of cluster excess rate | ≤ 0.20 | 1.3e-04 | PASS |
+| G2: comb exists | median max/min cluster excess (clusters > 2/s) | ≥ 1.5 | 1.38 | **FAIL** |
+| G2: comb exists | median corr(SLE, Redfield) per draw | ≥ 0.9 | 1.00000 | pass |
+
+**Per §3.8 the M1 result is VOID.**
+
+- Trace generation was stopped as soon as the gate failed.
+- **No dev or confirmation data was generated; no M1a/M1b R² exists.**
+- No R² is reported, as the task specified.
+
+### 5.2 Diagnosis (post hoc; labelled, not part of the pre-registration)
+
+Figure: `figures/figNS1_gate.png` (`figures/code/qrc_noisespec_m1_gate_figure.py`).
+
+The gate failed for two reasons. Neither is "there is no frequency-selective relaxation".
+
+1. **With the real J couplings, cluster amplitudes are not exponential in the delay T.**
+   - The C1 multiplet (J = 6.6 and 1.6 Hz) and the H2 sub-structure are unresolved in a
+     25.6 ms window. In-phase and antiphase parts then interfere as cos(πJT), even with
+     no noise (Fig. NS1a, solid).
+   - Example: the C1 cluster amplitude goes 1 → 0.21 (50 ms) → 0.37 (100 ms).
+   - The pre-registered single-exponential rate fit is therefore wrong for those clusters.
+   - The C1 and C3 clusters also pick up decay their own S(ω) does not explain. Their
+     fitted excess rates are far above S(|ω|)/4 (Fig. NS1b), while the H2 lines track it.
+   - The exact simulation and Redfield theory agree on this (G1 rel. error 1e-4). So it is
+     real physics of the model, not a solver error. The likely cause is spin flips of the
+     noisy, low-frequency H2 (S large) reaching C1 and C3 through the J couplings. The
+     J = 0 diagnostic below does not separate this from the fit artefact.
+2. **The G2 statistic was badly chosen.**
+   - The "> 2/s" mask usually removes the C1 and C3 clusters, whose own rates are small.
+   - That leaves the two H2 clusters, which sit at almost the same frequency, so max/min
+     ≈ 1.
+   - Even the uncoupled diagnostic below fails G2 (max/min 1.17), although its
+     comb is perfect.
+
+**Post-hoc J = 0 diagnostic** (same 40 draws, J switched off; `data/qrc_noisespec_m1_mech_posthoc_j0.json`):
+
+- Every cluster's excess decay rate equals its own Redfield rate S(|ω|)/4 across four
+  decades (Fig. NS1c; SLE vs Redfield median rel. error 1.2e-04).
+- So the frequency-selective comb **does** exist for uncoupled spins.
+
+### 5.3 What this means for the hypothesis
+
+- **The comb works only when the spins do not talk to each other.** Uncoupled spins at
+  different offsets are a clean comb: several single spins read in parallel.
+- **The coupling that makes it a "reservoir" is what blurs the comb.** In the coupled
+  molecule, the C1 and C3 clusters decay mostly through something other than their own
+  S(ω), most likely the partner-flip and J mechanism above, and the decays stop being
+  exponential.
+- **A parallel array of uncoupled spins is not a reservoir advantage.** It is
+  multiplexed single-spin relaxometry: one sample with several non-interacting probe spins
+  (or several samples).
+- This reverses the premise of M1. A multi-spin comb can be efficient. But it is
+  efficient *because* of parallel uncoupled sensors, and in spite of the coupling.
+- The pre-registered efficiency comparison was not run, so this is a reasoned conclusion,
+  not a measured one.
+
+### 5.4 Options (not run)
+
+1. **Close M1 as VOID** (recommended reading of the pre-registration), with the diagnosis
+   above.
+2. **Amend and re-register** (a disclosed protocol deviation: the 40 gate draws were seen,
+   but no task data exists). Fix the extraction and the statistic:
+   - per-spin rates from J-free quantities (z relaxation via inversion recovery, or full
+     time-trace fits with a J-modulated model);
+   - selectivity as the correlation between excess rate and own S(|ω|), with no mask.
+
+   Optionally, add a heteronuclear-decoupled variant. Then run M1a/M1b. Expect the
+   coupled comb to be weaker than the J = 0 comb.
+3. **Test the uncoupled comb (J = 0) on the efficiency axis** as a separate, labelled
+   question: "does a multiplexed spin array beat a sweeping single spin?" It probably does
+   at small B, since that is parallelism. But it is not a quantum-reservoir result.
