@@ -307,3 +307,6 @@ The gate failed for two reasons. Neither is "there is no frequency-selective rel
 3. **Test the uncoupled comb (J = 0) on the efficiency axis** as a separate, labelled
    question: "does a multiplexed spin array beat a sweeping single spin?" It probably does
    at small B, since that is parallelism. But it is not a quantum-reservoir result.
+
+**Decision (2026-10-26): closed as VOID (option 1).** No amendment and no further runs. The
+noise-spectroscopy direction stops here unless a new mechanism is proposed.
