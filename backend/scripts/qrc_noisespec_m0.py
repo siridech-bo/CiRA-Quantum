@@ -29,6 +29,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.qrc import sequences  # noqa: E402
 from app.qrc.config import SimConfig, SystemConfig, crotonic_acid_paper4  # noqa: E402
 from app.qrc.spectral_lines import physics_informed_lines  # noqa: E402
 from app.qrc.system import QRCSystem  # noqa: E402
@@ -93,14 +94,24 @@ class Spins:
             U = qt.tensor([r] * self.n) if self.n > 1 else r
             return np.asarray(qt.sprepost(U, U.dag()).full(), dtype=np.complex128)
 
-        self.P90 = torch.tensor(rot("x", np.pi / 2), dtype=CDT, device=device)
-        self.P180 = torch.tensor(rot("y", np.pi), dtype=CDT, device=device)
+        self._rot = rot
+        self._P = {}
+        self.P90 = self.rot("x", np.pi / 2)
+        self.P180 = self.rot("y", np.pi)
         o_op = sum(s.sy[p] + 1j * s.sx[p] for p in range(self.n))
         self.o = torch.tensor(qt.operator_to_vector(o_op.trans()).full().ravel(),
                               dtype=CDT, device=device)
         self.rho0 = torch.tensor(qt.operator_to_vector(s._build_initial_state()).full().ravel(),
                                  dtype=CDT, device=device)
         self._E0 = {}
+
+    def rot(self, axis, theta):
+        """Hard-pulse superoperator (cached). Axis 'x' | 'y' | '-x' | '-y'."""
+        key = (axis, round(theta, 12))
+        if key not in self._P:
+            sgn = -1.0 if axis.startswith("-") else 1.0
+            self._P[key] = torch.tensor(self._rot(axis[-1], sgn * theta), dtype=CDT, device=self.dev)
+        return self._P[key]
 
     def E0(self, t):
         key = round(t, 12)
@@ -177,29 +188,27 @@ class Batch:
             R[:, :, ix] = E[ci] @ R[:, :, ix]
         return R
 
-    def pulse(self, R, P):
-        return R @ P.T
+    def pulse(self, R, axis, angle):
+        return R @ self.s.rot(axis, angle).T
 
-    def probe(self, n_pi, T):
-        """pi/2_x, CPMG(n_pi pi_y over T), then N_ACQ samples at DWELL -> (B, N_ACQ) complex."""
-        R = self.pulse(self.init(), self.s.P90)
-        if n_pi == 0:
-            R = self.free(R, T)
-        else:
-            tau = T / n_pi
-            R = self.free(R, tau / 2)
-            for i in range(n_pi):
-                R = self.pulse(R, self.s.P180)
-                R = self.free(R, tau if i < n_pi - 1 else tau / 2)
+    def acquire(self, R, n, dwell):
+        """Sample the detected coherence classes at m * dwell, m = 0..n-1 -> (B, n) complex."""
         det = [ci for ci, (_, ix) in enumerate(self.s.classes)
                if torch.abs(self.s.o[ix]).max() > 0]
         keep = np.concatenate([self.s.classes[ci][1] for ci in det])
         out = []
-        for m in range(N_ACQ):
-            if m:
-                R = self.free(R, DWELL, cls=det)
+        for k in range(n):
+            if k:
+                R = self.free(R, dwell, cls=det)
             out.append(R[:, :, keep].sum(1) @ self.s.o[keep])
         return torch.stack(out, 1)
+
+    def run(self, seq):
+        return sequences.run(seq, self)
+
+    def probe(self, n_pi, T):
+        """pi/2_x, CPMG(n_pi pi_y over T), then N_ACQ samples at DWELL -> (B, N_ACQ) complex."""
+        return self.run(sequences.cpmg(n_pi, T, N_ACQ, DWELL))
 
 
 def sample_params(task, n, seed):
