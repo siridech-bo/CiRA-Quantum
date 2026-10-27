@@ -17,7 +17,9 @@ Results are appended below each frozen pre-registration and never edit it.
 - Stage 1 done (pre-registered `4d75d11`): **Gate Y PASS, Q1 NO, as predicted.** The M0 estimators are 3–4 orders of magnitude from the CRB; the readout keeps the information; the MLE attains the bound (§2.9).
 - Module B arm (i) built: `app/qrc/adaptive.py`, tests pass.
 - Stage 2 done (pre-registered `99f56de`): **Gate F, Q2a, Q2b PASS; Q2c FAIL (prediction miss: the adaptive gain over the best static probe is at the low-θ edge).** About 2.5× fewer shots than the fixed bank. A v1 posterior-grid bug was fixed and rerun as a disclosed deviation (§3.9).
-- Batched GPU episode runner: `app/qrc/adaptive_batch.py`.
+- Batched GPU episode runner: `app/qrc/adaptive_batch.py` (1-D, and a 2-D joint (θ, ν) posterior for Stage 3).
+- Module B arm (ii) built: `app/qrc/neural_policy.py` (model-free neural estimator + REINFORCE policy).
+- Stage 3 PRE-REGISTERED (§4): model-free adaptive estimation with τ_c hidden. Primary = misspecification contrast at the low-θ edge (Q3-M: ρ ≥ 2 at Δν ≥ 0.4, both systems), vs a ν₀-assumed Bayesian baseline; joint (θ, ν) Bayesian and nuisance CRB_ν as references. η = 10⁻¹, 49-bank; continuous action deferred to Stage 3b. Predicted: Tier A, Q3-M, Q3-M2, Q3a, Q3b PASS.
 
 ---
 
@@ -79,7 +81,7 @@ Arm (i) is built in `backend/app/qrc/adaptive.py`.
 - **Episodes.** `run_episode`.
 - **Tests** (`backend/tests/test_qrc_adaptive.py`, 3 tests): the posterior matches the closed-form linear-Gaussian posterior (std to 1e-3); the greedy policy picks the max-FI probe; posterior variances reach 1/(n FI_max) for greedy and 1/(n mean FI) for the cycle, to 1e-3.
 
-Arm (ii), the RL / neural policy, is not built yet; it is Stage 3.
+Arm (ii), the RL / neural policy, is built in `backend/app/qrc/neural_policy.py` (Stage 3, §4.3).
 
 ---
 
@@ -483,3 +485,301 @@ show n*. (c) n* vs θ0 for both systems.
    no novelty claim). Stage 3 has to approach it **without** the model. The headroom beyond
    it lies in a richer action space (continuous T / N_π), not in better probe choice from this
    bank.
+
+---
+
+## 4. Stage 3 — model-free adaptive estimation under noise-model uncertainty (PRE-REGISTRATION, frozen)
+
+**STATUS: FROZEN before any test-grid data.** The commit that adds this section is the
+pre-registration commit (2026-10-27).
+
+- The 20k-step R3 training pilot on **random practice points is complete**. **No test-grid
+  episode has been run.**
+- Practice-point results were used to calibrate the thresholds below. This is legitimate:
+  the freeze is before *test-grid* data, and practice data is what sets sensible numbers.
+- Each prediction is tagged **[pilot-calibrated]** (practice data exists) or **[advance]**
+  (untested).
+- Nothing in §§4.1–4.5 may change after the first test-grid episode. The discipline is the
+  same as Stage 1 (§2, `4d75d11`) and Stage 2 (§3, `99f56de`).
+
+*Revised from a v0 draft to reflect the finished pilot:*
+
+- *primary η = 10⁻¹, which matches the trained model;*
+- *the nuisance-marginalised CRB as the bound;*
+- *continuous action deferred to Stage 3b.*
+
+*Placeholders were filled, and two definitions were corrected, before the freeze (§4.6).*
+
+**Units convention (hard rule).** All efficiencies and ratios are in **MSE (variance)**,
+labelled `(MSE)`. RMSE = √MSE is quoted only for intuition. Do not mix conventions at
+scoring.
+
+**Regime.** Commuting σz dephasing, as in Stages 1–2 (fast path asserted at generation,
+commutator ≤ 1e-10). One OU component (collapsed telegraph), exact SLE.
+
+### 4.0 What is new vs Stage 2, and the claim
+
+Stages 1–2 were **known-model**: the noise correlation parameter was fixed and given to every
+method. Stage 3 removes that.
+
+- **What changes.** A second noise parameter, **ν**, varies and is **hidden from the learned
+  methods**.
+- **What is not being asked.** Whether a neural policy can beat a *correct* model. Stage 1
+  settled that it cannot and need not: a known-model MLE attains the CRB.
+- **The claim under test is robustness:**
+
+> *A learned (model-free) adaptive policy matches a model-aware baseline when the model is
+> right, and **beats it when the model is wrong**.*
+
+The **pre-registered primary endpoint is the misspecification contrast** (Tier B). Absolute
+bound-matching (Tier C) is secondary.
+
+**Design lock: low-θ operating point.** Stage 2 (Q2c) showed that the value of adaptivity
+concentrates at the low-amplitude edge (3–5×), so the primary operating point is the low-θ
+edge, chosen in advance. Continuous action, the second intended lock, is **not built** and is
+deferred to Stage 3b (§4.8). Stage 3 runs on the discrete 49-bank.
+
+### 4.1 Frozen configuration
+
+| Item | Value |
+|---|---|
+| Systems | S1 (single ¹³C, crotonic C2) and R3 (three ¹³C, C1–C3), as in Stages 1–2. **R3 and S1 both count** (see §4.3). |
+| **Noise level** | **η = 10⁻¹** only, with σ = ηA/√2 per real component. Any other η needs retraining and a separate freeze. |
+| Target parameter | θ ≡ log10 σ (σ in rad/s); prior θ ~ U[log10 30, log10 300] = U[1.477, 2.477] |
+| **Nuisance parameter** | ν ≡ **log10 τ_c** (τ_c in s), with OU correlation time τ_c. The true range is **ν ∈ [log10 2·10⁻⁴, log10 5·10⁻³] = [−3.699, −2.301]**: τ_c from 0.2 to 5 ms, 1.4 decades around ν₀. It is drawn uniformly in training and **hidden from the learned methods**. |
+| Model-aware assumption | **ν₀ = −3.0** (τ_c = 1 ms, the Stage 1–2 value). It sits exactly on the ν table grid. |
+| Primary operating point | low-θ edge, **θ₀ = 1.627** (σ = 42.4 rad/s, 0.15 inside the prior edge; the Stage-2 low test point) |
+| Per-shot readout | orthonormal line-phasor basis z = y @ Q (as in Stage 2). **D = 2 (S1), D = 24 (R3)**; label every result with it. This is not the 653-feature forecasting readout; this is estimation. |
+| Action space | **discrete 49-bank**: n_π ∈ {0, 1, 2, 4, 8, 16, 32} × T ∈ {2, 5, 10, 20, 50, 100, 200} ms. Continuous action is Stage 3b. |
+| Shot budget | **primary endpoint = shot N = 49**, where the joint posterior converges; this matches the Stage-2 one-bank record. |
+| Training | Model-free, on simulated prior draws only: B = 1024 episodes per step, 20 000 steps. AdamW, lr 3·10⁻⁴, OneCycle, gradient clip 1.0. Architecture in §4.2. |
+| Training: R3 | **complete** (seeds adaptive 910, fixed 911; cira3 A100) |
+| Training: S1 | same recipe, seeds 920/921, started on cira3 before this commit. Its training log contains no test-grid data. |
+| Model files | `artifacts/models/qrc_adaptive_s3_{sys}_eta0.1_{adaptive,fixed-cycle}_pilot20k.pt` |
+| **Primary test set: the ν sweep** | θ₀ = 1.627 × 9 ν values: {−3.549, −3.412, −3.274, −3.137, **−3.000**, −2.863, −2.726, −2.588, −2.451}. So Δν = \|ν − ν₀\| ∈ {0, 0.137, 0.274, 0.412, 0.549} on both sides. |
+| **Secondary test set: the grid** | 5 × 5: θ ∈ {1.627, 1.802, 1.977, 2.152, 2.327} × ν ∈ {−3.549, −3.274, −3.000, −2.726, −2.451}. Its θ₀ row is shared with the sweep, giving 29 points in total. |
+| True signals | **Engine** FIDs at each point (not the training interpolant). Table vs engine: ≤ 8.5·10⁻⁶ σ (R3) and ≤ 6.1·10⁻⁵ σ (S1). |
+| Realisations | **M = 2000** per point for the neural and 1-D Bayesian methods. M = 200 for the two joint (θ, ν) Bayesian methods (cost), using the first 200 of the same episodes. |
+| Noise seeds | Shot noise from `default_rng([800000, sys, 10, k, r])`, with k = 0–24 for the grid and k = 25–28 for the sweep extras. It is **paired across all methods**. |
+
+### 4.2 Methods and bounds (all on the per-shot z readout, 49 shots, η = 10⁻¹)
+
+**Methods**
+
+1. **neural-adaptive** (`nn-adaptive`). A learned estimator plus a learned policy over the
+   49-bank, with argmax at evaluation. *This is the method on trial.* It is model-free and
+   never given ν.
+2. **neural-fixed** (`nn-fixed`). The same learned-estimator architecture, trained on the
+   fixed 49-cycle with no policy. It isolates the policy's contribution.
+3. **model-aware Bayesian, ν₀ assumed** (`bayes-misspec`). The Stage-2 method: a 1-D grid
+   posterior in θ, with greedy posterior-FI probe choice, assuming ν = ν₀. It is strong when
+   right; misspecification should break it.
+4. **joint (θ, ν) Bayesian** (`bayes-joint`). It co-estimates ν on a 2-D affine grid posterior
+   and chooses probes by greedy Bayesian c-optimal design for θ. This is the fair
+   "knows-it-doesn't-know" baseline. `bayes-joint-fixed` is the same posterior on the fixed
+   cycle (a sanity reference).
+5. **oracle** (`bayes-oracle`). The 1-D Bayesian method at the true ν. Descriptive only.
+
+**Neural networks** (`app/qrc/neural_policy.py`):
+
+- **Inputs.** Sufficient statistics for Gaussian shot noise: per-probe mean ȳ_j/A, n_j/N,
+  a visited mask, and t/N.
+- **Estimator.** MLP, 512 hidden units, 4 layers, LayerNorm + SiLU, outputs (θ, ν). Trained
+  with a per-step normalised MSE.
+- **Policy.** MLP, 256 hidden units, 3 layers, trained by REINFORCE.
+  - Reward: −mean log err² at shots {12, 24, 49}.
+  - Baseline: a privileged critic V(θ, ν), used in simulation only.
+  - Entropy bonus 10⁻³.
+
+**2-D posterior** (`BatchedEpisodes2D` v2):
+
+- An affine 41 × 41 grid with a window of about ±7 posterior std.
+- Shrink ≤ 2× per pass; the window doubles if the boundary-ring mass exceeds 10⁻⁶.
+- Zoom passes are capped at 30. The cap-hit fraction is logged per shot (`unresolved2d`).
+
+**The bound: the nuisance-marginalised CRB.** ν is unknown and must be co-estimated, so the
+yardstick for a model-free method is *not* the known-ν CRB.
+
+1. Form the one-shot joint Fisher matrix F_j over (θ, ν) for each probe j:
+   F_j = Re(J_jᴴ J_j)/σ², with J_j = [∂μ_j/∂θ, ∂μ_j/∂ν] taken from stored central-difference
+   stencils, h = 10⁻³.
+2. Take the best design over the bank:
+
+   CRB_ν(θ) = (1/N) · min over ξ of [(Σ_j ξ_j F_j)⁻¹]_θθ, with ξ a design on the 49-bank.
+
+   This is the c-optimal design. It needs ≤ 2 support points and is found by brute force
+   over pairs × 1001 weights. For any design, [I⁻¹]_θθ = 1/(I_θθ − I_θν²/I_νν) ≥ 1/I_θθ.
+3. This is a *local* bound: its optimal design depends on the unknown (θ, ν). It is the
+   target an ideal adaptive policy approaches.
+4. Also used:
+   - the **known-ν bound** K(θ) = 1/(N max_j F_θθ,j), for a method that knows ν;
+   - the fixed-bank nuisance bound [(mean_j F_j)⁻¹]_θθ / N.
+
+**Metrics** (all at shot 49, in MSE, from the posterior mean or network estimate):
+
+- MSE(method, θ₀, ν) = the mean over the M realisations of (θ̂ − θ₀)².
+- **Misspecification ratio.** ρ(Δν) = MSE(bayes-misspec) / MSE(nn-adaptive), as a function
+  of Δν = |ν_true − ν₀|.
+- **Nuisance efficiency.** e_ν = CRB_ν / MSE.
+- **Adaptive contribution.** r_adapt = MSE(nn-fixed) / MSE(nn-adaptive).
+
+### 4.3 Tiers, thresholds, predictions
+
+Each test is scored per system. **Overall verdicts need both systems to pass.**
+
+**Tier A — sanity gates.** All must pass, or that system's stage is **VOID**.
+
+| Gate | Requirement | Prediction |
+|---|---|---|
+| **A1a — the model-aware baseline is strong when right** | At the 5 well-specified grid points (ν = ν₀), median K / MSE(bayes-misspec) ∈ [0.8, 1.25] (MSE). Against the **known-ν** bound: at ν = ν₀ this method *is* the known-ν method (see §4.6, correction 1). | **PASS [pilot-calibrated]**: the same machinery at the true ν gave 0.98–1.14 on the dev points. |
+| **A1b — the joint baseline reaches the nuisance bound** | Over the 25 grid points, median CRB_ν / MSE(bayes-joint) ∈ [0.8, 1.25] (MSE). | **PASS [pilot-calibrated]**: dev points 0.86–1.01. |
+| **A2 — the posterior converges at the endpoint** | Joint (θ, ν) zoom-cap hit fraction at shot 49 is **≤ 5%** (the maximum over all points and both joint policies). The fraction is reported. | **PASS [pilot-calibrated]**: 0% at shot 49 on the dev points. The shots 2–16 ridge is disclosure-only (§4.4). |
+| **A3 — no leakage** | The test points are disjoint from the training draws. | **PASS (procedural).** Training samples (θ, ν) continuously from the prior through the interpolation table only. The engine test signals are never loaded by `train`. |
+
+**Tier B — misspecification contribution (PRE-REGISTERED PRIMARY).**
+
+| Test | Requirement | Prediction |
+|---|---|---|
+| **Q3-M (primary)** | On the θ₀ = 1.627 sweep, at the far end (**Δν ≥ 0.4**: the 4 points ν ∈ {−3.549, −3.412, −2.588, −2.451}): median ρ ≥ **2.0** (MSE), both systems. | **PASS predicted.** **[advance]** at θ₀ = 1.627. Practice data exists only at other θ: dev points 1 and 2 (θ = 1.96 and 1.59, Δν = 0.105 and 0.585) gave ρ = 44 and 1850 (MSE) at 20k steps. The ν₀-wrong model is systematically biased; the model-free policy is not. Caveat: at the short-τ_c end CRB_ν is large at low θ (R3 RMSE 0.057 at ν = −3.549), so this end is the harder side. |
+| **Q3-M2** | A finite crossover exists on **each side** of ν₀. Δν* is the smallest Δν at which ρ reaches 1, linear in log ρ between sweep points; Δν* = 0 if ρ ≥ 1 already at ν₀. Both values are reported. | **PASS predicted [advance]**; Δν* small to moderate (≲ 0.15). |
+
+**Tier C — against the bound** (secondary; a reported quantity, not a binary disaster).
+
+| Test | Requirement | Prediction |
+|---|---|---|
+| **Q3a** | nn-adaptive's nuisance efficiency, at the 5 well-specified grid points (ν = ν₀). Pass bar: median e_ν ≥ **0.3** (MSE). The achieved e_ν is the result. | **PASS predicted [pilot-calibrated]**, but close. Dev e_ν was 0.20–0.60 at 20k steps, at points near but not at ν₀. A model-free estimator within about 1.3–2.2× RMSE of the nuisance-aware bound is reportable, not a fail. |
+| **Q3b** | The learned **policy** helps: median r_adapt ≥ **1.5** (MSE) over the 25 grid points. | **PASS predicted [pilot-calibrated]**: dev 1.9–9.5× (MSE). |
+
+**Descriptive (no threshold):**
+
+- ρ over all 20 off-centre grid points;
+- e_ν of nn-adaptive at all points, and of bayes-joint;
+- bayes-joint / nn-adaptive (MSE);
+- oracle vs K;
+- MSE vs shots;
+- probes chosen;
+- `unresolved2d` per shot.
+
+### 4.4 Disclosed limitations (frozen; reported with the results)
+
+- **Joint (θ, ν) posterior at early shots.**
+  - After a few shots of one probe, the (θ, ν) posterior is a thin curved ridge that an affine
+    grid cannot capture. Zoom is capped at 30 passes and the cap-hit fraction is logged.
+  - The primary endpoint is at shot 49, where the posterior converges and sits near the bound
+    (pilot). Early-shot (< 25) numbers for the joint methods are reported **for disclosure
+    only** and used in no pass/fail test.
+  - No SMC or ridge-frame rewrite is required for the primary.
+- **The joint methods use M = 200**, not 2000 (cost: about 460 s per R3 point at M = 200).
+  They enter only A1b, A2 and descriptive numbers, never Tier B.
+- **No continuous action in Stage 3.** The bank's max/mean FI ratio (2.0–3.1 in Stage 2) caps
+  the achievable adaptive gain. This is stated so that a near-ceiling result is not spun.
+- **η = 10⁻¹ only.**
+- **Training budget.** 20k steps; the adaptive training curve was still falling at 20k (item 3
+  of §4.7). The verdict is for this budget.
+- **Pilot ≠ test grid.** Pilot (practice) numbers calibrated the thresholds; the frozen verdicts
+  are decided only on the untouched test points.
+
+### 4.5 Decision rule
+
+- **Any Tier A gate fails** → that system's stage is **VOID**. Fix the baseline or posterior,
+  and re-freeze before any further test data.
+- **Tier A passes and Q3-M passes** → the contribution: *model-free adaptive estimation is
+  robust to noise-model misspecification, beating a model-aware baseline where the model is
+  wrong.* The ρ(Δν) crossover figure is the key figure.
+- **Q3a** → reported as the achieved e_ν, framed as *how close a model-free policy gets to the
+  nuisance-aware bound*. Stage 1 explains why it need not reach it.
+- **Q3-M fails** → honest negative: on this platform, the learned policy's robustness does not
+  exceed a model-aware baseline within 49 shots at η = 10⁻¹. Report it; no post-hoc
+  reframing.
+
+### 4.6 Corrections to the v1 draft, made before the freeze
+
+1. **Gate A1 split into A1a and A1b.**
+   - As drafted, A1 measured the ν₀-assumed method at ν = ν₀ against CRB_ν. That method *knows*
+     ν there, so its MSE approaches the known-ν bound K < CRB_ν. Its e_ν would then be ≫ 1.25
+     by construction; on the R3 sweep at ν₀, (0.0079/0.0031)² ≈ 6.4.
+   - A1a therefore uses K.
+   - The draft's parenthetical ("joint posterior already near the bound") is A1b, the joint
+     method against CRB_ν.
+2. **CRB_ν needs a design.** Σ_probe JᵀC⁻¹J depends on which probes are run. It is defined
+   as the best (c-optimal) design over the bank, the quantity the pilot efficiencies were
+   computed against.
+3. **Q3-M was tagged [advance — not piloted].** Practice-point ρ values exist (dev 1 and 2),
+   but not at θ₀ = 1.627. The tag now says so.
+4. **Placeholders filled:** ν, its range, ν₀, θ₀, the test sets, M, seeds, the A2 threshold
+   (5%) and the far-end cut (Δν ≥ 0.4).
+   - The sweep adds 4 midpoint ν values at θ₀ (`gen-sweep`; engine signals and stencils,
+     2026-10-27). They are noiseless signal templates, not episodes.
+   - Medians "over the grid" are over the 25 grid points. Tier B uses the 9-point sweep.
+5. **S1 models did not exist** (only a 2-step smoke test). They are trained with the R3
+   recipe before the S1 evaluation.
+
+### 4.7 Disclosed pilot data (practice points only, before this commit)
+
+Everything here used random **dev points** (rng 990, never a test point), on the cira3 A100.
+
+1. **Interpolation.** Table vs engine ≤ 3·10⁻⁷ σ (η = 10⁻², R3, θ201/ν65).
+2. **Bounds** at the 29 test points, from `bounds`. At the sweep points, RMSE at shot 49:
+
+   | ν | −3.549 | −3.412 | −3.274 | −3.137 | **−3.000** | −2.863 | −2.726 | −2.588 | −2.451 |
+   |---|---|---|---|---|---|---|---|---|---|
+   | R3: K | 9.6e-3 | 7.1e-3 | 5.4e-3 | 4.1e-3 | 3.1e-3 | 2.5e-3 | 2.0e-3 | 1.7e-3 | 1.4e-3 |
+   | R3: CRB_ν | 5.7e-2 | 3.2e-2 | 2.1e-2 | 1.3e-2 | 7.9e-3 | 5.9e-3 | 4.7e-3 | 3.3e-3 | 2.9e-3 |
+   | S1: K | 2.5e-3 | 1.9e-3 | 1.5e-3 | 1.2e-3 | 9.4e-4 | 7.6e-4 | 6.1e-4 | 5.2e-4 | 4.6e-4 |
+   | S1: CRB_ν | 1.9e-2 | 1.1e-2 | 7.1e-3 | 4.0e-3 | 2.5e-3 | 1.9e-3 | 1.3e-3 | 9.5e-4 | 8.2e-4 |
+
+   Over the 25-point grid (median RMSE at shot 49):
+   - R3: K 1.1e-3, CRB_ν 2.7e-3, bank-with-ν-unknown 8.3e-3;
+   - S1: 4.3e-4, 8.4e-4 and 2.8e-3.
+3. **Pilot training (R3).** Final RMSE is prior-averaged, on the last batch.
+
+   | run | seeds | adaptive | fixed |
+   |---|---|---|---|
+   | 3k steps | 900/901 | 0.019 | 0.030 |
+   | **20k steps** (the models used here) | 910/911 | 0.0137, still falling (entropy 1.0, about 8 probes used) | 0.0275, flat after about 15k |
+
+4. **Pilot evaluation, R3, 3 dev points, M = 200.**
+   - Traces: `qrc_adaptive_stage3_eval_R3_eta0.1_pilot{,20k}_dev.npz`.
+   - Script: `scripts/qrc_adaptive_s3_devbounds.py`.
+   - Each cell is RMSE, then bound / MSE in brackets.
+
+   | method | dev 0 (θ 1.672, ν −3.011) | dev 1 (1.960, −3.105) | dev 2 (1.591, −2.415) |
+   |---|---|---|---|
+   | oracle (vs K) | 2.6e-3 (1.10) | 1.2e-3 (1.14) | 1.5e-3 (0.98) |
+   | joint, fixed (vs bank bound) | 2.6e-2 (0.93) | 1.1e-2 (0.97) | 8.1e-3 (1.11) |
+   | joint, adaptive (vs CRB_ν) | 6.8e-3 (1.01) | 3.7e-3 (0.86) | 3.1e-3 (0.92) |
+   | ν₀-assumed | 6.0e-3 | 5.2e-2 | 2.8e-1 |
+   | nn-fixed, 20k (vs bank bound) | 2.7e-2 (0.84) | 1.3e-2 (0.72) | 8.9e-3 (0.91) |
+   | nn-adaptive, 20k (vs CRB_ν) | 8.8e-3 (0.60) | 7.8e-3 (0.20) | 6.5e-3 (0.21) |
+
+   - At 3k steps, nn-adaptive was 2.5e-2, 1.6e-2 and 2.7e-2.
+   - The joint posterior hit the zoom cap in up to 45% (adaptive) / 70% (fixed) of episodes at
+     shots 2–16. That fell to 0% by shot about 25, and was 0% at shot 49.
+5. **Bug fixed before this commit: 2-D posterior v1 → v2.**
+   - v1 used a window of about 1 std, so every shot ran 80 zoom passes.
+   - A v1 dev run was stopped unfinished; no results.
+   - A convergence assertion was added to `test_batched_2d_posterior_matches_closed_form`.
+6. **S1.** A 2-step plumbing smoke test only (N = 6, 2 dev points, CPU).
+
+### 4.8 Stage 3b (separate, later pre-registration; stub)
+
+- **Scope.** A continuous action space, T ∈ [2, 200] ms and n_π (integer, relaxed), replacing
+  the 49-bank.
+- **What it needs.** A (θ, ν, log T, n_π) interpolation table (about 1.3k probes, about 3 GB,
+  about 1–1.5 h of A100) plus an interpolation-fidelity pilot.
+- **Primary question.** Does continuous action exceed the discrete-bank ceiling,
+  n*_bank / n*_cont > 2.56 (the Stage-2 S1 value)?
+- **Pre-registration.** On its own, before any 3b test data. (The former Q3-C lives here.)
+
+### 4.9 Runs
+
+All runs are on the lab A100s, GPU only, with ≤ 2 CPU threads (cira CPU is shared).
+
+1. `gen-sweep --system {R3,S1}` (done).
+2. `eval --system {R3,S1} --eta 0.1 --model-tag _pilot20k --tag _final` (M 2000 / 200).
+   - This writes per-shot estimates, chosen probes and `unresolved2d` to
+     `qrc_adaptive_stage3_eval_{sys}_eta0.1_final.npz`, rewritten after every point, **before**
+     any metric.
+   - Expected: R3 about 6 h, S1 less.
+3. `analyze --systems R3 S1 --tag _final --prereg <this commit>`
+   → `docs/QRC/data/qrc_adaptive_stage3_final_results.json`.

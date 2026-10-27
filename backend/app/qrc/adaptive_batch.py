@@ -129,3 +129,147 @@ class BatchedEpisodes:
             m, s = self._moments(w, grid)
             means[:, t], stds[:, t], chosen[:, t] = m, s, j
         return means.cpu().numpy(), stds.cpu().numpy(), chosen.cpu().numpy()
+
+
+class BatchedEpisodes2D:
+    """Known model *family* with a nuisance: joint grid posterior over (theta, nu), uniform
+    prior on a box, B episodes at once. The grid is affine and follows the posterior:
+    g = m + R u, u on an n x n square [-W, W]^2, R R^T = posterior cov + shrink^2 R_old R_old^T,
+    i.e. the window spans ~W posterior stds (W / sqrt(1 + shrink^2) at the fixed point). The
+    floor keeps the new half-width >= ``shrink`` x the old one, so a posterior narrower than a
+    grid cell (all weight on one point, e.g. a one-shot ridge on the prior grid) is zoomed into
+    gradually instead of truncated; if the boundary ring holds > ``edge_tol`` of the mass the
+    window doubles instead. >= 2 passes, stop once the posterior spans >= ``resolve`` spacings in
+    every direction and the ring mass is <= ``edge_tol``. (v2: v1 had R = chol(.)/W, a window of
+    only ~1 std, so the ring test never passed and every shot ran ``max_zoom`` passes.)
+    Greedy design for theta with nu as nuisance: the probe minimising the posterior-averaged
+    [(Sigma_post^-1 + F_j)^-1]_theta,theta (Bayesian c-optimal, myopic)."""
+
+    def __init__(self, table, th_grid, nu_grid, sigma, box, n=41, W=7.0, k=6, resolve=2.0,
+                 shrink=0.5, edge_tol=1e-6, device="cuda"):
+        self.dev = torch.device(device)
+        self.T = torch.as_tensor(table, dtype=torch.complex128, device=self.dev)
+        self.th0, self.hth = float(th_grid[0]), float(th_grid[1] - th_grid[0])
+        self.nu0, self.hnu = float(nu_grid[0]), float(nu_grid[1] - nu_grid[0])
+        self.n_th, self.n_nu, self.P, self.L = self.T.shape
+        self.sigma, self.box, self.n, self.W, self.k = float(sigma), box, n, W, k
+        self.resolve, self.shrink, self.edge_tol = resolve, shrink, edge_tol
+        self.passes, self.unresolved = [], []    # per shot (last run): max zoom passes, fraction hitting max_zoom
+        u = torch.linspace(-W, W, n, dtype=torch.float64, device=self.dev)
+        U1, U2 = torch.meshgrid(u, u, indexing="ij")
+        self.U = torch.stack([U1.ravel(), U2.ravel()], -1)              # (G, 2)
+        self.hu = 2 * W / (n - 1)
+        self.edge = (self.U.abs() >= W - 1e-9).any(-1)                 # boundary ring of the square
+
+    def _model(self, pts, derivs=True):
+        """pts (B, G, 2) -> mu, dmu_th, dmu_nu (B, G, P, L) (derivatives None if not derivs)."""
+        it, wt, dwt = lagrange_weights(pts[..., 0], self.th0, self.hth, self.n_th, self.k)
+        iv, wv, dwv = lagrange_weights(pts[..., 1], self.nu0, self.hnu, self.n_nu, self.k)
+        shape = (*pts.shape[:2], self.P, self.L)
+        mu = torch.zeros(shape, dtype=torch.complex128, device=self.dev)
+        d1 = d2 = None
+        if derivs:
+            d1, d2 = torch.zeros_like(mu), torch.zeros_like(mu)
+        for a in range(self.k):
+            for b in range(self.k):
+                Tab = self.T[it[..., a], iv[..., b]]
+                mu += (wt[..., a] * wv[..., b])[..., None, None] * Tab
+                if derivs:
+                    d1 += (dwt[..., a] * wv[..., b])[..., None, None] * Tab
+                    d2 += (wt[..., a] * dwv[..., b])[..., None, None] * Tab
+        return mu, d1, d2
+
+    def _eval(self, pts, S, n):
+        """Posterior weights on the grid points (B, G)."""
+        mu, _, _ = self._model(pts, derivs=False)
+        cross = torch.einsum("bpl,bgpl->bg", S.conj(), mu).real
+        nn = torch.einsum("bgp,bp->bg", (mu.abs() ** 2).sum(-1), n)
+        ll = (2 * cross - nn) / (2 * self.sigma ** 2)
+        (tl, th), (vl, vh) = self.box
+        inside = (pts[..., 0] >= tl) & (pts[..., 0] <= th) & (pts[..., 1] >= vl) & (pts[..., 1] <= vh)
+        ll = torch.where(inside, ll, torch.full_like(ll, -torch.inf))
+        return torch.softmax(ll, 1)
+
+    def _fbar(self, w, pts):
+        """Posterior-averaged one-shot Fisher matrices (B, P, 2, 2)."""
+        _, d1, d2 = self._model(pts)
+        F = torch.stack([torch.stack([(d1.conj() * d1).real.sum(-1), (d1.conj() * d2).real.sum(-1)], -1),
+                         torch.stack([(d2.conj() * d1).real.sum(-1), (d2.conj() * d2).real.sum(-1)], -1)],
+                        -2) / self.sigma ** 2                            # (B, G, P, 2, 2)
+        return torch.einsum("bg,bgpij->bpij", w, F)
+
+    @staticmethod
+    def _moments(w, pts):
+        m = torch.einsum("bg,bgi->bi", w, pts)
+        d = pts - m[:, None]
+        C = torch.einsum("bg,bgi,bgj->bij", w, d, d)
+        return m, C
+
+    def run(self, true_signal, noise, policy, static_j=None, max_zoom=30):
+        """true_signal (P, L) or (B, P, L); noise (B, n_shots, L) unit complex; policy in
+        {"fixed-cycle", "greedy-c", "static-best"}. Returns theta means, theta stds, chosen."""
+        dev = self.dev
+        Z = torch.as_tensor(noise, dtype=torch.complex128, device=dev)
+        B, n_shots, _ = Z.shape
+        Y0 = torch.as_tensor(true_signal, dtype=torch.complex128, device=dev)
+        if Y0.dim() == 2:
+            Y0 = Y0.expand(B, -1, -1)
+        (tl, th), (vl, vh) = self.box
+        # initial grid: the prior box mapped onto the square
+        m = torch.tensor([(tl + th) / 2, (vl + vh) / 2], dtype=torch.float64, device=dev).expand(B, 2).clone()
+        R = torch.diag(torch.tensor([(th - tl) / 2, (vh - vl) / 2], dtype=torch.float64,
+                                    device=dev) / self.W).expand(B, 2, 2).clone()
+        pts = m[:, None] + torch.einsum("bij,gj->bgi", R, self.U)
+        S = torch.zeros(B, self.P, self.L, dtype=torch.complex128, device=dev)
+        n = torch.zeros(B, self.P, dtype=torch.float64, device=dev)
+        w = self._eval(pts, S, n)
+        greedy = policy == "greedy-c"
+        Fbar = self._fbar(w, pts) if greedy else None
+        means = torch.empty(B, n_shots, dtype=torch.float64, device=dev)
+        stds = torch.empty_like(means)
+        chosen = torch.empty(B, n_shots, dtype=torch.long, device=dev)
+        ar = torch.arange(B, device=dev)
+        eye = torch.eye(2, dtype=torch.float64, device=dev)
+        self.passes, self.unresolved = [], []
+        for t in range(n_shots):
+            if policy == "fixed-cycle":
+                j = torch.full((B,), t % self.P, dtype=torch.long, device=dev)
+            elif policy == "greedy-c":
+                _, C = self._moments(w, pts)
+                Cinv = torch.linalg.inv(C + 1e-30 * eye + 1e-12 * C.diagonal(dim1=1, dim2=2).sum(-1)[:, None, None] * eye)
+                M = Cinv[:, None] + Fbar                                     # (B, P, 2, 2)
+                det = M[..., 0, 0] * M[..., 1, 1] - M[..., 0, 1] * M[..., 1, 0]
+                j = torch.argmin(M[..., 1, 1] / det, dim=1)
+            else:
+                j = torch.full((B,), int(static_j), dtype=torch.long, device=dev)
+            S[ar, j] += Y0[ar, j] + self.sigma * Z[:, t]
+            n[ar, j] += 1
+            w = self._eval(pts, S, n)
+            done = torch.zeros(B, dtype=torch.bool, device=dev)
+            for it in range(max_zoom):
+                mm, C = self._moments(w, pts)
+                floor = self.shrink ** 2 * R @ R.transpose(1, 2)              # half-width shrinks <= 1/shrink per pass
+                Rn = torch.linalg.cholesky(C + floor)
+                trunc = w[:, self.edge].sum(1) > self.edge_tol                 # window cuts the posterior
+                Rn = torch.where(trunc[:, None, None], 2.0 * R, Rn)             # -> expand instead
+                act = ~done
+                m = torch.where(act[:, None], mm, m)
+                R = torch.where(act[:, None, None], Rn, R)
+                pts = m[:, None] + torch.einsum("bij,gj->bgi", R, self.U)
+                w = torch.where(act[:, None], self._eval(pts, S, n), w)
+                if it >= 1:
+                    _, C2 = self._moments(w, pts)
+                    Ri = torch.linalg.inv(R)
+                    Cu = Ri @ C2 @ Ri.transpose(1, 2)                         # cov in u units
+                    ok = torch.linalg.eigvalsh(Cu)[:, 0] >= (self.resolve * self.hu) ** 2
+                    ok = ok & (w[:, self.edge].sum(1) <= self.edge_tol)
+                    done = done | ok
+                if bool(done.all()):
+                    break
+            self.passes.append(it + 1)
+            self.unresolved.append(float((~done).double().mean()))
+            if greedy:
+                Fbar = self._fbar(w, pts)
+            mm, C = self._moments(w, pts)
+            means[:, t], stds[:, t], chosen[:, t] = mm[:, 0], C[:, 0, 0].clamp(min=0).sqrt(), j
+        return means.cpu().numpy(), stds.cpu().numpy(), chosen.cpu().numpy()

@@ -119,3 +119,38 @@ def test_batched_torch_matches_numpy_episodes():
             assert (ch == cb[b]).all()
             assert np.abs(mn - mb[b]).max() < 1e-9
             assert np.abs(sd / sb[b] - 1).max() < 1e-6
+
+
+def test_batched_2d_posterior_matches_closed_form():
+    """Joint (theta, nu) posterior on a linear-Gaussian model mu_j = theta g_j + nu h_j with
+    strongly correlated directions: the affine grid must reproduce the closed-form Gaussian
+    posterior mean and theta std (prior box far wider than the posterior)."""
+    from app.qrc import adaptive_batch as ab
+    r = np.random.default_rng(7)
+    Pp, Ll, sig = 3, 4, 0.05
+    g = r.normal(size=(Pp, Ll)) + 1j * r.normal(size=(Pp, Ll))
+    h = 0.9 * g + 0.1 * (r.normal(size=(Pp, Ll)) + 1j * r.normal(size=(Pp, Ll)))   # nearly degenerate
+    thg, nug = np.linspace(-2, 2, 81), np.linspace(-2, 2, 81)
+    table = thg[:, None, None, None] * g + nug[None, :, None, None] * h
+    th0, nu0 = 0.4321, -0.2345
+    true = th0 * g + nu0 * h
+    B, n_shots = 4, 12
+    noise = r.standard_normal((B, n_shots, Ll)) + 1j * r.standard_normal((B, n_shots, Ll))
+    be = ab.BatchedEpisodes2D(table, thg, nug, sig, ((-2, 2), (-2, 2)), device="cpu")
+    mb, sb, cb = be.run(true, noise, "fixed-cycle")
+    assert max(be.passes) < 20        # zoom converges (v1 window of ~1 std ran max_zoom every shot)
+    for b in range(B):
+        J = np.zeros((2, 2)); hvec = np.zeros(2)
+        for t in range(n_shots):
+            j = t % Pp
+            y = true[j] + sig * noise[b, t]
+            for a, ga in enumerate((g[j], h[j])):
+                hvec[a] += np.real(np.vdot(ga, y)) / sig ** 2
+                for c, gc in enumerate((g[j], h[j])):
+                    J[a, c] += np.real(np.vdot(ga, gc)) / sig ** 2
+        cov = np.linalg.inv(J)
+        mean = cov @ hvec
+        assert abs(mb[b, -1] - mean[0]) < 0.02 * np.sqrt(cov[0, 0])
+        assert abs(sb[b, -1] / np.sqrt(cov[0, 0]) - 1) < 0.02
+    mg, sg, cg = be.run(true, noise, "greedy-c")
+    assert np.isfinite(mg).all() and (sg > 0).all()
