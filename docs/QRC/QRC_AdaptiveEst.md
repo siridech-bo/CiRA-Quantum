@@ -14,7 +14,8 @@ Results are appended below each frozen pre-registration and never edit it.
 
 - Module C done.
 - Module A done; its unit-test gate passed.
-- Stage 1 pre-registered (§2); its data are not yet generated.
+- Stage 1 done (pre-registered `4d75d11`): **Gate Y PASS, Q1 NO, as predicted.** The M0 estimators are 3–4 orders of magnitude from the CRB; the readout keeps the information; the MLE attains the bound (§2.9).
+- Module B arm (i) built: `app/qrc/adaptive.py`, tests pass. Stage 2 is next.
 
 ---
 
@@ -69,8 +70,14 @@ Results are appended below each frozen pre-registration and never edit it.
 
 ### 1.3 Module B — adaptive controller
 
-Not built yet. It comes after Stage 1: `app/qrc/adaptive.py` and Stage 2+ in
-`backend/scripts/qrc_adaptive_est.py`.
+Arm (i) is built in `backend/app/qrc/adaptive.py`.
+
+- **Posterior.** `GridPosterior` holds an adaptive 1-D grid that re-centres on the posterior. It is updated from the Gaussian sufficient statistics S_j = Σy and n_j, so it re-grids without replaying history.
+- **Policies.** `FixedCycle` (the bank), `GreedyFisher` (posterior-expected one-shot FI, Bayesian D-optimal) and `GreedyEIG` (Monte Carlo expected information gain).
+- **Episodes.** `run_episode`.
+- **Tests** (`backend/tests/test_qrc_adaptive.py`, 3 tests): the posterior matches the closed-form linear-Gaussian posterior (std to 1e-3); the greedy policy picks the max-FI probe; posterior variances reach 1/(n FI_max) for greedy and 1/(n mean FI) for the cycle, to 1e-3.
+
+Arm (ii), the RL / neural policy, is not built yet; it is Stage 3.
 
 ---
 
@@ -204,3 +211,72 @@ Measurement noise is regenerable from fixed seeds. Results go to
 Runner: `backend/scripts/qrc_adaptive_est.py stage1-gen --system {S1,R3}`, then
 `stage1-analyze --prereg <commit>`. It runs on CPU, about 10 min (S1) and about 20 min (R3)
 for generation.
+
+---
+
+### 2.9 Stage 1 results (appended; pre-registration `4d75d11` unchanged)
+
+Runs: generation on CPU, 283 s (S1) and 705 s (R3). Analysis on CPU, 1939 s.
+Data: `docs/QRC/data/qrc_adaptive_stage1_results.json`.
+Traces: `backend/artifacts/traces/qrc_adaptive_stage1_{S1,R3}.npz` (0.58 GB each, gitignored).
+
+**Gate Y: PASS (all 4 cells).**
+
+- E0 (known-model MLE) has CRB/Var between 0.93 and 1.07 at every test point and every η,
+  including the descriptive η levels.
+- Its bias is within 0.2 √CRB.
+- The noiseless interpolation offset is ≤ 3·10⁻⁹ √CRB.
+- So the yardstick is validated on the simulator: the bound is attainable, and the MLE
+  attains it.
+
+**Q1: NO for all four cells, as predicted.**
+
+| η = 10⁻² | √CRB (mid θ0) | MLE CRB/MSE | ridge CRB/MSE | MLP CRB/MSE | ridge pick (D) | MLP pick (D) |
+|---|---|---|---|---|---|---|
+| S1 | 6.4e-5 | 1.00 | **1.5e-4** | **1.7e-3** | lines-lin (98) | lines-log (49) |
+| R3 | 1.8e-4 | 1.01 | **5.6e-4** | **4.2e-4** | lines-lin (1176) | lines-lin (1176) |
+
+Each CRB/MSE value is the median over the 7 test points.
+
+At every η (descriptive):
+
+- The ridge sits 10⁻⁶ to 2·10⁻² of the bound.
+- The MLP sits 2·10⁻⁵ to 3·10⁻² of the bound.
+- Both sit at an RMSE of order 10⁻² in log10 σ, almost flat in η.
+- The bound and the MLE scale as η (Fig. AE1).
+
+The gap therefore grows as the measurement improves.
+
+**Where the information goes (descriptive, readout-limited bounds).**
+
+- **`lines-lin` keeps all of it.** Its bound is 1.05× the raw CRB (S1) and 1.00× (R3).
+  This is the readout both systems' ridges selected.
+- **`time-lin` costs a factor of 16** in variance, which is exactly its 32/512
+  subsampling.
+
+So the estimators had the information and did not extract it. **The whole gap is the
+estimator, not the readout.** This matches the prediction (the readout bound is within
+10×).
+
+**Bias.** It dominates the ridge error: bias² is 35–86% of the MSE. A linear map cannot
+follow the nonlinear θ → signal relation. The MLP's error is mostly variance on R3 (bias²
+1–6% of MSE) and mixed on S1 (17–96%).
+
+**R3 vs S1.** Under the M0 noise convention (noise ∝ total signal A), the R3 √CRB is about
+2.9× the S1 value. Three spins add no information per unit of noise about this
+collective dephasing. This is consistent with the M0 symmetry argument.
+
+**Verdict.**
+
+- The M0 R²-style estimators are **3–4 orders of magnitude** from the CRB at the primary
+  noise level.
+- The readout keeps the information.
+- A known-model MLE closes the gap entirely.
+- Stage 2 therefore asks about *measurements*: whether adaptive probe choice reaches the
+  bound with fewer shots.
+- Stage 3 asks about *model knowledge*: whether a learned policy and estimator
+  approach the bound without the known model, where the MLE cannot be built.
+
+Fig. AE1: `docs/QRC/figures/figAE1_stage1_crb.png` (code
+`docs/QRC/figures/code/qrc_adaptive_stage1_figure.py`). The `lines-lin` readout bound is
+not drawn because it coincides with the raw CRB.
