@@ -278,8 +278,8 @@ S2_POLICIES = ("fixed-cycle", "greedy-fisher", "static-best")
 S2_TARGET_SHOTS = 49                # target = CRB of one full bank record
 
 
-def s2_trace(system, eta):
-    return m.TRACES / f"qrc_adaptive_stage2_{system}_eta{eta:g}.npz"
+def s2_trace(system, eta, tag=""):
+    return m.TRACES / f"qrc_adaptive_stage2_{system}_eta{eta:g}{tag}.npz"
 
 
 def lagrange_vec(theta, grid, k=S1_LAGRANGE):
@@ -311,38 +311,62 @@ def lagrange_vec(theta, grid, k=S1_LAGRANGE):
     return idx, w, dw
 
 
+def s2_cache(system):
+    """Projected Stage-1 grid + test signals (small; lets stage2-run go to a remote host
+    without the 0.6 GB Stage-1 trace). Written by ``stage2-export``."""
+    return m.TRACES / f"qrc_adaptive_stage2_{system}_reduced.npz"
+
+
+def line_basis(system):
+    Q, _ = np.linalg.qr(ma.phi(system)[1])                           # Stage-1 line_sign = +1 (both)
+    return Q
+
+
 def reduced_model(system):
     """Stage-1 model grid on an orthonormal basis Q of the line span: z = y @ Q (white noise
-    preserved, same sigma). Returns model(thetas) -> (mu, dmu) each (n, 49, L), Q, A, grid, trace."""
-    z = np.load(s1_trace(system))
-    Q, _ = np.linalg.qr(ma.phi(system)[1])                           # Stage-1 line_sign = +1 (both)
-    grid = z["theta_grid"]
-    G = z["fids_grid"] @ Q                                            # (801, 49, L)
+    preserved, same sigma). Returns model(thetas) -> (mu, dmu) each (n, 49, L), A, grid and
+    the projected test signals (n_test, 49, L)."""
+    if s2_cache(system).exists():
+        c = np.load(s2_cache(system))
+        G, grid, A, T = c["G"], c["grid"], float(c["A"]), c["T"]
+    else:
+        z = np.load(s1_trace(system))
+        Q = line_basis(system)
+        G, grid, A, T = z["fids_grid"] @ Q, z["theta_grid"], float(z["A"]), z["fids_test"] @ Q
 
     def model(th):
         idx, w, dw = lagrange_vec(th, grid)
         Gi = G[idx]                                                   # (n, k, 49, L)
         return np.einsum("nk,nkpl->npl", w, Gi), np.einsum("nk,nkpl->npl", dw, Gi)
-    return model, Q, float(z["A"]), grid, z
+    return model, A, grid, T
 
 
-def _s2_cell(system, eta, j, pol_name, R):
+def cmd_stage2_export(a):
+    for system in a.systems:
+        z = np.load(s1_trace(system))
+        Q = line_basis(system)
+        np.savez(s2_cache(system), G=z["fids_grid"] @ Q, grid=z["theta_grid"], A=z["A"],
+                 T=z["fids_test"] @ Q, Q=Q)
+        print(f"wrote {s2_cache(system).name}", flush=True)
+
+
+def _s2_cell(system, eta, j, pol_name, r0, r1):
     from app.qrc import adaptive as ad
-    model, Q, A, grid, z = reduced_model(system)
+    model, A, grid, T = reduced_model(system)
     sig = est.m0_sigma(eta, A)
-    true = z["fids_test"][j] @ Q                                      # (49, L)
+    true = T[j]                                                       # (49, L)
     if pol_name == "fixed-cycle":
         pol = ad.FixedCycle(true.shape[0])
     elif pol_name == "greedy-fisher":
         pol = ad.GreedyFisher()
     else:
         pol = StaticBest(model, grid)
-    out = np.zeros((3, R, S2_SHOTS))
+    out = np.zeros((3, r1 - r0, S2_SHOTS))
     ie = S2_ETAS.index(eta)
-    for r in range(R):
+    for k, r in enumerate(range(r0, r1)):
         rng = np.random.default_rng([700000, {"S1": 1, "R3": 2}[system], ie, j, r])
         post = ad.GridPosterior(model, sig, S1_LO, S1_HI, n_grid=S2_NGRID)
-        out[0, r], out[1, r], out[2, r] = ad.run_episode(pol, post, true, S2_SHOTS, rng)
+        out[0, k], out[1, k], out[2, k] = ad.run_episode(pol, post, true, S2_SHOTS, rng)
     return out
 
 
@@ -358,18 +382,47 @@ class StaticBest:
         return self.j
 
 
+def s2_noise(system, eta, j, r0, r1, L):
+    """Unit complex shot noise (r1-r0, S2_SHOTS, L) drawn exactly as ``adaptive.run_episode``
+    draws it from the per-episode seed (re then im, per shot): GPU runs stay paired with CPU."""
+    ie = S2_ETAS.index(eta)
+    out = np.empty((r1 - r0, S2_SHOTS, L), complex)
+    for k, r in enumerate(range(r0, r1)):
+        rng = np.random.default_rng([700000, {"S1": 1, "R3": 2}[system], ie, j, r])
+        for t in range(S2_SHOTS):
+            out[k, t] = rng.standard_normal(L) + 1j * rng.standard_normal(L)
+    return out
+
+
+def _s2_cell_gpu(system, eta, j, pol_name, r0, r1, device):
+    from app.qrc.adaptive_batch import BatchedEpisodes
+    c = np.load(s2_cache(system))
+    model, A, grid, T = reduced_model(system)
+    be = BatchedEpisodes(c["G"], c["grid"], est.m0_sigma(eta, A), S1_LO, S1_HI,
+                         n_grid=S2_NGRID, k=S1_LAGRANGE, device=device)
+    sj = StaticBest(model, grid).j if pol_name == "static-best" else None
+    mn, sd, ch = be.run(T[j], s2_noise(system, eta, j, r0, r1, T.shape[-1]), pol_name, sj)
+    return np.stack([mn, sd, ch.astype(float)])
+
+
 def cmd_stage2_run(a):
     from joblib import Parallel, delayed
     t0 = time.time()
-    for system in ("S1", "R3"):
-        for eta in S2_ETAS:
-            cells = [(j, p) for j in range(len(S1_TEST)) for p in S2_POLICIES]
-            res = Parallel(n_jobs=a.jobs)(delayed(_s2_cell)(system, eta, j, p, a.R) for j, p in cells)
+    for system in a.systems:
+        for eta in a.etas:
+            # tasks = (theta0, policy, episode chunk); seeds depend on r only, so chunking is exact
+            tasks = [(j, p, r0, min(r0 + a.chunk, a.R)) for j in range(len(S1_TEST))
+                     for p in S2_POLICIES for r0 in range(0, a.R, a.chunk)]
+            if a.device:          # batched torch: one task per (theta0, policy), all episodes at once
+                tasks = [(j, p, 0, a.R) for j in range(len(S1_TEST)) for p in S2_POLICIES]
+                res = [_s2_cell_gpu(system, eta, *t, a.device) for t in tasks]
+            else:
+                res = Parallel(n_jobs=a.jobs)(delayed(_s2_cell)(system, eta, *t) for t in tasks)
             arr = np.zeros((len(S1_TEST), len(S2_POLICIES), 3, a.R, S2_SHOTS))
-            for (j, p), o in zip(cells, res):
-                arr[j, S2_POLICIES.index(p)] = o
+            for (j, p, r0, r1), o in zip(tasks, res):
+                arr[j, S2_POLICIES.index(p), :, r0:r1] = o
             m.TRACES.mkdir(parents=True, exist_ok=True)
-            np.savez(s2_trace(system, eta), means=arr[:, :, 0], stds=arr[:, :, 1],
+            np.savez(s2_trace(system, eta, a.tag), means=arr[:, :, 0], stds=arr[:, :, 1],
                      chosen=arr[:, :, 2].astype(np.int16), theta_test=S1_TEST,
                      policies=np.array(S2_POLICIES), eta=eta,
                      meta=json.dumps({"stage": 2, "system": system, "eta": eta, "R": a.R,
@@ -377,16 +430,22 @@ def cmd_stage2_run(a):
                                       "readout": "z = y @ Q, Q orthonormal basis of the line span "
                                                  "(sign +1); white noise, sigma = eta A / sqrt 2",
                                       "model": "Stage-1 grid, 6-point Lagrange",
-                                      "noise_rng": "[700000, sys, ie, j, r], common across policies"}))
-            print(f"[{system}] eta={eta:g} wrote {s2_trace(system, eta).name} ({time.time() - t0:.0f}s)",
+                                      "noise_rng": "[700000, sys, ie, j, r], common across policies",
+                                      "tag": a.tag, "posterior": "GridPosterior with zoom-on-underresolved (v2)" if a.tag else "v1",
+                                      "runner": f"torch batched ({a.device})" if a.device else "numpy joblib"}))
+            print(f"[{system}] eta={eta:g} wrote {s2_trace(system, eta, a.tag).name} ({time.time() - t0:.0f}s)",
                   flush=True)
 
 
 def s2_fisher(system):
     """Per-probe one-shot FI at sigma = 1 in the reduced readout, (n_test, 49); and A."""
-    model, Q, A, grid, z = reduced_model(system)
-    J = jac_from_stencil(z["fids_stencil"], float(z["h"])) @ Q
-    return (np.abs(J) ** 2).sum(2), A
+    z = np.load(s1_trace(system))
+    J = jac_from_stencil(z["fids_stencil"], float(z["h"])) @ line_basis(system)
+    return (np.abs(J) ** 2).sum(2), float(z["A"])
+
+
+def ratio_or_inf(a, b):
+    return float(a / b) if b > 0 else float("inf")
 
 
 def first_stable(mse, target):
@@ -399,13 +458,13 @@ def first_stable(mse, target):
 
 
 def cmd_stage2_analyze(a):
-    res = {"stage": 2, "prereg": a.prereg, "systems": {}}
+    res = {"stage": 2, "prereg": a.prereg, "tag": a.tag, "systems": {}}
     n = np.arange(1, S2_SHOTS + 1)
     for system in ("S1", "R3"):
         fi1, A = s2_fisher(system)
         res["systems"][system] = {}
         for eta in S2_ETAS:
-            z = np.load(s2_trace(system, eta))
+            z = np.load(s2_trace(system, eta, a.tag))
             fi = fi1 / est.m0_sigma(eta, A) ** 2
             pts = []
             for j, th0 in enumerate(S1_TEST):
@@ -419,8 +478,8 @@ def cmd_stage2_analyze(a):
                 for ip, p in enumerate(S2_POLICIES):
                     mse = ((z["means"][j, ip] - th0) ** 2).mean(0)
                     pt["policies"][p] = {
-                        "mse_196": float(mse[-1]), "e_opt_196": float(b_opt[-1] / mse[-1]),
-                        "e_bank_196": float(b_bank[-1] / mse[-1]),
+                        "mse_196": float(mse[-1]), "e_opt_196": ratio_or_inf(b_opt[-1], mse[-1]),
+                        "e_bank_196": ratio_or_inf(b_bank[-1], mse[-1]),
                         "n_star": first_stable(mse, target),
                         "mse_at": {str(k): float(mse[k - 1]) for k in (1, 5, 10, 20, 49, 98, 196)}}
                 pts.append(pt)
@@ -433,7 +492,7 @@ def cmd_stage2_analyze(a):
                     "median_e_bank_fixed": float(np.median([x["e_bank_196"] for x in pol["fixed-cycle"]])),
                     "shot_ratio_fixed_over_greedy": ratio,
                     "median_shot_ratio": float(np.median(ratio)),
-                    "static_over_greedy_mse196": [s["mse_196"] / g["mse_196"] for s, g in
+                    "static_over_greedy_mse196": [ratio_or_inf(s["mse_196"], g["mse_196"]) for s, g in
                                                   zip(pol["static-best"], pol["greedy-fisher"])]}
             res["systems"][system][str(eta)] = cell
             print(f"[{system}] eta={eta:g}  e_opt(greedy)={cell['median_e_opt_greedy']:.3f}  "
@@ -450,7 +509,7 @@ def cmd_stage2_analyze(a):
     res["verdict"] = v
     print("VERDICT", json.dumps(v))
     if a.prereg:
-        (m.DATA / "qrc_adaptive_stage2_results.json").write_text(json.dumps(res, indent=1))
+        (m.DATA / f"qrc_adaptive_stage2{a.tag}_results.json").write_text(json.dumps(res, indent=1))
 
 
 def main():
@@ -467,11 +526,20 @@ def main():
     r2 = sub.add_parser("stage2-run")
     r2.add_argument("--jobs", type=int, default=8)
     r2.add_argument("--R", type=int, default=S2_R)
+    r2.add_argument("--chunk", type=int, default=S2_R, help="episodes per joblib task")
+    r2.add_argument("--systems", nargs="*", choices=["S1", "R3"], default=["S1", "R3"])
+    r2.add_argument("--etas", type=float, nargs="*", default=S2_ETAS)
+    r2.add_argument("--tag", default="", help="trace-name suffix, e.g. _v2")
+    r2.add_argument("--device", default="", help="e.g. cuda: batched torch runner (no CPU fan-out)")
+    e2 = sub.add_parser("stage2-export")
+    e2.add_argument("--systems", nargs="*", choices=["S1", "R3"], default=["S1", "R3"])
     a2 = sub.add_parser("stage2-analyze")
     a2.add_argument("--prereg", default="")
+    a2.add_argument("--tag", default="")
     a = ap.parse_args()
     {"stage1-gen": cmd_stage1_gen, "stage1-analyze": cmd_stage1_analyze,
-     "stage2-run": cmd_stage2_run, "stage2-analyze": cmd_stage2_analyze}[a.cmd](a)
+     "stage2-run": cmd_stage2_run, "stage2-export": cmd_stage2_export,
+     "stage2-analyze": cmd_stage2_analyze}[a.cmd](a)
 
 
 if __name__ == "__main__":

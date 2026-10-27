@@ -56,3 +56,66 @@ def test_adaptive_beats_fixed_on_linear_model():
             assert set(chosen.tolist()) == {1}
     assert abs(out["greedy-fisher"] * n * fi.max() - 1) < 1e-3
     assert abs(out["fixed-cycle"] * n * fi.mean() - 1) < 1e-3
+
+
+def test_posterior_resolves_peak_narrower_than_prior_grid():
+    """One shot far more informative than the prior grid spacing (std ~ 1e-5 vs spacing
+    0.05): the grid must zoom in, not freeze on one grid point (Stage-2 v1 bug). The true
+    value is placed off-grid and between two prior grid points."""
+    sig, th0 = 1e-4, 0.3712345
+    post = ad.GridPosterior(model, sig, -5.0, 5.0, n_grid=201)
+    stats = ad.Stats.empty(P, L)
+    rng = np.random.default_rng(3)
+    for t in range(3):
+        stats.add(1, th0 * Gs[1] + sig * (rng.standard_normal(L) + 1j * rng.standard_normal(L)))
+        post.update(stats)
+    prec = (stats.n * (np.abs(Gs) ** 2).sum(1)).sum() / sig ** 2
+    mean = np.einsum("pl,pl->", stats.S.conj(), Gs).real / sig ** 2 / prec
+    assert post.std > 0
+    assert abs(post.std * np.sqrt(prec) - 1) < 1e-2
+    assert abs(post.mean - mean) < 1e-2 / np.sqrt(prec)
+
+
+def test_batched_torch_matches_numpy_episodes():
+    """adaptive_batch (torch, run here on CPU) reproduces run_episode shot by shot, given the
+    same noise, for all three policy kinds (tabulated model + Lagrange interpolation)."""
+    from app.qrc import adaptive_batch as ab
+    tab_grid = np.linspace(-1.0, 2.0, 301)
+    table = np.sin(tab_grid[:, None, None] * (1 + np.arange(P))[None, :, None]
+                   + 0.1 * np.arange(L)[None, None, :]) * Gs[None]
+
+    def tab_model(th):
+        import torch
+        idx, w, dw = ab.lagrange_weights(torch.as_tensor(np.asarray(th, float)), tab_grid[0],
+                                         tab_grid[1] - tab_grid[0], len(tab_grid))
+        Ti = table[idx.numpy()]
+        return (np.einsum("nk,nkpl->npl", w.numpy(), Ti), np.einsum("nk,nkpl->npl", dw.numpy(), Ti))
+
+    sig, B, n_shots, th0 = 0.05, 3, 25, 0.613
+    true = tab_model([th0])[0][0]
+    noise = (np.random.default_rng(5).standard_normal((B, n_shots, L))
+             + 1j * np.random.default_rng(6).standard_normal((B, n_shots, L)))
+
+    class Replay:
+        def __init__(self, z):
+            self.z, self.k = z, 0
+
+        def standard_normal(self, n):
+            out = (self.z.real if self.k % 2 == 0 else self.z.imag)[self.k // 2]
+            self.k += 1
+            return out
+
+    be = ab.BatchedEpisodes(table, tab_grid, sig, -1.0, 2.0, n_grid=101, device="cpu")
+    for name, pol in (("fixed-cycle", ad.FixedCycle(P)), ("greedy-fisher", ad.GreedyFisher()),
+                      ("static-best", None)):
+        mb, sb, cb = be.run(true, noise, name, static_j=2)
+        for b in range(B):
+            post = ad.GridPosterior(tab_model, sig, -1.0, 2.0, n_grid=101)
+            p = pol
+            if p is None:
+                p = ad.FixedCycle(P)
+                p.choose = lambda post, stats, t: 2
+            mn, sd, ch = ad.run_episode(p, post, true, n_shots, Replay(noise[b]))
+            assert (ch == cb[b]).all()
+            assert np.abs(mn - mb[b]).max() < 1e-9
+            assert np.abs(sd / sb[b] - 1).max() < 1e-6

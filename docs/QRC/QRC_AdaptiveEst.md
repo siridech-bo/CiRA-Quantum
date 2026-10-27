@@ -16,7 +16,8 @@ Results are appended below each frozen pre-registration and never edit it.
 - Module A done; its unit-test gate passed.
 - Stage 1 done (pre-registered `4d75d11`): **Gate Y PASS, Q1 NO, as predicted.** The M0 estimators are 3–4 orders of magnitude from the CRB; the readout keeps the information; the MLE attains the bound (§2.9).
 - Module B arm (i) built: `app/qrc/adaptive.py`, tests pass.
-- Stage 2 pre-registered (§3); its data are not yet generated.
+- Stage 2 done (pre-registered `99f56de`): **Gate F, Q2a, Q2b PASS; Q2c FAIL (prediction miss: the adaptive gain over the best static probe is at the low-θ edge).** About 2.5× fewer shots than the fixed bank. A v1 posterior-grid bug was fixed and rerun as a disclosed deviation (§3.9).
+- Batched GPU episode runner: `app/qrc/adaptive_batch.py`.
 
 ---
 
@@ -386,3 +387,99 @@ These are bound values only; no Stage-2 episode data were generated:
 
 Runner: `backend/scripts/qrc_adaptive_est.py stage2-run --jobs 12`, then
 `stage2-analyze --prereg <commit>`. CPU only, about 45 min.
+
+
+### 3.9 Stage 2 results (appended; pre-registration `99f56de` unchanged)
+
+**Verdict.** In both systems:
+
+- **Gate F: PASS.**
+- **Q2a (greedy reaches the bound): PASS.**
+- **Q2b (fewer measurements): PASS.** About 2.5× fewer shots, inside the predicted [1.5, 3.2].
+- **Q2c: FAIL.** This misses the prediction. The adaptive gain over the best static probe
+  is at the *low*-θ edge, not at the pre-registered high edge θ0 = 2.327.
+
+These are the v2 numbers. The frozen v1 run had a posterior implementation bug that
+corrupted S1 at η = 10⁻²; it is reported below and was rerun as a disclosed deviation.
+
+#### v1: the frozen protocol as run, and the bug
+
+The frozen v1 scoring is in `docs/QRC/data/qrc_adaptive_stage2_results.json`.
+
+- **R3: clean.** Gate F PASS (1.07), Q2a PASS (1.03), Q2b PASS (2.47×), Q2c FAIL (1.13).
+- **S1 at η = 10⁻²: corrupted** at the four highest θ0, where one shot is very informative.
+  - **What went wrong.** After a single shot, all posterior weight landed on one point of the
+    201-point grid. The std was then 0, the re-centring step was skipped
+    (`b − a < 1e-14`), and the grid never zoomed in again. The estimate froze on a grid point.
+  - **Effect on the metrics.** Greedy and static MSE came out around 10⁻⁶, against 10⁻⁹ for
+    fixed-cycle. At θ0 = 2.327, which happens to lie exactly on the prior grid, the MSE was
+    exactly 0. So the S1 verdict was NaN for Q2b and an artefact (inf) for Q2c.
+  - **Not affected:** S1 at η = 10⁻¹ and R3. Their posterior std never fell below the grid
+    spacing.
+- **Fix (v2).** `GridPosterior.update` now uses the half-width width·max(std, spacing). It
+  zooms in until the std is at least 3 grid spacings, with at least 2 passes as before.
+  - A regression test, `test_posterior_resolves_peak_narrower_than_prior_grid`, fails on v1
+    and passes on v2.
+  - Everything else is unchanged: seeds, episodes, policies, metrics, thresholds.
+  - All four (system, η) cells were rerun with tag `_v2`.
+
+#### Compute
+
+- **v1:** numpy/joblib, on .167 (S1, R3 η = 10⁻²) and on cira3 (R3 η = 10⁻¹).
+  - R3 η = 10⁻² was computed twice, on .167 and on cira3, with chunked tasks. The two copies
+    agree: every probe choice is identical, and the means differ by at most 1.6·10⁻¹¹.
+- **v2:**
+  - S1 ran on cira3 with numpy.
+  - R3 ran on the cira3 A100 with the batched torch runner `app/qrc/adaptive_batch.py`
+    (17 s per 200-episode cell).
+  - That runner uses the same seeds. Against the numpy v2 code, the means agree to within
+    2·10⁻¹¹ and every probe choice is identical.
+- **Traces:** `backend/artifacts/traces/qrc_adaptive_stage2_{S1,R3}_eta{0.01,0.1}{,_v2}.npz`.
+
+#### v2 results
+
+From `docs/QRC/data/qrc_adaptive_stage2_v2_results.json`. Medians are over the 7 θ0.
+
+| system | η | e_bank(fixed) | e_opt(greedy) | n* fixed / greedy (median) | static / greedy MSE₁₉₆ at θ0 = 1.63 … 2.33 |
+|---|---|---|---|---|---|
+| S1 | 10⁻² | **0.97** | **0.98** | **2.56×** | 4.94, 3.85, 2.73, 1.73, 1.19, 1.00, **1.16** |
+| R3 | 10⁻² | **1.07** | **1.03** | **2.47×** | 3.23, 2.78, 2.19, 1.81, 1.23, 1.00, **1.13** |
+| S1 | 10⁻¹ | 1.04 | 1.05 | 2.21× | 5.01, 3.85, 2.73, 1.73, 1.19, 1.00, 1.16 |
+| R3 | 10⁻¹ | 0.95 | 1.02 | 2.32× | 3.32, 2.82, 2.41, 1.87, 1.07, 1.00, 0.99 |
+
+Shots to the target (MSE ≤ the one-bank-record bound) at η = 10⁻², for θ0 = 1.63 … 2.33:
+
+| system | policy | n* |
+|---|---|---|
+| S1 | fixed | 54, 41, 60, 58, 50, 45, 51 |
+| S1 | greedy | 19, 16, 19, 22, 22, 22, 23 |
+| S1 | static | 73, 55, 53, 40, 24, 22, 26 |
+| R3 | fixed | 54, 54, 42, 49, 40, 48, 52 |
+| R3 | greedy | 19, 17, 17, 22, 21, 23, 18 |
+| R3 | static | 62, 37, 46, 27, 25, 23, 29 |
+
+![Fig. AE2](figures/figAE2_stage2_adaptive.png)
+
+*Fig. AE2.* (a, b) MSE vs shots at θ0 = 1.63, η = 10⁻². The adaptive policy (green) follows
+the best-probe-every-shot bound B_opt after about 3 shots. The fixed bank follows its own bound
+B_bank, and the static design follows a bound for a probe that is wrong for this θ0. Markers
+show n*. (c) n* vs θ0 for both systems.
+
+#### Reading
+
+1. **Q2a/Q2b (as predicted).** With the model known, greedy posterior-FI design is
+   efficient: e_opt is 0.78–1.13 per point. It needs about 2.5× fewer shots than cycling the
+   bank, ranging 1.9–3.2× per point.
+   - This matches the bank's FI max/mean ratio (2.0–3.1) disclosed before the run.
+   - The gain is capped by the action space, as predicted. The bank already contains
+     near-optimal probes.
+2. **Q2c (missed).** The pre-registration assumed the best probe differs most from the
+   prior-optimal one at the high edge, θ0 = 2.327. That is wrong.
+   - The prior-optimal static probe is the right probe at high θ (ratio 1.0–1.2).
+   - It is badly wrong at low θ, where adaptivity is worth 3.2–5.0× in MSE.
+   - The test point was mis-chosen; the effect itself is there. Per the protocol, Q2c is
+     reported as FAIL.
+3. **What Stage 2 establishes.** It is a known-model baseline only (textbook Bayesian design;
+   no novelty claim). Stage 3 has to approach it **without** the model. The headroom beyond
+   it lies in a richer action space (continuous T / N_π), not in better probe choice from this
+   bank.

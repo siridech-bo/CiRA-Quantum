@@ -67,18 +67,23 @@ class GridPosterior:
         w = np.exp(ll - ll.max())
         self.w = w / w.sum()
 
-    def update(self, stats):
+    def update(self, stats, max_zoom: int = 40):
         """Re-evaluate on the current grid, then re-centre the grid to mean +/- width*std
-        (clipped to the prior) and re-evaluate there. Two passes keep it stable."""
+        (clipped to the prior) and re-evaluate there; at least two passes. If the posterior is
+        narrower than the grid spacing (std < 3 spacings, e.g. all mass on one point) the
+        half-width is width*max(std, spacing), so the grid zooms in until it resolves the peak
+        (Stage-2 v1 froze on a single grid point here)."""
         self._eval(stats)
-        for _ in range(2):
+        for it in range(max_zoom):
             m, s = self.mean, self.std
-            a = max(self.lo, m - self.width * s)
-            b = min(self.hi, m + self.width * s)
+            half = self.width * max(s, self.grid[1] - self.grid[0])
+            a, b = max(self.lo, m - half), min(self.hi, m + half)
             if b - a < 1e-14:
                 break
             self.grid = np.linspace(a, b, self.n_grid)
             self._eval(stats)
+            if it >= 1 and self.std >= 3 * (self.grid[1] - self.grid[0]):
+                break
 
     @property
     def mean(self):
