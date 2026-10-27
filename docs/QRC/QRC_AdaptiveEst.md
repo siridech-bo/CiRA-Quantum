@@ -19,7 +19,7 @@ Results are appended below each frozen pre-registration and never edit it.
 - Stage 2 done (pre-registered `99f56de`): **Gate F, Q2a, Q2b PASS; Q2c FAIL (prediction miss: the adaptive gain over the best static probe is at the low-θ edge).** About 2.5× fewer shots than the fixed bank. A v1 posterior-grid bug was fixed and rerun as a disclosed deviation (§3.9).
 - Batched GPU episode runner: `app/qrc/adaptive_batch.py` (1-D, and a 2-D joint (θ, ν) posterior for Stage 3).
 - Module B arm (ii) built: `app/qrc/neural_policy.py` (model-free neural estimator + REINFORCE policy).
-- Stage 3 PRE-REGISTERED (§4): model-free adaptive estimation with τ_c hidden. Primary = misspecification contrast at the low-θ edge (Q3-M: ρ ≥ 2 at Δν ≥ 0.4, both systems), vs a ν₀-assumed Bayesian baseline; joint (θ, ν) Bayesian and nuisance CRB_ν as references. η = 10⁻¹, 49-bank; continuous action deferred to Stage 3b. Predicted: Tier A, Q3-M, Q3-M2, Q3a, Q3b PASS.
+- Stage 3 PRE-REGISTERED (§4): model-free adaptive estimation with τ_c hidden. Primary = misspecification contrast at the low-θ edge (Q3-M: ρ ≥ 2 at Δν ≥ 0.4, both systems), vs a ν₀-assumed Bayesian baseline; joint (θ, ν) Bayesian and nuisance CRB_ν as references. η = 10⁻¹, 49-bank; continuous action deferred to Stage 3b. Predicted: Tier A, Q3-M, Q3-M2, Q3a, Q3b PASS. **Result (§4.10): R3 passes every test (Q3-M median ρ = 722); S1 is VOID (gate A2: joint-posterior cap hits 7.5% > 5%), so the overall verdict is not decided.**
 
 ---
 
@@ -783,3 +783,77 @@ All runs are on the lab A100s, GPU only, with ≤ 2 CPU threads (cira CPU is sha
    - Expected: R3 about 6 h, S1 less.
 3. `analyze --systems R3 S1 --tag _final --prereg <this commit>`
    → `docs/QRC/data/qrc_adaptive_stage3_final_results.json`.
+
+### 4.10 Results (appended after the run; §4.0–4.9 unchanged)
+
+Pre-registration `0ad42cd`. Runs: cira3 A100, R3 6.9 h, S1 2.1 h (eval), plus S1 training
+(2 × 20k steps). Traces `qrc_adaptive_stage3_eval_{R3,S1}_eta0.1_final.npz` were written before
+any metric. Numbers from `docs/QRC/data/qrc_adaptive_stage3_final_results.json`. All values
+are MSE ratios at shot 49, η = 10⁻¹.
+
+| Test | Bar | R3 | S1 |
+|---|---|---|---|
+| A1a (K / MSE, ν₀-assumed, well-specified) | [0.8, 1.25] | 0.99 PASS | 1.00 PASS |
+| A1b (CRB_ν / MSE, joint Bayes, 25 grid) | [0.8, 1.25] | 0.99 PASS | 0.90 PASS |
+| **A2 (joint zoom-cap hits at shot 49, max)** | ≤ 5% | 0.5% PASS | **7.5% FAIL** |
+| A3 (no leakage) | procedural | PASS | PASS |
+| **Q3-M (median ρ, Δν ≥ 0.4)** | ≥ 2 | **722 PASS** | 3695 (VOID) |
+| Q3-M2 (crossover Δν*, below / above ν₀) | finite both | 0.065 / 0.048 PASS | 0.071 / 0.062 (VOID) |
+| Q3a (e_ν, NN adaptive, well-specified) | ≥ 0.3 | 0.54 PASS | 0.13 FAIL (VOID) |
+| Q3b (r_adapt, 25 grid) | ≥ 1.5 | 3.48 PASS | 1.77 (VOID) |
+
+**Verdict under §4.5.**
+
+- **S1 is VOID.** Gate A2 fails: the joint (θ, ν) posterior hit the 30-pass zoom cap at shot 49
+  in 7.5% of realisations at sweep point ν = −2.588, and 5.0% / 3.5% at two grid points (max
+  over the 29 points, both joint policies). The same posterior shows isolated failures in S1
+  that the median in A1b hides: at (θ, ν) = (2.152, −2.451) bayes-joint's MSE is about 2000×
+  CRB_ν. S1's Tier B and C numbers above are shown for completeness and decide nothing.
+- **R3 passes every pre-registered test.** Tier A holds, Q3-M (primary) passes by a factor of
+  about 360 above the bar, Q3-M2 finds a crossover on both sides, and Q3a and Q3b pass.
+- **Overall: not decided.** The pre-registration requires both systems. Per §4.5, the S1
+  posterior must be fixed and the stage re-frozen before more test data. Note that A2 concerns
+  the *joint* Bayesian reference (it enters only A1b and descriptives), not the two methods in
+  Q3-M; that is a reason to fix it, not to reinterpret the rule.
+
+![Fig. AE3](figures/figAE3_stage3_misspec.png)
+
+*Fig. AE3.* (a) Misspecification ratio ρ = MSE(ν₀-assumed Bayes) / MSE(model-free NN
+adaptive) across the θ₀ = 1.627 sweep, shot 49. Dashed line: the Q3-M bar ρ = 2; dotted
+lines: the far-end threshold Δν = 0.4. S1 (hollow) is VOID. (b) R3, same sweep: the
+ν₀-assumed baseline is best at ν = ν₀ (ρ = 0.08) and is overtaken within Δν ≈ 0.05–0.07,
+i.e. about a 12–16% error in τ_c.
+
+**Reading (R3).**
+
+1. **The contribution holds on R3.** A neural policy and estimator trained only on simulated
+   priors, never told τ_c, beat the ν₀-assumed Bayesian baseline by 19–2335× in MSE at the far
+   end. The baseline's error is a bias floor (MSE 0.02–0.07, i.e. RMSE 0.15–0.27 in log10 σ)
+   that does not shrink with shots.
+2. **The crossover is small and asymmetric in size, not in position.** The model-aware
+   baseline wins only inside |Δν| ≲ 0.05–0.07. On the long-τ_c side the baseline's bias grows
+   fast (ρ up to 2335); on the short side ρ saturates near 20, because CRB_ν itself is large
+   there and the NN is also limited.
+3. **Prior-edge effect at short τ_c.** At ν − ν₀ = −0.55 and −0.41, both the NN and the joint
+   Bayes sit *below* the local CRB_ν (panel b). θ₀ = 1.627 is 0.15 from the prior edge
+   (1.477); a bounded prior beats a local, unbiased-estimator bound there. These two points
+   enter Q3-M only through ρ, which is a ratio of two achieved MSEs, so the verdict is
+   unaffected, but e_ν > 1 at such points is not "beating the bound".
+4. **Distance to the bound.** Median e_ν = 0.54 at the well-specified points (range over the
+   grid 0.10–2.69, the high end being the prior-edge effect). The joint Bayesian method, which
+   is given the noise model with τ_c unknown, is about 2.8× better in MSE than the NN
+   (bayes-joint / nn-adaptive median 0.36). On the long-τ_c side the NN plateaus near
+   3 × 10⁻⁵ while CRB_ν keeps falling to 8 × 10⁻⁶ (panel b).
+5. **The policy matters.** r_adapt = 3.5 (range 1.35–9.6): the learned probe choice, not just
+   the learned estimator, carries the gain.
+
+**Reading (S1, descriptive only, VOID).** The NN's nuisance efficiency on S1 is low
+(e_ν 0.04–0.34; median 0.13 at ν₀), and r_adapt ranges 0.44–5.5. The single-spin model gives
+the network less to work with at 20k steps. That is a training-budget or capacity question for
+a re-frozen run, not a finding.
+
+**What would un-VOID S1 (proposal, not run).** Replace the affine-grid zoom for the S1 joint
+posterior with a version that handles the curved (θ, ν) ridge, e.g. a larger cap plus a
+ridge-aligned frame, or SMC; validate on random dev points only; amend and re-freeze; then
+re-run the S1 joint-Bayes arms (and, if the amendment says so, the full S1 eval) on the test
+points. Re-running on points already seen is a protocol decision and needs the user's go.

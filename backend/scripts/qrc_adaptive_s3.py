@@ -437,12 +437,66 @@ def cmd_analyze(a):
                         "Q3M": c["Q3M_rho_far_median"] >= 2.0,
                         "Q3M2": x_lo is not None and x_hi is not None,
                         "Q3a": c["Q3a_e_nu_nn_well"] >= 0.3, "Q3b": c["Q3b_r_adapt"] >= 1.5}
+        c["void"] = not all(c["verdict"][k] for k in ("A1a", "A1b", "A2", "A3"))  # sec. 4.5: any Tier A fail
         res["cells"][f"{system}_eta{a.eta:g}"] = c
         print(system, json.dumps({k: v for k, v in c.items() if k not in ("per_point_mse", "bounds_mse", "test_th", "test_nu", "A3")}), flush=True)
     cells = res["cells"].values()
     if len(res["cells"]) == 2:
         res["overall"] = {k: all(c["verdict"][k] for c in cells) for k in ("A1a", "A1b", "A2", "A3", "Q3M", "Q3M2", "Q3a", "Q3b")}
+        res["overall"]["void_systems"] = [s for s, c in res["cells"].items() if c["void"]]
     (m.DATA / f"qrc_adaptive_stage3{a.tag}_results.json").write_text(json.dumps(res, indent=1))
+
+
+def cmd_figure(a):
+    """Fig. AE3 from the results JSON: (a) rho(dnu) on the theta0 sweep, (b) MSE vs nu at theta0 (R3)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    res = json.loads((m.DATA / f"qrc_adaptive_stage3{a.tag}_results.json").read_text())
+    col = {"R3": "#2a78d6", "S1": "#eb6834"}
+    fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))
+    for s in ("R3", "S1"):
+        c = res["cells"][f"{s}_eta{a.eta:g}"]
+        sw = c["desc"]["sweep"]
+        x = np.array(sw["nu"]) - NU_MISSPEC
+        o = np.argsort(x)
+        void = c["void"]
+        ax[0].plot(x[o], np.array(sw["rho"])[o], "-o", lw=2, ms=8, color=col[s],
+                   mfc="white" if void else col[s], label=f"{s}" + (" (VOID: gate A2)" if void else ""))
+    ax[0].set_yscale("log")
+    ax[0].axhline(1, color="#888", lw=1)
+    ax[0].axhline(2, color="#888", lw=1, ls="--")
+    for xv in (-0.4, 0.4):
+        ax[0].axvline(xv, color="#bbb", lw=1, ls=":")
+    ax[0].text(-0.58, 2.3, "Q3-M bar ρ = 2", fontsize=8, color="#555")
+    ax[0].set_xlabel("ν − ν₀  (log10 τc; ν₀ = 1 ms)")
+    ax[0].set_ylabel("ρ = MSE(ν₀-assumed Bayes) / MSE(NN adaptive)")
+    ax[0].set_title(f"(a) misspecification ratio, θ₀ = {SWEEP_TH:.3f}, shot {a.N}", fontsize=10)
+    ax[0].legend(frameon=False, fontsize=8)
+    c = res["cells"][f"R3_eta{a.eta:g}"]
+    th, nu = np.array(c["test_th"]), np.array(c["test_nu"])
+    sw = np.abs(th - SWEEP_TH) < 1e-9
+    o = np.argsort(nu[sw])
+    xs = nu[sw][o] - NU_MISSPEC
+    pm, bm = c["per_point_mse"], c["bounds_mse"]
+    for key, lab, cc in (("bayes-misspec", "Bayes, ν₀ assumed", "#eb6834"),
+                         ("nn-adaptive", "NN adaptive (model-free)", "#2a78d6"),
+                         ("bayes-joint", "Bayes, joint (θ, ν)", "#1baf7a")):
+        ax[1].plot(xs, np.array(pm[key])[sw][o], "-o", lw=2, ms=7, color=cc, label=lab)
+    ax[1].plot(xs, np.array(bm["crb_nu"])[sw][o], "--", lw=1.5, color="#555", label="CRB_ν (ν unknown)")
+    ax[1].plot(xs, np.array(bm["known_opt"])[sw][o], ":", lw=1.5, color="#555", label="K (ν known)")
+    ax[1].set_yscale("log")
+    ax[1].set_xlabel("ν − ν₀")
+    ax[1].set_ylabel("MSE of θ̂ at shot 49")
+    ax[1].set_title("(b) R3, same sweep", fontsize=10)
+    ax[1].legend(frameon=False, fontsize=7)
+    for x in ax:
+        x.spines[["top", "right"]].set_visible(False)
+        x.grid(alpha=0.25, lw=0.5)
+    fig.tight_layout()
+    out = Path(__file__).resolve().parents[2] / "docs" / "QRC" / "figures" / "figAE3_stage3_misspec.png"
+    fig.savefig(out, dpi=150)
+    print("wrote", out)
 
 
 def main():
@@ -489,9 +543,13 @@ def main():
     y.add_argument("--N", type=int, default=49)
     y.add_argument("--tag", default="")
     y.add_argument("--prereg", default="")
+    f = sub.add_parser("figure")
+    f.add_argument("--eta", type=float, default=0.1)
+    f.add_argument("--N", type=int, default=49)
+    f.add_argument("--tag", default="_final")
     a = ap.parse_args()
     {"pilot-interp": cmd_pilot_interp, "gen": cmd_gen, "gen-sweep": cmd_gen_sweep, "bounds": cmd_bounds,
-     "train": cmd_train, "eval": cmd_eval, "analyze": cmd_analyze}[a.cmd](a)
+     "train": cmd_train, "eval": cmd_eval, "analyze": cmd_analyze, "figure": cmd_figure}[a.cmd](a)
 
 
 if __name__ == "__main__":
