@@ -133,6 +133,9 @@ def main():
         if p.name.startswith("qrc_diag_lagos"):
             FILES.setdefault(p.name, ("current", "qrc_lagos_diag.py",
                                       "POST-HOC Lagos diagnosis (climate stats vs QRC-ESN gap, 9 cities) + F3 pooled over all 9 untouched cities"))
+        if p.name.startswith("qrc_adaptive_stage2"):
+            FILES.setdefault(p.name, ("current", "qrc_adaptive_est.py stage2-run|stage2-analyze",
+                                      "Adaptive estimation Stage 2 (QRC_AdaptiveEst.md sec. 3): fixed-cycle vs greedy-Fisher vs static-best episodes, known model"))
         if p.name.startswith("qrc_adaptive_stage1"):
             FILES.setdefault(p.name, ("current", "qrc_adaptive_est.py stage1-gen|stage1-analyze",
                                       "Adaptive estimation Stage 1 yardstick (QRC_AdaptiveEst.md sec. 2): CRB vs MLE / M0 ridge / M0 MLP, one parameter log10 sigma, S1 + R3"))

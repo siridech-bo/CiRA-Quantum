@@ -15,7 +15,8 @@ Results are appended below each frozen pre-registration and never edit it.
 - Module C done.
 - Module A done; its unit-test gate passed.
 - Stage 1 done (pre-registered `4d75d11`): **Gate Y PASS, Q1 NO, as predicted.** The M0 estimators are 3–4 orders of magnitude from the CRB; the readout keeps the information; the MLE attains the bound (§2.9).
-- Module B arm (i) built: `app/qrc/adaptive.py`, tests pass. Stage 2 is next.
+- Module B arm (i) built: `app/qrc/adaptive.py`, tests pass.
+- Stage 2 pre-registered (§3); its data are not yet generated.
 
 ---
 
@@ -280,3 +281,108 @@ collective dephasing. This is consistent with the M0 symmetry argument.
 Fig. AE1: `docs/QRC/figures/figAE1_stage1_crb.png` (code
 `docs/QRC/figures/code/qrc_adaptive_stage1_figure.py`). The `lines-lin` readout bound is
 not drawn because it coincides with the raw CRB.
+
+
+---
+
+## 3. Stage 2 — adaptive, known model: is the CRB reached in fewer shots? (PRE-REGISTRATION, frozen)
+
+**Regime:** commuting σz dephasing, as in Stage 1. The model is fully known (θ only
+unknown, τ_c known).
+
+### 3.1 Question
+
+Does Bayesian-adaptive probe choice (Module B arm (i)) reach the CRB **in fewer shots**
+than cycling the fixed 49-probe bank? Does it beat the best *static* single-probe design?
+
+This is textbook Bayesian experimental design. It is the known-model baseline that Stage 3
+must match without the model. It is not a novelty claim.
+
+### 3.2 Setup
+
+- **Systems, θ, prior, noise model, η convention:** as in Stage 1 (§2.2).
+- **η.** **10⁻² (primary)**; 10⁻¹ descriptive.
+- **Shot.** One execution of one probe (`sequences.cpmg`) gives one 512-point FID.
+- **Readout per shot: z = y @ Q.** Q is an orthonormal basis (QR) of the line-phasor span
+  `ma.phi(system)[+1]`, the same span as the Stage-1 `lines-lin` readout.
+  - D = 2L real per shot: S1 L = 1 (D = 2), R3 L = 12 (D = 24).
+  - Q is orthonormal, so the noise stays white with the same σ = ηA/√2. Simulating z
+    directly is exactly equivalent to simulating y and projecting.
+  - FI retained vs the raw FID: 93–98% for S1 and 99.1–99.7% for R3. This was computed
+    before this commit and is disclosed.
+  - All bounds below are for this readout.
+- **Model.** The Stage-1 noiseless grid (801 points), projected, with the 6-point Lagrange
+  interpolant (validated in Stage 1 Gate Y).
+- **True signals.** The Stage-1 test-point FIDs, projected.
+- **Posterior.** `GridPosterior`: uniform prior on [log10 30, log10 300], 201-point grid
+  re-centred to mean ± 10 std. The estimate is the posterior mean.
+
+### 3.3 Policies (shots chosen one at a time, n = 1…196 = 4 bank cycles)
+
+- **fixed-cycle:** probes 0, 1, …, 48, 0, … (the Stage-1 bank, shot by shot).
+- **greedy-fisher:** each shot uses argmax_j of the posterior-averaged one-shot FI.
+- **static-best:** always the single probe with the largest prior-averaged one-shot FI.
+  This is a good non-adaptive design.
+- `GreedyEIG` is built but not run here (cost). It is out of scope for Stage 2.
+
+### 3.4 Episodes, seeds, persistence
+
+- **Episodes.** R = 200 per (system, η, θ0, policy), at the 7 Stage-1 test points θ0.
+- **Seeds.** Shot noise comes from `default_rng([700000, sys, ie, j, r])`. It is
+  **common across policies** (paired comparison).
+- **Persistence.** Per-shot posterior mean, std and chosen probe go to
+  `backend/artifacts/traces/qrc_adaptive_stage2_{S1,R3}_eta{η}.npz` **before** any metric.
+
+### 3.5 Bounds and metrics
+
+- **Per-probe FI.** FI_j(θ0) is the one-shot FI of probe j in the z readout. It comes from
+  the Stage-1 FD stencil, divided by σ².
+- **Bank bound.** B_bank(n) = 1/(n · mean_j FI_j): cycling the bank, n shots.
+- **Locally optimal bound.** B_opt(n) = 1/(n · max_j FI_j). This is the best any policy can
+  do with n shots, because the per-shot FI is at most max_j FI_j.
+- **MSE.** MSE_p(n) = mean over the 200 episodes of (posterior mean − θ0)².
+- **Efficiencies.** e_opt = B_opt(196)/MSE_p(196); e_bank = B_bank(196)/MSE_p(196).
+- **Shots to target.** n*_p = smallest n with MSE_p(n') ≤ B_bank(49) for all n' ≥ n. The
+  target B_bank(49) is the bound of one full bank record; n* is reported as "none" if it
+  is not reached by 196.
+
+### 3.6 Thresholds (η = 10⁻², per system)
+
+The gate:
+
+- **Gate F (sanity).** Median over θ0 of e_bank(fixed-cycle) ∈ [0.8, 1.25]. The posterior
+  mean must be efficient for the bank. If it fails, Stage 2 is VOID.
+
+The questions:
+
+- **Q2a (greedy reaches the bound).** Median over θ0 of e_opt(greedy) ≥ 0.8.
+- **Q2b (fewer measurements, primary).** Median over θ0 of n*_fixed / n*_greedy ≥ 1.5.
+- **Q2c (adaptivity, not just a good probe).** At the edge test point θ0 = 2.327 (where the
+  best probe differs most from the prior-optimal one), MSE_static(196) / MSE_greedy(196) ≥ 1.5.
+
+### 3.7 Disclosed before this commit
+
+These are bound values only; no Stage-2 episode data were generated:
+
+- per-probe FI at the test points;
+- the max/mean FI ratio: 2.0–3.1 (S1) and 2.0–3.0 (R3);
+- the best probe moves from a 200 ms free delay at low σ to a 10 ms free delay at high σ;
+- the FI-retention numbers above;
+- two dev timing episodes at θ = 1.9, which is not a test point (seed 12345, not recorded).
+
+### 3.8 Advance prediction
+
+- **Gate F: PASS.**
+- **Q2a: PASS** on both systems.
+- **Q2b: PASS** on both. The ratio n*_fixed / n*_greedy should be about the FI max/mean ratio,
+  predicted in [1.5, 3.2]. The greedy pays a few shots while the posterior is wide.
+- **Q2c: PASS** on both systems.
+- The adaptive gain on this bank is **modest (≈ 2–3× in shots)**. The bank already
+  contains near-optimal probes for every θ, so the possible gain is capped by the FI
+  max/mean ratio, and adaptivity's other contribution is only to track the θ-dependent
+  best probe.
+- Larger gains would need a richer action space, such as continuous T or N_π. That is
+  noted for Stage 3, not tested here.
+
+Runner: `backend/scripts/qrc_adaptive_est.py stage2-run --jobs 12`, then
+`stage2-analyze --prereg <commit>`. CPU only, about 45 min.
