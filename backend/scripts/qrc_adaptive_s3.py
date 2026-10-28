@@ -398,8 +398,11 @@ def cmd_analyze(a):
         z = dict(np.load(tr))
         assert bool(z["done"].all()), "incomplete trace"
         P = list(z["policies"])
-        if a.joint_from:   # Amendment 1: only the joint-Bayes reference arms come from the re-run
-            j = np.load(s3_eval_trace(system, a.eta, a.joint_from))
+        jtr = s3_eval_trace(system, a.eta, a.joint_from) if a.joint_from else None
+        joint_src = a.tag
+        if jtr is not None and jtr.exists():   # Amendment 1: only the joint-Bayes reference arms come from the re-run
+            joint_src = a.joint_from
+            j = np.load(jtr)
             assert bool(j["done"].all()) and list(j["policies"]) == P
             assert np.allclose(j["test_th"], z["test_th"]) and np.allclose(j["test_nu"], z["test_nu"])
             for p in ("bayes-joint-fixed", "bayes-joint"):
@@ -451,6 +454,7 @@ def cmd_analyze(a):
                         "Q3M": c["Q3M_rho_far_median"] >= 2.0,
                         "Q3M2": x_lo is not None and x_hi is not None,
                         "Q3a": c["Q3a_e_nu_nn_well"] >= 0.3, "Q3b": c["Q3b_r_adapt"] >= 1.5}
+        c["joint_bayes_source"] = joint_src
         c["void"] = not all(c["verdict"][k] for k in ("A1a", "A1b", "A2", "A3"))  # sec. 4.5: any Tier A fail
         res["cells"][f"{system}_eta{a.eta:g}"] = c
         print(system, json.dumps({k: v for k, v in c.items() if k not in ("per_point_mse", "bounds_mse", "test_th", "test_nu", "A3")}), flush=True)
@@ -466,7 +470,7 @@ def cmd_figure(a):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    res = json.loads((m.DATA / f"qrc_adaptive_stage3{a.tag}_results.json").read_text())
+    res = json.loads((m.DATA / f"qrc_adaptive_stage3{a.tag}{a.joint_from}_results.json").read_text())
     col = {"R3": "#2a78d6", "S1": "#eb6834"}
     fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))
     for s in ("R3", "S1"):
@@ -474,9 +478,10 @@ def cmd_figure(a):
         sw = c["desc"]["sweep"]
         x = np.array(sw["nu"]) - NU_MISSPEC
         o = np.argsort(x)
-        void = c["void"]
+        void, posthoc = c["void"], c.get("joint_bayes_source", a.tag) != a.tag
+        note = " (VOID: gate A2)" if void else (" (post-hoc confirmatory, Amendment 1)" if posthoc else "")
         ax[0].plot(x[o], np.array(sw["rho"])[o], "-o", lw=2, ms=8, color=col[s],
-                   mfc="white" if void else col[s], label=f"{s}" + (" (VOID: gate A2)" if void else ""))
+                   mfc="white" if (void or posthoc) else col[s], label=s + note)
     ax[0].set_yscale("log")
     ax[0].axhline(1, color="#888", lw=1)
     ax[0].axhline(2, color="#888", lw=1, ls="--")
@@ -563,6 +568,7 @@ def main():
     f.add_argument("--eta", type=float, default=0.1)
     f.add_argument("--N", type=int, default=49)
     f.add_argument("--tag", default="_final")
+    f.add_argument("--joint-from", default="")
     a = ap.parse_args()
     {"pilot-interp": cmd_pilot_interp, "gen": cmd_gen, "gen-sweep": cmd_gen_sweep, "bounds": cmd_bounds,
      "train": cmd_train, "eval": cmd_eval, "analyze": cmd_analyze, "figure": cmd_figure}[a.cmd](a)

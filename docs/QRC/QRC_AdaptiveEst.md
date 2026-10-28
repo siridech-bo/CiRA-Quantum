@@ -19,7 +19,7 @@ Results are appended below each frozen pre-registration and never edit it.
 - Stage 2 done (pre-registered `99f56de`): **Gate F, Q2a, Q2b PASS; Q2c FAIL (prediction miss: the adaptive gain over the best static probe is at the low-θ edge).** About 2.5× fewer shots than the fixed bank. A v1 posterior-grid bug was fixed and rerun as a disclosed deviation (§3.9).
 - Batched GPU episode runner: `app/qrc/adaptive_batch.py` (1-D, and a 2-D joint (θ, ν) posterior for Stage 3).
 - Module B arm (ii) built: `app/qrc/neural_policy.py` (model-free neural estimator + REINFORCE policy).
-- Stage 3 PRE-REGISTERED (§4): model-free adaptive estimation with τ_c hidden. Primary = misspecification contrast at the low-θ edge (Q3-M: ρ ≥ 2 at Δν ≥ 0.4, both systems), vs a ν₀-assumed Bayesian baseline; joint (θ, ν) Bayesian and nuisance CRB_ν as references. η = 10⁻¹, 49-bank; continuous action deferred to Stage 3b. Predicted: Tier A, Q3-M, Q3-M2, Q3a, Q3b PASS. **Result (§4.10): R3 passes every test (Q3-M median ρ = 722); S1 is VOID (gate A2: joint-posterior cap hits 7.5% > 5%), so the overall verdict is not decided.**
+- Stage 3 PRE-REGISTERED (§4): model-free adaptive estimation with τ_c hidden. Primary = misspecification contrast at the low-θ edge (Q3-M: ρ ≥ 2 at Δν ≥ 0.4, both systems), vs a ν₀-assumed Bayesian baseline; joint (θ, ν) Bayesian and nuisance CRB_ν as references. η = 10⁻¹, 49-bank; continuous action deferred to Stage 3b. Predicted: Tier A, Q3-M, Q3-M2, Q3a, Q3b PASS. **Result (§4.10): R3 passes every test (Q3-M median ρ = 722); S1 is VOID (gate A2: joint-posterior cap hits 7.5% > 5%), so the overall verdict is not decided.** **Amendment 1 (§4.6, post-hoc confirmatory): fixed joint-Bayes posterior (v3b) re-run on S1 only → A2 0.5%, A1b 0.86 PASS; S1 Q3-M 3695 (carried over) corroborates; S1 Q3a 0.13 fails (Tier C).**
 
 ---
 
@@ -915,7 +915,8 @@ are MSE ratios at shot 49, η = 10⁻¹.
 
 *Fig. AE3.* (a) Misspecification ratio ρ = MSE(ν₀-assumed Bayes) / MSE(model-free NN
 adaptive) across the θ₀ = 1.627 sweep, shot 49. Dashed line: the Q3-M bar ρ = 2; dotted
-lines: the far-end threshold Δν = 0.4. S1 (hollow) is VOID. (b) R3, same sweep: the
+lines: the far-end threshold Δν = 0.4. S1 (hollow) was VOID in the frozen run; after Amendment 1 it
+is shown as post-hoc confirmatory (its ρ values are unchanged by the amendment). (b) R3, same sweep: the
 ν₀-assumed baseline is best at ν = ν₀ (ρ = 0.08) and is overtaken within Δν ≈ 0.05–0.07,
 i.e. about a 12–16% error in τ_c.
 
@@ -952,3 +953,56 @@ posterior with a version that handles the curved (θ, ν) ridge, e.g. a larger c
 ridge-aligned frame, or SMC; validate on random dev points only; amend and re-freeze; then
 re-run the S1 joint-Bayes arms (and, if the amendment says so, the full S1 eval) on the test
 points. Re-running on points already seen is a protocol decision and needs the user's go.
+
+#### S1: post-hoc confirmatory (test points previously seen; NOT pre-registered)
+
+> These S1 results were produced after the S1 void (Amendment 1, §4.6). The joint-Bayes
+> reference posterior was fixed (v3b) and re-run on test points that had already been observed.
+> They **corroborate** the pre-registered R3 result and do not carry pre-registered weight. The
+> pre-registered Stage 3 verdict is **R3** (above).
+
+Numbers from `docs/QRC/data/qrc_adaptive_stage3_final_amend1_results.json`
+(`analyze --tag _final --joint-from _amend1`). The re-run took 1.0 h on the cira3 A100 and
+wrote trace `qrc_adaptive_stage3_eval_S1_eta0.1_amend1.npz`. The script asserts that the
+carried-over arms' per-point MSEs are identical to `98d4be2`.
+
+| Test | Bar | S1 (η = 0.1, MSE, shot 49) | Source |
+|---|---|---|---|
+| Q3-M (primary): median ρ at far-off τ_c | ≥ 2 | **3695** (8–11,026 over the 4 far points) | carried over, unchanged from `98d4be2` |
+| Q3-M2: finite crossover each side of ν₀ | finite | Δν* = 0.071 below / 0.062 above | carried over |
+| Q3b: gain from learned probe choice | ≥ 1.5 | **1.77** | carried over |
+| Q3a: efficiency vs the unknown-ν bound | ≥ 0.3 | **0.13** (reported; below the bar) | carried over |
+| A1a (ν₀ baseline vs the known-ν bound) | [0.8, 1.25] | 1.00 | carried over (a Q3-M input; see Amendment 1) |
+| A1b (joint Bayes vs the unknown-ν bound) | [0.8, 1.25] | **0.86** (was 0.90 under v2) | re-run (reference) |
+| A2 (joint-Bayes cap-hit fraction) | ≤ 5% | **0.5%** (was 7.5%) | re-run (reference) |
+
+**Reading.**
+
+- Q3-M and Q3b are **unchanged** from the frozen run (`98d4be2`). Only the joint-Bayes
+  reference (A1b, A2, gap-to-best) was recomputed. The primary comparison never rode on
+  re-analysis of seen data.
+- **A1b passes on its median, but the median hides a split.**
+  - 15 of the 25 grid points sit at 0.81–1.33, and one at 0.40 (θ = 2.327, ν = ν₀).
+  - 9 sit at 0.01–0.09. Seven are at ν > ν₀ (long τ_c); the other two are (1.627, ν₀) and
+    (2.327, −3.549).
+  - Those 9 are the greedy-c single-probe stall predicted in Amendment 1. The myopic design
+    keeps choosing one probe, ν is never resolved, and the reference's MSE stays far above
+    CRB_ν.
+  - The worst point is now 177× the bound (was about 2000× under v2, a lost mode).
+  - So on S1 the joint-Bayes reference is a *weak* reference at long τ_c. The descriptive
+    gap-to-best (bayes-joint / nn-adaptive median 0.13 in MSE) overstates the reference there.
+  - None of this enters Q3-M.
+- **Q3a = 0.13** (below the 0.3 bar) is a *reported quantity*, not a gate (Tier C).
+  - The model-free policy reaches a smaller fraction of the nuisance bound on the single-spin
+    S1 than on R3 (0.54).
+  - The simpler system is harder to run efficiently model-free. That is consistent with the
+    smaller per-shot readout (L = 1) and the Stage 1 S1/R3 information difference.
+- **Boundary sub-bound caveat.** At the shortest-τ_c / low-θ edge, both the neural and the
+  joint-Bayes estimators fall below CRB_ν.
+  - The CRB bounds *unbiased* estimators. The bounded θ prior induces bias that lowers MSE
+    there.
+  - Efficiencies at those points are reported with this caveat. They do not affect Q3-M, which
+    compares two achieved errors.
+
+**With S1 recovered as confirmatory, both molecules support the primary claim (Q3-M passes).**
+R3 carries it as the pre-registered result; S1 corroborates. Tier C Q3a fails on S1 (0.13).
