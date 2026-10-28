@@ -254,6 +254,9 @@ def cmd_train(a):
     print("wrote", path, f"({time.time() - t0:.0f}s)", flush=True)
 
 
+POST2D = {"v2": (41, None),        # frozen run (0ad42cd / 98d4be2)
+          "v3a": (41, 2.0),        # + mode guard (Amendment 1)
+          "v3b": (81, 2.0)}        # + mode guard, 81 x 81 window
 POLICIES = ("nn-fixed", "nn-adaptive", "bayes-misspec", "bayes-oracle", "bayes-joint-fixed", "bayes-joint")
 NU_MISSPEC = -3.0                                  # tau_c = 1 ms (the Stage 1-2 model)
 
@@ -307,7 +310,8 @@ def cmd_eval(a):
     iv = int(np.argmin(np.abs(nu_g - NU_MISSPEC)))
     assert abs(nu_g[iv] - NU_MISSPEC) < 1e-12
     be_mis = BatchedEpisodes(T[:, iv], th_g, sig, TH_LO, TH_HI, n_grid=201, device=a.device)
-    be_2d = BatchedEpisodes2D(T, th_g, nu_g, sig, ((TH_LO, TH_HI), (NU_LO, NU_HI)), device=a.device)
+    n2d, guard = POST2D[a.post2d]
+    be_2d = BatchedEpisodes2D(T, th_g, nu_g, sig, ((TH_LO, TH_HI), (NU_LO, NU_HI)), n=n2d, guard=guard, device=a.device)
     if a.dev:      # dev points (pilot only; never the test grid): random, table signals
         rd = np.random.default_rng(990)
         test_th = rd.uniform(TH_LO + 0.1, TH_HI - 0.1, a.dev)
@@ -364,7 +368,8 @@ def cmd_eval(a):
                                   "policies_run": pols, "noise_rng": "[800000, sys, round(10 log10 1/eta), k, r]",
                                   "points": "k 0-24: 5x5 grid; k 25-28: sweep extras (theta0, nu midpoints)",
                                   "readout": "z = y @ Q (line span); D = 2L real per shot",
-                                  "nu_misspec": NU_MISSPEC, "posterior2d": "v2 (window ~W std, max_zoom 30)"}))
+                                  "nu_misspec": NU_MISSPEC, "posterior2d": a.post2d, "post2d_n_guard": POST2D[a.post2d],
+                                  "max_zoom": 30}))
     print("wrote", out, f"({time.time() - t0:.0f}s)", flush=True)
 
 
@@ -384,15 +389,24 @@ def crossover(dnu, rho):
 def cmd_analyze(a):
     """Tier A gates, Tier B (primary) and Tier C from the saved eval traces
     (QRC_AdaptiveEst.md sec. 4.6). Everything in MSE. -> results JSON."""
-    res = {"prereg": a.prereg, "tag": a.tag, "units": "MSE (variance)", "cells": {}}
+    res = {"prereg": a.prereg, "tag": a.tag, "joint_from": a.joint_from, "units": "MSE (variance)", "cells": {}}
     for system in a.systems:
         tr = s3_eval_trace(system, a.eta, a.tag)
         if not tr.exists():
             print("missing", tr)
             continue
-        z = np.load(tr)
+        z = dict(np.load(tr))
         assert bool(z["done"].all()), "incomplete trace"
         P = list(z["policies"])
+        if a.joint_from:   # Amendment 1: only the joint-Bayes reference arms come from the re-run
+            j = np.load(s3_eval_trace(system, a.eta, a.joint_from))
+            assert bool(j["done"].all()) and list(j["policies"]) == P
+            assert np.allclose(j["test_th"], z["test_th"]) and np.allclose(j["test_nu"], z["test_nu"])
+            for p in ("bayes-joint-fixed", "bayes-joint"):
+                ip = P.index(p)
+                r2 = j["means"].shape[2]
+                z["means"][:, ip] = np.nan
+                z["means"][:, ip, :r2], z["unresolved2d"][:, ip] = j["means"][:, ip], j["unresolved2d"][:, ip]
         th, nu = z["test_th"], z["test_nu"]
         N = int(z["N"])
         b = bounds(system, a.eta)
@@ -444,7 +458,7 @@ def cmd_analyze(a):
     if len(res["cells"]) == 2:
         res["overall"] = {k: all(c["verdict"][k] for c in cells) for k in ("A1a", "A1b", "A2", "A3", "Q3M", "Q3M2", "Q3a", "Q3b")}
         res["overall"]["void_systems"] = [s for s, c in res["cells"].items() if c["void"]]
-    (m.DATA / f"qrc_adaptive_stage3{a.tag}_results.json").write_text(json.dumps(res, indent=1))
+    (m.DATA / f"qrc_adaptive_stage3{a.tag}{a.joint_from}_results.json").write_text(json.dumps(res, indent=1))
 
 
 def cmd_figure(a):
@@ -535,6 +549,7 @@ def main():
     e.add_argument("--model-tag", default="")
     e.add_argument("--tag", default="")
     e.add_argument("--chunk2d", type=int, default=50)
+    e.add_argument("--post2d", choices=list(POST2D), default="v2")
     e.add_argument("--dev", type=int, default=0, help="pilot: N random dev points instead of the test grid")
     e.add_argument("--device", default="cuda")
     y = sub.add_parser("analyze")
@@ -543,6 +558,7 @@ def main():
     y.add_argument("--N", type=int, default=49)
     y.add_argument("--tag", default="")
     y.add_argument("--prereg", default="")
+    y.add_argument("--joint-from", default="", help="eval tag supplying only the bayes-joint* arms (Amendment 1)")
     f = sub.add_parser("figure")
     f.add_argument("--eta", type=float, default=0.1)
     f.add_argument("--N", type=int, default=49)

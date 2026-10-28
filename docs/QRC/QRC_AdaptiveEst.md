@@ -714,6 +714,101 @@ Each test is scored per system. **Overall verdicts need both systems to pass.**
 5. **S1 models did not exist** (only a 2-step smoke test). They are trained with the R3
    recipe before the S1 evaluation.
 
+### Amendment 1: S1 un-void (2026-10-28, after S1 was voided at commit `98d4be2`)
+
+**Trigger.** S1 was voided under the frozen Tier A rule.
+- Gate A2 requires the joint (θ, ν) Bayesian zoom-cap hit fraction at shot 49 to be ≤ 5%. It
+  failed at one sweep point (7.5%).
+- There were also isolated non-converged points; at one of them, MSE was about 2000× the bound.
+
+**What failed: a reference-method tooling issue, not a defect in the claim.**
+- The joint (θ, ν) Bayesian method is a *reference* only. It enters gates A1b and A2 and the
+  descriptive gap-to-best. It does **not** enter the primary test Q3-M (neural adaptive vs the
+  model-aware ν₀ baseline), nor Q3b.
+- The ν₀-assumed baseline has ν fixed and no ridge to collapse, so it is unaffected.
+- What failed is therefore the convergence of a reference posterior. It is independent of the
+  quantities that make up the claim.
+
+**Diagnosis (random practice points only).** Practice points:
+- 8 points drawn uniformly in the long-τ_c region (seed 4242);
+- 4 points over the whole prior (seed 4243);
+- table signals, 200 episodes each, noise keys `[800000, 1, 10, 5000 + k, r]`.
+
+None is a test point. Each episode was compared with the exact posterior on a dense 1201 × 401
+grid over the prior box. The frozen posterior (v2: 41 × 41 affine window, 30-pass cap) has two
+distinct failures:
+1. **Lost mode.** The window zooms onto a wrong mode while the posterior is still broad, and
+   cannot see the true mode again. In one practice episode the local posterior mean was 451
+   posterior sd from the dense-grid mean.
+2. **Thin ridge.** S1 has one complex reading per probe (L = 1), so the posterior is a thin
+   ridge that stays narrower than 2 window cells. The convergence test then never passes,
+   although the estimate is correct. Cap hits at shot 49 reached 14% on practice points.
+
+A third behaviour is **not** a posterior failure. The myopic greedy-c design sometimes picks a
+single probe for all 49 shots, so ν, and with it θ, is never resolved. The local posterior
+agrees with the dense one in those episodes.
+
+**Fix (v3b, `BatchedEpisodes2D(n=81, guard=2.0)`, eval `--post2d v3b`).**
+- *Mode guard.* On every shot, the log-likelihood is also evaluated at every table node. This
+  is exact, because Lagrange interpolation passes through the nodes. If a node beats the best
+  window point by more than 2 nats, the window is re-centred on that node, spanning ±7 node
+  spacings, and re-zoomed.
+- *Finer window.* 81 × 81 points in place of 41 × 41, with the same ±7-sd span.
+- Everything else is unchanged:
+  - convergence test (≥ 2 cells, ring mass ≤ 10⁻⁶);
+  - 30-pass cap;
+  - greedy-c criterion;
+  - priors;
+  - noise.
+- Regression tests:
+  - the guard is silent on a unimodal posterior and gives identical answers;
+  - the node log-likelihood equals the interpolated one at the nodes.
+
+**Validation (practice points only).**
+
+| | v2 (frozen) | v3b |
+|---|---|---|
+| Cap-hit fraction at shot 49, greedy, max over the 12 points | 14% | 1% (0% at 11 of 12) |
+| Cap-hit fraction at shot 49, fixed cycle | 0% | 0% |
+| Posterior-mean agreement with the dense grid (5 worst points × 200 episodes) | one episode 451 sd off | none > 3 sd, ≤ 0.5% > 1 sd, max 1.35 sd |
+
+v3a (the guard alone, 41 × 41) fixed the lost mode but not the thin ridge (14%), so it was
+rejected.
+
+**Disclosed side effect.** With a correctly resolved posterior, the greedy-c single-probe stall
+becomes more frequent at some practice points: 37% of episodes at one point, 8% at another,
+against 2% and 0.5% under v2. Under v2, part of the escape from the stall was numerical noise
+in an under-resolved posterior. This makes the joint-Bayes *reference* weaker at such points,
+so it can lower S1's A1b. That is accepted as the honest consequence of fixing the posterior.
+The design rule is **not** retuned.
+
+**Status of the re-run: post-hoc confirmatory, NOT pre-registered.**
+- The S1 test points had already been observed when the void occurred.
+- A prediction whose test outcome has been seen cannot be restored to pre-registered status.
+  This amendment documents the fix but does **not** re-freeze S1.
+- All recovered S1 numbers are reported in §4.10 as *post-hoc confirmatory (test points
+  previously seen)*. They carry corroborating, not pre-registered, evidential weight.
+
+**Invariance: what keeps the primary claim clean.**
+- The fix recomputes **only** the two joint (θ, ν) Bayesian reference arms (bayes-joint,
+  bayes-joint-fixed). Command:
+  `eval --system S1 --policies bayes-joint-fixed bayes-joint --post2d v3b --R 200 --tag _amend1`.
+  It uses the same paired noise as the first 200 episodes of the frozen run.
+- These arms enter gates A1b and A2 and the gap-to-best figure.
+- All other inputs are carried over **unchanged** from `98d4be2`, through
+  `analyze --tag _final --joint-from _amend1`:
+  - the neural-adaptive, neural-fixed, ν₀-assumed and oracle arms;
+  - **hence Q3-M, Q3-M2, Q3a, Q3b and A1a.**
+- Correction to the draft of this amendment: A1a is computed from the ν₀-assumed baseline,
+  which is a Q3-M input. It is therefore carried over, not re-run.
+- S1's Q3-M median ρ ≈ 3700 is reported unmodified.
+- *If the fix were to require recomputing any Q3-M or Q3b input, this amendment would be void
+  and Stage 3 would be reported R3-only.*
+
+**Gate-structure lesson (applied forward to Stage 3b, not retroactively here).** Future
+pre-registrations will scope each gate to the sub-analyses that use the gated method. A
+reference-method convergence issue then gates only A1b, A2 and the gap, not the primary claim.
+
 ### 4.7 Disclosed pilot data (practice points only, before this commit)
 
 Everything here used random **dev points** (rng 990, never a test point), on the cira3 A100.

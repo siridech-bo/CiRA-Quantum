@@ -154,3 +154,12 @@ def test_batched_2d_posterior_matches_closed_form():
         assert abs(sb[b, -1] / np.sqrt(cov[0, 0]) - 1) < 0.02
     mg, sg, cg = be.run(true, noise, "greedy-c")
     assert np.isfinite(mg).all() and (sg > 0).all()
+    # v3 mode guard: silent on a unimodal posterior (same answer), and the node log-likelihood
+    # it compares against equals the interpolated log-likelihood at the nodes
+    bg = ab.BatchedEpisodes2D(table, thg, nug, sig, ((-2, 2), (-2, 2)), guard=2.0, device="cpu")
+    mv, sv, _ = bg.run(true, noise, "fixed-cycle")
+    assert max(bg.regrabs) == 0.0
+    np.testing.assert_allclose(mv, mb, atol=1e-9)
+    S, n = bg.S_last, bg.n_last
+    nodes = bg.nodes[::97][None].expand(B, -1, -1)
+    np.testing.assert_allclose(bg._node_ll(S, n)[:, ::97].numpy(), bg._ll(nodes, S, n).numpy(), rtol=1e-9, atol=1e-6)

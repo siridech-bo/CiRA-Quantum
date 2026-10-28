@@ -146,7 +146,7 @@ class BatchedEpisodes2D:
     [(Sigma_post^-1 + F_j)^-1]_theta,theta (Bayesian c-optimal, myopic)."""
 
     def __init__(self, table, th_grid, nu_grid, sigma, box, n=41, W=7.0, k=6, resolve=2.0,
-                 shrink=0.5, edge_tol=1e-6, device="cuda"):
+                 shrink=0.5, edge_tol=1e-6, guard=None, device="cuda"):
         self.dev = torch.device(device)
         self.T = torch.as_tensor(table, dtype=torch.complex128, device=self.dev)
         self.th0, self.hth = float(th_grid[0]), float(th_grid[1] - th_grid[0])
@@ -154,7 +154,14 @@ class BatchedEpisodes2D:
         self.n_th, self.n_nu, self.P, self.L = self.T.shape
         self.sigma, self.box, self.n, self.W, self.k = float(sigma), box, n, W, k
         self.resolve, self.shrink, self.edge_tol = resolve, shrink, edge_tol
+        # v3 mode guard (None = off, v2): if a table node beats the best window point by > guard
+        # nats, the window has lost the mode -> re-centre on that node and re-zoom.
+        self.guard = guard
+        tn, vn = torch.meshgrid(torch.as_tensor(th_grid, dtype=torch.float64, device=self.dev),
+                                torch.as_tensor(nu_grid, dtype=torch.float64, device=self.dev), indexing="ij")
+        self.nodes = torch.stack([tn.ravel(), vn.ravel()], -1)          # (n_th * n_nu, 2)
         self.passes, self.unresolved = [], []    # per shot (last run): max zoom passes, fraction hitting max_zoom
+        self.regrabs = []                         # per shot: fraction of episodes re-centred by the guard
         u = torch.linspace(-W, W, n, dtype=torch.float64, device=self.dev)
         U1, U2 = torch.meshgrid(u, u, indexing="ij")
         self.U = torch.stack([U1.ravel(), U2.ravel()], -1)              # (G, 2)
@@ -181,14 +188,24 @@ class BatchedEpisodes2D:
 
     def _eval(self, pts, S, n):
         """Posterior weights on the grid points (B, G)."""
+        return torch.softmax(self._ll(pts, S, n), 1)
+
+    def _ll(self, pts, S, n):
+        """Log-likelihood (up to a per-episode constant) on the grid points (B, G); -inf off the box."""
         mu, _, _ = self._model(pts, derivs=False)
         cross = torch.einsum("bpl,bgpl->bg", S.conj(), mu).real
         nn = torch.einsum("bgp,bp->bg", (mu.abs() ** 2).sum(-1), n)
         ll = (2 * cross - nn) / (2 * self.sigma ** 2)
         (tl, th), (vl, vh) = self.box
         inside = (pts[..., 0] >= tl) & (pts[..., 0] <= th) & (pts[..., 1] >= vl) & (pts[..., 1] <= vh)
-        ll = torch.where(inside, ll, torch.full_like(ll, -torch.inf))
-        return torch.softmax(ll, 1)
+        return torch.where(inside, ll, torch.full_like(ll, -torch.inf))
+
+    def _node_ll(self, S, n):
+        """Log-likelihood at every table node (B, n_th * n_nu): exact (Lagrange interpolation
+        passes through the nodes), no interpolation cost."""
+        cross = torch.einsum("bpl,tvpl->btv", S.conj(), self.T).real
+        nn = torch.einsum("tvp,bp->btv", (self.T.abs() ** 2).sum(-1), n)
+        return ((2 * cross - nn) / (2 * self.sigma ** 2)).reshape(S.shape[0], -1)
 
     def _fbar(self, w, pts):
         """Posterior-averaged one-shot Fisher matrices (B, P, 2, 2)."""
@@ -230,7 +247,7 @@ class BatchedEpisodes2D:
         chosen = torch.empty(B, n_shots, dtype=torch.long, device=dev)
         ar = torch.arange(B, device=dev)
         eye = torch.eye(2, dtype=torch.float64, device=dev)
-        self.passes, self.unresolved = [], []
+        self.passes, self.unresolved, self.why, self.regrabs = [], [], [], []
         for t in range(n_shots):
             if policy == "fixed-cycle":
                 j = torch.full((B,), t % self.P, dtype=torch.long, device=dev)
@@ -244,6 +261,14 @@ class BatchedEpisodes2D:
                 j = torch.full((B,), int(static_j), dtype=torch.long, device=dev)
             S[ar, j] += Y0[ar, j] + self.sigma * Z[:, t]
             n[ar, j] += 1
+            if self.guard is not None:
+                gl, gi = self._node_ll(S, n).max(1)
+                lost = gl > self._ll(pts, S, n).max(1).values + self.guard
+                R0 = torch.diag(torch.tensor([self.hth, self.hnu], dtype=torch.float64, device=dev))
+                m = torch.where(lost[:, None], self.nodes[gi], m)
+                R = torch.where(lost[:, None, None], R0.expand(B, 2, 2), R)   # window +-W node spacings
+                pts = m[:, None] + torch.einsum("bij,gj->bgi", R, self.U)
+                self.regrabs.append(float(lost.double().mean()))
             w = self._eval(pts, S, n)
             done = torch.zeros(B, dtype=torch.bool, device=dev)
             for it in range(max_zoom):
@@ -268,6 +293,13 @@ class BatchedEpisodes2D:
                     break
             self.passes.append(it + 1)
             self.unresolved.append(float((~done).double().mean()))
+            if max_zoom > 1:   # why unresolved episodes failed: (too narrow in u, mass on the ring)
+                _, C2 = self._moments(w, pts)
+                Ri = torch.linalg.inv(R)
+                eig_bad = torch.linalg.eigvalsh(Ri @ C2 @ Ri.transpose(1, 2))[:, 0] < (self.resolve * self.hu) ** 2
+                ring_bad = w[:, self.edge].sum(1) > self.edge_tol
+                self.why.append((float((~done & eig_bad).double().mean()), float((~done & ring_bad).double().mean())))
+            self.done_last, self.S_last, self.n_last = done, S, n
             if greedy:
                 Fbar = self._fbar(w, pts)
             mm, C = self._moments(w, pts)
