@@ -1,7 +1,7 @@
 # De-risking plan + Gate 2 pre-registration: is the model-free policy robust to rich noise?
 
-**STATUS: Gate 2 §§2.1–2.5 FROZEN (this commit) — before any policy was scored on any Gate-2
-configuration.** No threshold, prediction, configuration or metric definition changes after the
+**STATUS: Gate 2 §§2.1–2.5 FROZEN (`4379613`) before any scoring. Regime a RESULT (§2.8): NOT GREEN
+(drift fails; see the design-artefact disclosure); regime b pending the user's decision.** No threshold, prediction, configuration or metric definition changes after the
 first scored run. The verdict (GREEN / AMBER / RED) is a decision output for the hardware
 go/no-go, **not** a publication claim. Code: `backend/scripts/qrc_gate2_richness.py` (the
 `analyze` subcommand implements §2.3–2.5 exactly and is committed with this freeze).
@@ -138,6 +138,38 @@ Per-configuration rows are always reported, so bimodality stays visible.
   - Hence the level choices in §2.2. The residual d of every configuration is reported.
 - **Disclosure for Stage 3.** The Stage-3 OU table (N = 20) differs from N = 40 by d ≤ 0.53 (S1) / 0.19 (R3) at θ₀, but up to **2.7 / 1.0 at τ = 5 ms, mid θ**. Stage 3 is internally consistent (the same N = 20 chain is the simulator and the model), but its "OU" is, strictly, a 21-level chain that is mildly non-Gaussian at the long-τ, high-σ corner.
 
-## 2.8 Results
+## 2.8 Results (regime a; cira3 A100, ~1.5 h; prereg `4379613`)
 
-*(to be filled after the scored run)*
+Data: `docs/QRC/data/qrc_gate2_results.json` (every configuration × θ row). Traces:
+`artifacts/traces/qrc_gate2_{S1,R3}.npz` (engine FIDs + d) and `qrc_gate2_eval_{S1,R3}_eta0.1.npz` (all episodes).
+**Consistency check:** the 5 single-OU references reproduce the frozen Stage-3 MSEs at the same points within
+noise (R3 τ₀: nn 1.10e-4 vs 1.13e-4; baseline 9.9e-6 vs 9.5e-6).
+
+| Family (median over configs × θ) | S1 ρ | S1 g | R3 ρ | R3 g | Criterion | Result |
+|---|---|---|---|---|---|---|
+| Multi-Lorentzian | 13.8 | 0.86 | 29.8 | 0.41 | ρ ≥ 2, g ≤ 2 | **PASS** both |
+| Telegraph | 685 | 0.034 | 286 | 0.11 | ρ ≥ 2, g ≤ 2 | **PASS** both |
+| 1/f (McWhorter) | 36.2 | 3.08 | 33.9 | 4.74 | ρ ≥ 1 | **PASS** both |
+| Drift | 0.017 | 0.042 | 0.033 | 0.15 | ρ ≥ 1 | **FAIL** both |
+
+**Pre-registered verdict, regime a: NOT GREEN** (drift fails on both systems). Per §2.5, regime b decides AMBER / RED.
+
+**Predictions:**
+- Multi-Lorentzian PASS: ✅.
+- Telegraph PASS mostly through τ ≠ τ₀: ✅. The same-τ twins give ρ_twin ≈ ρ at 0.5, 2 and 5 ms.
+- TEL-1ms ρ < 1: ✅ (0.02–0.61).
+- 1/f UNCERTAIN: it passes on ρ, but g is 3–5.
+- Drift LIKELY FAIL: ✅, for the reason predicted.
+
+**Reading (disclosures; none of this changes the verdict above):**
+1. **The drift failure is a design artefact of this pre-registration.** All drift configurations sit at τ₀ = 1 ms, so apart from stationarity the baseline is the correctly specified oracle. ρ there is the Stage-3 matched-τ efficiency gap (0.01–0.1), not a drift effect.
+   - Drift barely hurts either method: G_τ₀ is 0.95–1.6 for the baseline and g_τ₀ is 1–5 for nn. The exception is σ random walk at 20%, mid θ: G_τ₀ = 19 (S1) and 4.0 (R3).
+   - Regime b cannot fix this. At matched τ, ρ is bounded by the baseline's near-optimal efficiency, so a mechanical regime-b run would almost surely end RED for a reason unrelated to robustness. This was not foreseen at the freeze; it was not one of the four decisions put to the user.
+2. **A distribution effect exists, and it cuts both ways.**
+   - At TEL-1ms, mid θ (τ correct, distribution wrong), the baseline is hurt 22× (S1) and 3.8× (R3) relative to its OU twin, while nn is unaffected (dist_nn ≈ 1).
+   - At strong coupling (TEL-5ms, mid θ, d = 52–141) it is **nn** that breaks: dist_nn = 83 (S1) and 18 (R3). ρ stays 336–513 only because the baseline is also τ-misspecified.
+3. **nn has real out-of-distribution failures that the medians hide.**
+   - ML3-2 (84% of the power at 0.44 ms): ρ = 0.0004–0.002, g = 5–48. Here the baseline happens to fit (G_τ₀ = 1–60) while nn degrades 60–1300× from its τ₀ performance.
+   - 1/f has median g of 3–5, and up to 46 at α = 0.8, mid θ.
+   - These are what a broad-prior training (regime b) would target.
+4. **The g envelope is lenient.** nn's worst single-OU MSE (τ = 0.28 ms) is about 40× its best (S1, R3 at θ₀), so g ≤ 2 against it admits large degradations.
