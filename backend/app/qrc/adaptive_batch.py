@@ -79,7 +79,7 @@ class BatchedEpisodes:
         return m, s
 
     def run(self, true_signal, noise, policy, static_j=None, max_zoom=40):
-        """true_signal (P, L) complex; noise (B, n_shots, L) complex standard (unit per real
+        """true_signal (P, L) complex, or per-shot (B, n_shots, P, L); noise (B, n_shots, L) complex standard (unit per real
         component); policy in {"fixed-cycle", "greedy-fisher", "static-best"}.
         Returns numpy means, stds (B, n_shots) and chosen (B, n_shots)."""
         dev = self.dev
@@ -103,7 +103,7 @@ class BatchedEpisodes:
                 j = torch.argmax(torch.einsum("bg,bgp->bp", w, fi), dim=1)
             else:
                 j = torch.full((B,), int(static_j), dtype=torch.long, device=dev)
-            S[ar, j] += Y0[j] + self.sigma * Z[:, t]
+            S[ar, j] += (Y0[ar, t, j] if Y0.dim() == 4 else Y0[j]) + self.sigma * Z[:, t]
             n[ar, j] += 1
             # update: eval on current grid, then re-centre/zoom (>= 2 passes; see adaptive.py)
             w, fi = self._eval(grid, S, n, greedy)

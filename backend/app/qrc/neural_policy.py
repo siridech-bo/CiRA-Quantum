@@ -117,7 +117,8 @@ class Critic(nn.Module):
 def rollout(sim, est, pol, th, nu, N, gen, mode, mu=None, noise=None):
     """One batch of episodes. mode: "sample" (training), "greedy" (argmax) or
     "fixed-cycle". Returns dict with theta estimates (B, N), chosen (B, N), log-probs
-    (B, N) and entropies (B, N). ``mu`` / ``noise`` can be given (evaluation)."""
+    (B, N) and entropies (B, N). ``mu`` (B, P, L) or per-shot (B, N, P, L) / ``noise`` can be
+    given (evaluation)."""
     B = len(th)
     if mu is None:
         mu = sim.mu(th, nu)
@@ -141,7 +142,8 @@ def rollout(sim, est, pol, th, nu, N, gen, mode, mu=None, noise=None):
         else:
             z = noise[:, t]
         S = S.clone()
-        S[ar, a] += mu[ar, a] + sim.sigma * z
+        mt = mu[:, t] if mu.dim() == 4 else mu                       # (B, N, P, L): per-shot signal (drift)
+        S[ar, a] += mt[ar, a] + sim.sigma * z
         n = n.clone()
         n[ar, a] += 1
         ests.append(est(features(S, n, t + 1, N, sim.A)))

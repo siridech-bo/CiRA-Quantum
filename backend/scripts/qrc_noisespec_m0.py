@@ -140,10 +140,11 @@ def chain(sig, tau, N):
 
 
 def noise_generator(params, N):
-    """params: list of (sigma, tau) components -> (W, xi, p) on the product chain."""
-    W, xi, p = chain(*params[0], N)
-    for sig, tau in params[1:]:
-        W2, xi2, p2 = chain(sig, tau, N)
+    """params: list of (sigma, tau) or (sigma, tau, N_c) components -> (W, xi, p) on the
+    product chain (N_c overrides the per-component level count N)."""
+    W, xi, p = chain(*params[0][:2], params[0][2] if len(params[0]) > 2 else N)
+    for c in params[1:]:
+        W2, xi2, p2 = chain(c[0], c[1], c[2] if len(c) > 2 else N)
         I1, I2 = np.eye(len(xi)), np.eye(len(xi2))
         W = np.kron(W, I2) + np.kron(I1, W2)
         xi = (xi[:, None] + xi2[None, :]).ravel()
