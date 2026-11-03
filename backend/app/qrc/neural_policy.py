@@ -184,8 +184,10 @@ def train(sim, N, steps, B, seed, mode="adaptive", lr=3e-4, ent_coef=1e-3, log_e
     eval_steps = sorted({N // 4 - 1, N // 2 - 1, N - 1})
     hist = []
     for step in range(steps):
-        th, nu = sim.sample_prior(B, gen)
-        out = rollout(sim, est, pol, th, nu, N, gen, "sample" if mode == "adaptive" else "fixed-cycle")
+        pr = sim.sample_prior(B, gen)                 # (th, nu) or (th, nu, mu) for a mixture sim
+        th, nu = pr[0], pr[1]
+        out = rollout(sim, est, pol, th, nu, N, gen, "sample" if mode == "adaptive" else "fixed-cycle",
+                      mu=pr[2] if len(pr) > 2 else None)
         loss = est_loss(out["est"], th, nu)
         if mode == "adaptive":
             R = reward(out["est"], th, eval_steps)
