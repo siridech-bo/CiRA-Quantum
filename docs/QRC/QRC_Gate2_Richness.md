@@ -1,7 +1,7 @@
 # De-risking plan + Gate 2 pre-registration: is the model-free policy robust to rich noise?
 
 **STATUS: Gate 2 §§2.1–2.5 FROZEN (`4379613`) before any scoring. Regime a RESULT (§2.8): NOT GREEN
-(drift VOID: mis-designed test, see §2.8); substantive reading AMBER. Regime b addendum §2.9.** No threshold, prediction, configuration or metric definition changes after the
+(drift VOID: mis-designed test, see §2.8); substantive reading AMBER. Regime b addendum §2.9 (frozen `723443e`); **regime b RESULT §2.9.5: RED** (final Gate-2 call: drop the hardware-advantage plan).** No threshold, prediction, configuration or metric definition changes after the
 first scored run. The verdict (GREEN / AMBER / RED) is a decision output for the hardware
 go/no-go, **not** a publication claim. Code: `backend/scripts/qrc_gate2_richness.py` (the
 `analyze` subcommand implements §2.3–2.5 exactly and is committed with this freeze).
@@ -244,3 +244,28 @@ Worst cases are taken over **every configuration × θ** of the scored families 
 ### 2.9.4 Domain-of-validity note carried to Gate 3
 
 The regime-a strong-coupling telegraph break means the method can fail under **strong individual fluctuators**. The Gate-3 noise spectroscopy must therefore check for strong fluctuators and non-Gaussianity (for example, higher-order / non-Gaussian spectroscopy or the statistics of repeated FIDs), not only "rich vs clean S(ω)".
+
+### 2.9.5 Regime-b RESULT (scored once, by the frozen rule): **RED**
+
+nn-b was trained on cira3 (20k steps each; final training rmse 0.017 S1 / 0.023 R3; 2.0 h, both runs concurrently) and scored on the frozen configurations. The identity check passed: nn-adaptive at REF-2 θ₀ re-run equals regime a. `analyze` → `docs/QRC/data/qrc_gate2b_results.json`. Traces: `qrc_gate2b_{bank,bound,eval}_*`.
+
+| nn-b (regime-a nn-adaptive in brackets) | S1 | R3 | Bar |
+|---|---|---|---|
+| C1 median ρ: ML / TEL / 1/f / drift-c | 75 / 284 / 211 / 45 | 31 / 145 / 238 / 103 | ≥ 2 ✅ |
+| C2 worst eligible ρ | **0.0039** (0.0004), ML3-2 | **0.016** (0.0019), ML3-2 | ≥ 1 ❌ |
+| C3 worst g: ML / TEL / 1/f / drift-c | 3.8 (48) / 0.39 (1.4) / 1.3 (46) / **25** (47) | 1.8 (18) / 1.1 (1.2) / 2.3 (28) / **5.2** (5.8) | ≤ 1 ❌ |
+| C4 worst twin ratio: TEL / drift-c | 2.15 (123) / **133** (47) | 1.57 (27) / **6.2** (5.8) | ≤ 2 ❌ |
+
+**Verdict: RED.** C1 holds on both systems; C2, C3 and C4 each fail on both. Per §2.9.3, broad-prior training does **not** bring the worst cases within the bars, so the hardware-advantage plan is dropped; fall back to the demonstration / sim-only paper. Nothing is relaxed or rescored.
+
+What failed, row by row (disclosed for interpretation; does not alter the call):
+- **C2:** only two configurations fail, ML3-2 and TEL-1ms. These are the noises whose effective timescale sits near τ₀. The τ₀ baseline is close to efficient there (efficiency 0.13–0.27 on eligible rows; the 2K exclusion removed 1 S1 and 2 R3 rows at efficiency > 0.8), while nn-b is at efficiency 0.0002–0.03. This is the Stage-3 crossover (the baseline wins within about 12–16% of τ₀) reappearing in rich noise. The underlying limitation is that the policy is far from the known-shape bound everywhere.
+- **C3:** no failing row is a disclosed-conservatism case. Every failing row has K_config ≪ K_envelope (K/K_env ≤ 0.024): the configuration is *more* informative than the policy's worst plain OU, so the excess is policy error. The worst offenders are drift-c at θ = 1.977.
+- **C4:** the failures are all drift-c except S1 TEL-5ms (2.15).
+
+What broad training did fix (relative to regime a, same signals and noise): the stationary rich-noise tails collapsed. S1 multi-Lorentzian worst g went from 48 to 3.8 and 1/f from 46 to 1.3; strong-coupling telegraph twin ratio went from 123 to 2.15 (S1) and from 27 to 1.6 (R3). The tails moved by 10–60×, but not to the bars.
+
+What it made worse: **S1 drift around τ = 3.55 ms.** nn-b is about 15× worse than nn-adaptive on the stationary REF-4 at θ = 1.977, and drift raises its error further (MSE 7×10⁻⁴ at 5% σ-linear and 6×10⁻³ at 20%, against about 10⁻⁵–10⁻⁴ for nn-adaptive). The training drift target was checked against the scored estimand (both pin the power mean of σ²; same random-walk scaling) and no mismatch was found. The cost is real at the long-τ / high-θ corner: one policy trained on a prior spread this broadly (only 15% plain OU) at the Stage-3 budget.
+
+Not tested (would be a new pre-registration, not a rescue of this one): larger budget or architecture, per-family specialist policies, or a hybrid that switches to the τ₀ baseline when a pre-scan places τ near τ₀ (which would target C2).
+
